@@ -220,7 +220,15 @@
     // Hide all windows when clicking floor
     document.addEventListener('mousedown', (e) => {
         if (state.draggingWindow) return; // Prevent hides during drag
-        if (!e.target.closest('.terminal-panel') && !e.target.closest('.robot-card') && !e.target.closest('.modal-overlay') && !e.target.closest('.spawn-btn')) {
+        
+        // If we click the floor (not a panel, not a robot, not a button) -> hide all
+        const isClickingSafeUI = e.target.closest('.terminal-panel') || 
+                                e.target.closest('.robot-avatar') || 
+                                e.target.closest('.modal-overlay') || 
+                                e.target.closest('.settings-container') ||
+                                e.target.closest('.spawn-btn');
+                                
+        if (!isClickingSafeUI) {
             Object.keys(state.terminals).forEach(pName => {
                 const t = state.terminals[pName];
                 if (t && t.panel && !t.panel.classList.contains('hidden')) {
@@ -521,7 +529,7 @@
         e.stopPropagation();
         bringToFront(panel);
         if (tState.isMaximized) {
-            const r = tState.prevRect || {width: 400, height: 400, left: window.innerWidth/2 - 200, top: 100};
+            const r = tState.prevRect || {width: 500, height: 500, left: window.innerWidth/2 - 250, top: 100};
             panel.style.width = r.width + 'px'; panel.style.height = r.height + 'px';
             panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px';
             tState.isMaximized = false;

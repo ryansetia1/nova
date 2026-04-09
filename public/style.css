@@ -1072,9 +1072,9 @@ body:not(.show-visuals) #floor-wrapper svg {
 .terminal-panel {
   position: fixed;
   top: 100px;
-  left: calc(50% - 200px); /* Centered 400px window */
-  width: 400px;
-  height: 400px;
+  left: calc(50% - 250px); /* Centered 500px window */
+  width: 500px;
+  height: 500px;
   background: rgba(13, 17, 23, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-accent);
