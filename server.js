@@ -117,6 +117,26 @@ wss.on('connection', (ws, req) => {
 
   terminals.set(projectName, ptyProcess);
 
+  // --- Auto-execute Agent Command ---
+  const initMarker = path.join(projectPath, '.vagents_init');
+  const hasBeenInitialized = fs.existsSync(initMarker);
+  const agentCommand = hasBeenInitialized 
+    ? 'ollama launch claude --model qwen3.5:cloud -- --continue'
+    : 'ollama launch claude --model qwen3.5:cloud';
+
+  // Send command after a small delay to let the shell settle
+  setTimeout(() => {
+    console.log(`🚀 Executing for ${projectName}: ${agentCommand}`);
+    ptyProcess.write(agentCommand + '\r');
+    if (!hasBeenInitialized) {
+      try {
+        fs.writeFileSync(initMarker, new Date().toISOString());
+      } catch (e) {
+        console.error('Failed to write init marker', e);
+      }
+    }
+  }, 1200);
+
   ptyProcess.onData((data) => {
     try {
       if (ws.readyState === WebSocket.OPEN) {

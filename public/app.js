@@ -44,7 +44,7 @@
     bindEvents();
   }
 
-  // ---- Particles ----
+  // ---- Particles ---- 
   function createParticles() {
     for (let i = 0; i < 25; i++) {
       const particle = document.createElement('div');
@@ -64,10 +64,7 @@
     function update() {
       const now = new Date();
       dom.clock.textContent = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
       });
     }
     update();
@@ -81,30 +78,24 @@
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.terminalCloseBtn.addEventListener('click', hideTerminal);
 
-    // Enter key in modal
     dom.modalInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') handleSpawn();
       if (e.key === 'Escape') closeModal();
     });
 
-    // Click overlay to close modal
     dom.modal.addEventListener('click', (e) => {
       if (e.target === dom.modal) closeModal();
     });
 
-    // Escape key to close terminal
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !dom.terminalPanel.classList.contains('hidden')) {
         hideTerminal();
       }
     });
 
-    // Resize terminal on window resize
     window.addEventListener('resize', () => {
       if (state.fitAddon && state.terminal) {
-        try {
-          state.fitAddon.fit();
-        } catch (e) { /* ignore */ }
+        try { state.fitAddon.fit(); } catch (e) {}
       }
     });
   }
@@ -127,6 +118,11 @@
       const res = await fetch('/api/projects');
       state.projects = await res.json();
       renderRobots();
+
+      // Warm up all existing projects in background
+      state.projects.forEach(project => {
+        setupTerminal(project.name, false);
+      });
     } catch (err) {
       console.error('Failed to load projects:', err);
     }
@@ -140,7 +136,6 @@
       return;
     }
 
-    // Disable button
     dom.modalConfirm.disabled = true;
     dom.modalConfirm.innerHTML = '<div class="spinner"></div> Creating...';
 
@@ -152,7 +147,6 @@
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         showToast('error', '❌', data.error || 'Failed to create project');
         return;
@@ -163,11 +157,11 @@
       renderRobots();
       showToast('success', '🤖', `Robot deployed to "${data.name}"`);
 
-      // Auto-open terminal for the new project
-      setTimeout(() => openTerminal(data.name), 600);
+      // Start the terminal for this new project immediately
+      setupTerminal(data.name, true);
 
     } catch (err) {
-      showToast('error', '❌', 'Network error — is the server running?');
+      showToast('error', '❌', 'Network error');
     } finally {
       dom.modalConfirm.disabled = false;
       dom.modalConfirm.innerHTML = '<span>🚀</span> Deploy Robot';
@@ -183,26 +177,29 @@
     }
 
     dom.emptyState.classList.add('hidden');
-
     const robotEmojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
 
     dom.robotCards.innerHTML = state.projects.map((project, i) => {
       const emoji = robotEmojis[i % robotEmojis.length];
       const isActive = state.activeProject === project.name;
+      const tState = state.terminals && state.terminals[project.name];
+      const isReady = tState && tState.ready;
       const shortPath = `./projects/${project.name}`;
 
       return `
-        <div class="robot-card ${isActive ? 'active' : ''}" data-project="${project.name}" style="animation-delay: ${i * 80}ms" onclick="window.vagents.openTerminal('${project.name}')">
+        <div class="robot-card ${isActive ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
+             data-project="${project.name}" 
+             style="animation-delay: ${i * 80}ms" 
+             onclick="window.vagents.openTerminal('${project.name}')">
           <span class="robot-card-emoji">${emoji}</span>
           <div class="robot-card-name">${project.name}</div>
           <div class="robot-card-path">${shortPath}</div>
           <div class="robot-card-status">
-            <span class="dot"></span>
-            Assigned & Ready
+            ${isReady ? '<span class="dot ready"></span>Ready' : '<div class="spinner-small"></div>Initializing...'}
           </div>
           <div class="robot-card-actions">
-            <button class="robot-card-btn terminal-btn">
-              ⌨️ Terminal
+            <button class="robot-card-btn terminal-btn" ${!isReady ? 'disabled' : ''}>
+              ${isReady ? '⌨️ Open Terminal' : 'Wait...'}
             </button>
           </div>
         </div>
@@ -212,157 +209,113 @@
 
   // ---- Terminal Management ----
   function openTerminal(projectName) {
-    state.activeProject = projectName;
-    renderRobots();
+    if (!state.terminals || !state.terminals[projectName] || !state.terminals[projectName].ready) {
+      showToast('info', '⏳', 'Agent is still warming up...');
+      return;
+    }
+    setupTerminal(projectName, true);
+  }
 
-    // Show panel
-    dom.terminalPanel.classList.remove('hidden');
-    dom.terminalTitle.textContent = `Terminal — ${projectName}`;
-    dom.terminalBadge.textContent = projectName;
-
-    // Initialize state.terminals if missing
+  function setupTerminal(projectName, showUI = false) {
     if (!state.terminals) state.terminals = {};
 
-    // Hide all existing terminal containers
-    Object.values(state.terminals).forEach(t => {
-      t.container.style.display = 'none';
-    });
+    if (showUI) {
+      state.activeProject = projectName;
+      renderRobots();
+      dom.terminalPanel.classList.remove('hidden');
+      dom.terminalTitle.textContent = `Terminal — ${projectName}`;
+      dom.terminalBadge.textContent = projectName;
+    }
 
-    // Check if we need to create a new one
+    // Hide other terminal containers if UI is requested
+    if (showUI) {
+      Object.values(state.terminals).forEach(t => {
+        t.container.style.display = 'none';
+      });
+    }
+
     if (!state.terminals[projectName]) {
-      // Create new container for this project's terminal
+      // Create new terminal container
       const projContainer = document.createElement('div');
+      projContainer.className = 'terminal-instance-container';
       projContainer.style.width = '100%';
       projContainer.style.height = '100%';
+      projContainer.style.display = showUI ? 'block' : 'none';
       dom.terminalContainer.appendChild(projContainer);
 
-      // Create xterm
       const term = new Terminal({
         fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
         fontSize: 13,
         lineHeight: 1.4,
         cursorBlink: true,
-        cursorStyle: 'bar',
-        theme: {
-          background: '#0d1117',
-          foreground: '#e6edf3',
-          cursor: '#6366f1',
-          cursorAccent: '#0d1117',
-          selectionBackground: 'rgba(99, 102, 241, 0.3)',
-          black: '#0d1117',
-          red: '#ff7b72',
-          green: '#7ee787',
-          yellow: '#d29922',
-          blue: '#79c0ff',
-          magenta: '#d2a8ff',
-          cyan: '#a5d6ff',
-          white: '#e6edf3',
-          brightBlack: '#484f58',
-          brightRed: '#ffa198',
-          brightGreen: '#56d364',
-          brightYellow: '#e3b341',
-          brightBlue: '#a5d6ff',
-          brightMagenta: '#d2a8ff',
-          brightCyan: '#b6e3ff',
-          brightWhite: '#ffffff',
-        },
+        theme: { background: '#0d1117', foreground: '#e6edf3', cursor: '#6366f1' },
       });
 
       const fitAddon = new FitAddon.FitAddon();
-      const webLinksAddon = new WebLinksAddon.WebLinksAddon();
-
       term.loadAddon(fitAddon);
-      term.loadAddon(webLinksAddon);
       term.open(projContainer);
 
-      // Connect WebSocket
       const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${wsProtocol}//${location.host}?project=${encodeURIComponent(projectName)}`;
       const ws = new WebSocket(wsUrl);
 
+      state.terminals[projectName] = {
+        term, fitAddon, ws, container: projContainer, ready: false
+      };
+
       ws.onopen = () => {
-        console.log(`✅ Terminal connected for: ${projectName}`);
+        // Initial silent fit if hidden
+        try { fitAddon.fit(); } catch(e) {}
+        
+        // Wait a bit longer for server pty to settle
         setTimeout(() => {
-          fitAddon.fit();
-          ws.send(JSON.stringify({
-            type: 'resize',
-            cols: term.cols,
-            rows: term.rows,
-          }));
-        }, 100);
+          if (ws.readyState === WebSocket.OPEN) {
+            try { fitAddon.fit(); } catch(e) {}
+            ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+            state.terminals[projectName].ready = true;
+            renderRobots();
+          }
+        }, 800);
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === 'output') {
-            term.write(msg.data);
-          } else if (msg.type === 'exit') {
-            term.writeln('\r\n\x1b[90m[Process exited]\x1b[0m');
-          }
-        } catch (e) {
-          // ignore
-        }
+          if (msg.type === 'output') term.write(msg.data);
+        } catch (e) {}
       };
 
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
-        showToast('error', '❌', 'Terminal connection error');
-      };
-
-      term.onData((data) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data }));
-        }
+      term.onData(data => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data }));
       });
-
-      term.onResize(({ cols, rows }) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-        }
-      });
-
-      // Save to state
-      state.terminals[projectName] = {
-        term: term,
-        fitAddon: fitAddon,
-        ws: ws,
-        container: projContainer
-      };
-      
-      // Update global refs for resize events
-      state.terminal = term;
-      state.fitAddon = fitAddon;
-      
     } else {
-      // Restore existing terminal UI
+      // Existing terminal
       const t = state.terminals[projectName];
-      t.container.style.display = 'block';
-      state.terminal = t.term;
-      state.fitAddon = t.fitAddon;
-    }
-
-    // Fit and focus
-    setTimeout(() => {
-      if (state.terminals[projectName].fitAddon) {
-        state.terminals[projectName].fitAddon.fit();
+      if (showUI) {
+        t.container.style.display = 'block';
+        state.terminal = t.term;
+        state.fitAddon = t.fitAddon;
+        
+        // CRITICAL: Wait for the panel's CSS transition (fade/slide) to finish 
+        // before fitting, otherwise the dimensions will be wrong.
+        setTimeout(() => {
+          try {
+            t.fitAddon.fit();
+            t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
+            t.term.focus();
+          } catch(e) {}
+        }, 350); // Matches the CSS transition time roughly
       }
-      state.terminals[projectName].term.focus();
-    }, 200);
+    }
   }
 
   function hideTerminal() {
     dom.terminalPanel.classList.add('hidden');
-    // We intentionally DO NOT close the WebSocket or dispose the terminal anymore!
-    // This allows background processes like npm run dev to keep running.
     state.activeProject = null;
     renderRobots();
   }
 
-  // function closeTerminalConnection is no longer needed but kept for completeness
-  function closeTerminalConnection() {
-    // Intentionally empty to preserve persistency.
-  }
+  function closeTerminalConnection() {}
 
   // ---- Toast Notifications ----
   function showToast(type, icon, message) {
