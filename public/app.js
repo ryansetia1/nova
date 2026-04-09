@@ -38,6 +38,9 @@
     deleteRobotName: $('#delete-robot-name'),
     deleteCancelBtn: $('#delete-cancel-btn'),
     deleteConfirmBtn: $('#delete-confirm-btn'),
+    settingsBtn: $('#settings-btn'),
+    settingsMenu: $('#settings-menu'),
+    toggleVisualsBtn: $('#toggle-visuals-btn'),
   };
 
   // ---- Initialization ----
@@ -48,6 +51,97 @@
     bindEvents();
     startWalkingLoop();
     bindHoverListeners();
+    initDevTool(); 
+  }
+
+  // ---- Dev Tools ----
+  const dev = { isDrawing: false, polygon: [], svg: null, overlay: null };
+  function initDevTool() {
+      // Show existing path on startup
+      renderActivePath();
+
+      document.addEventListener('keydown', e => {
+          if (e.ctrlKey && e.key === 'd') {
+              dev.isDrawing = !dev.isDrawing;
+              if (dev.isDrawing) {
+                  dev.polygon = [];
+                  if (!dev.svg) {
+                      dev.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                      dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:9998;');
+                      $('#floor-wrapper').appendChild(dev.svg);
+                  }
+                  if (dev.overlay) dev.overlay.remove();
+                  dev.svg.innerHTML = '';
+                  showToast('info', '🖌️', 'Draw Mode: ON. Click floor! (Ctrl+D to finish)');
+              } else {
+                  const data = JSON.stringify(dev.polygon);
+                  dev.overlay = document.createElement('div');
+                  dev.overlay.setAttribute('style', 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.9); padding:20px; border-radius:12px; z-index:10000; border:1px solid #6366f1; width:80%; max-width:600px;');
+                  dev.overlay.innerHTML = `
+                      <h4 style="color:#6366f1; margin-bottom:10px;">Copy Walkable Path:</h4>
+                      <textarea style="width:100%; height:120px; background:#111; color:#fff; border:1px solid #333; font-family:monospace; padding:10px; border-radius:4px;">${data}</textarea>
+                      <button onclick="this.parentElement.remove()" style="margin-top:10px; padding:8px 16px; background:#6366f1; border:none; color:#fff; border-radius:4px; cursor:pointer;">Close</button>
+                  `;
+                  document.body.appendChild(dev.overlay);
+                  showToast('success', '✅', 'Path generated below.');
+                  renderActivePath(); // Refresh visualization
+              }
+          }
+      });
+
+      $('#floor-wrapper').addEventListener('mousedown', e => {
+          if (!dev.isDrawing) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / rect.width) * 100;
+          const y = ((e.clientY - rect.top) / rect.height) * 100;
+          dev.polygon.push({x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2))});
+          
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', x + '%'); circle.setAttribute('cy', y + '%');
+          circle.setAttribute('r', '4'); circle.setAttribute('fill', '#f43f5e');
+          dev.svg.appendChild(circle);
+          
+          if (dev.polygon.length > 1) {
+              const p1 = dev.polygon[dev.polygon.length - 2], p2 = dev.polygon[dev.polygon.length - 1];
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', p1.x + '%'); line.setAttribute('y1', p1.y + '%');
+              line.setAttribute('x2', p2.x + '%'); line.setAttribute('y2', p2.y + '%');
+              line.setAttribute('stroke', '#f43f5e'); line.setAttribute('stroke-width', '2');
+              dev.svg.appendChild(line);
+          }
+      });
+  }
+
+  function renderActivePath() {
+      if (WALKABLE_PATH.length < 3) return;
+      if (!dev.svg) {
+          dev.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          dev.svg.setAttribute('viewBox', '0 0 100 100');
+          dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:9998;');
+          $('#floor-wrapper').appendChild(dev.svg);
+      }
+      dev.svg.innerHTML = '';
+      const points = WALKABLE_PATH.map(p => `${p.x},${p.y}`).join(' ');
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', points);
+      polygon.setAttribute('fill', 'rgba(99, 102, 241, 0.2)');
+      polygon.setAttribute('stroke', '#6366f1');
+      polygon.setAttribute('stroke-width', '0.5'); // Adjusted for 100x100 coordinate space
+      polygon.setAttribute('stroke-dasharray', '1,1');
+      dev.svg.appendChild(polygon);
+  }
+
+  function isPointInPolygon(point, vs) {
+      if (!vs || vs.length < 3) return true;
+      let x = point.x, y = point.y;
+      let inside = false;
+      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+          let xi = vs[i].x, yi = vs[i].y;
+          let xj = vs[j].x, yj = vs[j].y;
+          let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+      }
+      return inside;
   }
 
   // ---- Features ---- 
@@ -75,6 +169,28 @@
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.deleteCancelBtn.addEventListener('click', closeDeleteModal);
     dom.deleteConfirmBtn.addEventListener('click', handleDelete);
+
+    // Settings Menu
+    if (dom.settingsBtn) {
+        dom.settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dom.settingsMenu.classList.toggle('hidden');
+        });
+    }
+    
+    if (dom.toggleVisualsBtn) {
+        dom.toggleVisualsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.body.classList.toggle('show-visuals');
+            dom.settingsMenu.classList.add('hidden');
+            const isActive = document.body.classList.contains('show-visuals');
+            showToast('info', isActive ? '👁️' : '🕶️', `Visualization ${isActive ? 'Enabled' : 'Disabled'}`);
+        });
+    }
+
+    document.addEventListener('click', () => {
+        if (dom.settingsMenu) dom.settingsMenu.classList.add('hidden');
+    });
     
     dom.modalInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleSpawn();
@@ -142,7 +258,19 @@
     });
   }
 
-  // ---- Collision Avoidance & Walking Animation Logic ----
+  // ---- Pathing & Walking Animation Logic ----
+  const WALKABLE_PATH = [{"x":17.5,"y":73.75},{"x":19.25,"y":72.38},{"x":17.88,"y":63.63},{"x":50.75,"y":46.75},{"x":51.75,"y":55},{"x":54,"y":54.5},{"x":59.5,"y":58},{"x":63.38,"y":56.5},{"x":63.88,"y":59},{"x":66.13,"y":59.25},{"x":69.63,"y":57.88},{"x":84.13,"y":65.38},{"x":84.38,"y":69.5},{"x":86.63,"y":71.13},{"x":73.38,"y":78.5},{"x":73.5,"y":74},{"x":68.63,"y":71.38},{"x":67.75,"y":64.88},{"x":65.38,"y":64.88},{"x":63.88,"y":65.88},{"x":63.88,"y":70.63},{"x":60.5,"y":75.25},{"x":40.63,"y":63.75},{"x":33.75,"y":71.63},{"x":33.88,"y":82.63},{"x":17.5,"y":74.13}];
+
+  function pickSafePoint() {
+      if (WALKABLE_PATH.length < 3) return { x: 30 + Math.random() * 40, y: 30 + Math.random() * 40 };
+      // Pick a random point and check if it's safe
+      for (let i = 0; i < 50; i++) {
+          const p = { x: Math.random() * 100, y: Math.random() * 100 };
+          if (isPointInPolygon(p, WALKABLE_PATH)) return p;
+      }
+      return WALKABLE_PATH[Math.floor(Math.random() * WALKABLE_PATH.length)];
+  }
+
   function startWalkingLoop() {
     setInterval(() => {
         const projectNames = state.projects.map(p => p.name);
@@ -150,34 +278,49 @@
         projectNames.forEach(name => {
             let r = state.walkingRobots[name];
             if (!r) {
+                const start = pickSafePoint();
+                const target = pickSafePoint();
                 r = state.walkingRobots[name] = {
-                    x: 10 + Math.random() * 70, y: 10 + Math.random() * 70,
-                    tx: Math.random() * 100, ty: Math.random() * 100,
-                    speed: 0.10 + Math.random() * 0.20,
-                    isWalking: true, isHovered: false, isThinking: false, hasUpdate: false
+                    x: start.x, y: start.y,
+                    tx: target.x, ty: target.y,
+                    speed: 0.07 + Math.random() * 0.13, // 2/3 of original speed for better pacing
+                    isWalking: true, isHovered: false, isThinking: false, hasUpdate: false,
+                    isIllegal: false
                 };
             }
+
+            // Boundary check: just flag if they drifted out so we can color the dot red
+            r.isIllegal = !isPointInPolygon({x: r.x, y: r.y}, WALKABLE_PATH);
 
             // Stop if its terminal is open AND visible, or if hovered
             const t = state.terminals[name];
             const isWindowVisible = t && t.panel && !t.panel.classList.contains('hidden');
-            
-            if (isWindowVisible || r.isHovered) {
-                r.isWalking = false;
-            } else {
-                r.isWalking = true;
-            }
+            r.isWalking = !(isWindowVisible || r.isHovered);
 
             if (r.isWalking) {
                 const dx = r.tx - r.x;
                 const dy = r.ty - r.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 1) {
-                    r.tx = 10 + Math.random() * 80;
-                    r.ty = 10 + Math.random() * 80;
+                
+                if (dist < 1.5) { // Arrived at target
+                    const next = pickSafePoint();
+                    r.tx = next.x; r.ty = next.y;
                 } else {
-                    r.x += (dx / dist) * r.speed;
-                    r.y += (dy / dist) * r.speed;
+                    const nextX = r.x + (dx / dist) * r.speed;
+                    const nextY = r.y + (dy / dist) * r.speed;
+                    
+                    if (r.isIllegal) {
+                        // If they somehow slipped outside, let them smoothly glide back 
+                        // towards safety instead of teleporting them violently.
+                        r.x = nextX; r.y = nextY;
+                    } else if (isPointInPolygon({x: nextX, y: nextY}, WALKABLE_PATH)) {
+                        // Safe step inside
+                        r.x = nextX; r.y = nextY;
+                    } else {
+                        // Hit a wall while inside. Smoothly turn to a new safe target.
+                        const next = pickSafePoint();
+                        r.tx = next.x; r.ty = next.y;
+                    }
                 }
             }
         });
@@ -305,12 +448,13 @@
         const isVisible = t && t.panel && !t.panel.classList.contains('hidden');
         const r = state.walkingRobots[p.name];
         const posStyle = r ? `left: ${r.x}%; top: ${r.y}%;` : '';
+        const isIllegal = r?.isIllegal;
         
         const topLabel = p.nickname || p.name;
         const bottomLabel = p.nickname ? p.name : '';
 
         return `
-            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
                  data-project="${p.name}" style="${posStyle}"
                  onclick="window.vagents.openTerminal('${p.name}')">
                 <div class="robot-label top">${topLabel}</div>
@@ -319,6 +463,7 @@
                 <span class="robot-card-emoji">${emoji}</span>
                 <div class="robot-label bottom">${bottomLabel}</div>
                 <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
+                <div class="robot-anchor-dot ${isIllegal ? 'illegal' : ''}"></div>
             </div>`;
     }).join('');
   }

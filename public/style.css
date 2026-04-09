@@ -244,30 +244,39 @@ body {
   margin-top: 6px;
 }
 
-/* Office Floor */
+/* Office Floor Container */
 #office-floor {
   flex: 1;
-  position: relative;
-  min-height: 480px;
-  overflow: hidden;
-  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 520px;
+  padding: 20px;
 }
 
-/* Floor grid pattern */
-#office-floor::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: 
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
+/* 1:1 Wrapper for precise coordinates regardless of screen width */
+#floor-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  background-image: url('Gemini_Generated_Image_uazj4xuazj4xuazj.png');
+  background-size: cover;
+  background-position: center;
+  /* Removed shadows and radius to let the transparent image float */
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Removed floor dark overlay */
+#floor-wrapper::before {
+  display: none;
 }
 
 .office-decoration {
-  display: flex;
-  flex-direction: column;
+  display: none !important;
+}
   align-items: center;
   gap: 16px;
   margin-bottom: 24px;
@@ -295,8 +304,8 @@ body {
 
 /* Robot Area */
 #robot-area {
-  position: relative;
-  min-height: 180px;
+  position: absolute;
+  inset: 0;
 }
 
 .empty-state {
@@ -306,6 +315,7 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 40px;
+  height: 100%;
   opacity: 0.5;
   transition: var(--transition-base);
 }
@@ -352,19 +362,118 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s, top 0.1s linear, left 0.1s linear;
   width: 120px;
   z-index: 10;
   padding: 10px;
+  /* Anchor at feet (bottom center) */
+  transform: translate(-50%, -100%);
+  transition: transform 0.2s, top 0.1s linear, left 0.1s linear;
 }
 
 .robot-avatar:hover {
-  transform: scale(1.1);
+  transform: translate(-50%, -100%) scale(1.1);
   z-index: 100;
 }
 
 .robot-avatar.active {
   z-index: 99;
+}
+
+.robot-anchor-dot {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%) translateY(50%);
+  width: 8px;
+  height: 4px;
+  background: var(--accent-emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-emerald);
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  display: none; /* Hidden by default */
+}
+
+body.show-visuals .robot-anchor-dot {
+  display: block;
+}
+
+body.show-visuals svg polygon {
+  display: block;
+}
+
+/* If SVG has nothing else, we can hide the whole SVG */
+body:not(.show-visuals) #floor-wrapper svg {
+  display: none;
+}
+
+.robot-anchor-dot.illegal {
+  background: #f43f5e;
+  box-shadow: 0 0 15px #f43f5e;
+  opacity: 1;
+}
+
+/* Settings Menu Styles */
+.settings-container {
+  position: relative;
+  margin-left: 15px;
+}
+
+.settings-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: rotate(30deg);
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: rgba(13, 17, 28, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 160px;
+  z-index: 10000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.settings-menu.hidden {
+  display: none;
+}
+
+.settings-menu button {
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: var(--font-main);
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.settings-menu button:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
 }
 
 .robot-label {
@@ -398,7 +507,7 @@ body {
 }
 
 .robot-card-emoji {
-  font-size: 40px;
+  font-size: 64px;
   margin: 0;
   animation: robotIdle 3s ease-in-out infinite;
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
@@ -497,11 +606,7 @@ body {
   50% { transform: translateY(-5px) scale(1.15); }
 }
 
-.robot-card-emoji {
-  font-size: 32px;
-  margin: 0;
-  animation: robotIdle 3s ease-in-out infinite;
-}
+
 
 @keyframes robotIdle {
   0%, 100% { transform: translateY(0) rotate(0deg); }

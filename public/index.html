@@ -30,6 +30,12 @@
           <span class="status-text">System Online</span>
         </div>
         <div class="clock" id="clock"></div>
+        <div class="settings-container">
+          <button id="settings-btn" class="settings-btn">⚙️</button>
+          <div id="settings-menu" class="settings-menu hidden">
+            <button id="toggle-visuals-btn">Toggle Visualize</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -42,29 +48,32 @@
           <p class="room-subtitle">Assign agents to projects — each one gets its own terminal</p>
         </div>
 
-        <!-- Office Floor -->
+        <!-- Office Floor (Container) -->
         <div id="office-floor">
-          <!-- Furniture / Decor -->
-          <div class="office-decoration">
-            <div class="desk-row">
-              <div class="office-item plant">🪴</div>
-              <div class="office-item monitor">🖥️</div>
-              <div class="office-item coffee">☕</div>
-            </div>
-            <div class="office-floor-tiles"></div>
-          </div>
-
-          <!-- Robot spawn area -->
-          <div id="robot-area">
-            <!-- Empty state -->
-            <div id="empty-state" class="empty-state">
-              <div class="empty-icon">🏗️</div>
-              <p>No agents assigned yet</p>
-              <p class="empty-hint">Click "Spawn Agent" to get started</p>
+          <!-- Wrapper to maintain 1:1 aspect ratio for coordinates -->
+          <div id="floor-wrapper">
+            <!-- Furniture / Decor -->
+            <div class="office-decoration">
+              <div class="desk-row">
+                <div class="office-item plant">🪴</div>
+                <div class="office-item monitor">🖥️</div>
+                <div class="office-item coffee">☕</div>
+              </div>
+              <div class="office-floor-tiles"></div>
             </div>
 
-            <!-- Robot cards will be injected here -->
-            <div id="robot-cards"></div>
+            <!-- Robot spawn area -->
+            <div id="robot-area">
+              <!-- Empty state -->
+              <div id="empty-state" class="empty-state">
+                <div class="empty-icon">🏗️</div>
+                <p>No agents assigned yet</p>
+                <p class="empty-hint">Click "Spawn Agent" to get started</p>
+              </div>
+
+              <!-- Robot cards will be injected here -->
+              <div id="robot-cards"></div>
+            </div>
           </div>
         </div>
 
