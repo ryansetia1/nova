@@ -3,4 +3,5 @@ node_modules/
 *.swp
 projects/**/_uploads/
 projects/**/.DS_Store
+projects/
 .vagents_init
