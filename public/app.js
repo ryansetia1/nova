@@ -16,7 +16,8 @@
     dragging: false,
     dragOffset: { x: 0, y: 0 },
     isMaximized: false,
-    prevRect: null
+    prevRect: null,
+    walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered } }
   };
 
   // ---- DOM Elements ----
@@ -39,6 +40,9 @@
     terminalBadge: $('#terminal-project-badge'),
     terminalCloseDot: $('#terminal-close-dot'),
     terminalMaximizeDot: $('#terminal-maximize-dot'),
+    terminalMenuBtn: $('#terminal-menu-btn'),
+    terminalDropdown: $('#terminal-dropdown'),
+    terminalDeleteBtn: $('#terminal-delete-btn'),
     toastContainer: $('#toast-container'),
     particles: $('#particles'),
     deleteModal: $('#delete-modal'),
@@ -54,28 +58,27 @@
     loadProjects();
     bindEvents();
     bindDraggable();
+    startWalkingLoop();
+    bindHoverListeners();
   }
 
   // ---- Features ---- 
   function createParticles() {
+    const colors = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
     for (let i = 0; i < 25; i++) {
-        const particle = document.createElement('div');
-        particle.classList.add('particle');
-        particle.style.left = Math.random() * 100 + '%';
-        particle.style.animationDelay = Math.random() * 8 + 's';
-        particle.style.animationDuration = (6 + Math.random() * 6) + 's';
-        const colors = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
-        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-        dom.particles.appendChild(particle);
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 8 + 's';
+        p.style.animationDuration = (6 + Math.random() * 6) + 's';
+        p.style.background = colors[Math.floor(Math.random() * 4)];
+        dom.particles.appendChild(p);
     }
   }
 
   function startClock() {
-    function update() {
-        dom.clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-    }
-    update();
-    setInterval(update, 1000);
+    function update() { dom.clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false }); }
+    update(); setInterval(update, 1000);
   }
 
   // ---- Events ----
@@ -83,13 +86,20 @@
     dom.spawnBtn.addEventListener('click', openModal);
     dom.modalCancel.addEventListener('click', closeModal);
     dom.modalConfirm.addEventListener('click', handleSpawn);
-    
-    // Terminal Control Dots
     dom.terminalCloseDot.addEventListener('click', hideTerminal);
     dom.terminalMaximizeDot.addEventListener('click', toggleMaximize);
-
     dom.deleteCancelBtn.addEventListener('click', closeDeleteModal);
     dom.deleteConfirmBtn.addEventListener('click', handleDelete);
+    
+    dom.terminalMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.terminalDropdown.classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => dom.terminalDropdown.classList.add('hidden'));
+    dom.terminalDeleteBtn.addEventListener('click', () => {
+        const p = state.projects.find(x => x.name === state.activeProject);
+        if (p) openDeleteModal(p);
+    });
 
     dom.modalInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleSpawn();
@@ -102,8 +112,7 @@
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal();
-            closeDeleteModal();
+            closeModal(); closeDeleteModal();
             if (!dom.terminalPanel.classList.contains('hidden')) hideTerminal();
         }
     });
@@ -113,19 +122,83 @@
             dom.terminalPanel.style.width = (window.innerWidth - 40) + 'px';
             dom.terminalPanel.style.height = (window.innerHeight - 40) + 'px';
         }
-        if (state.fitAddon && state.terminal) {
-            try { state.fitAddon.fit(); } catch (e) {}
+        if (state.fitAddon && state.terminal) try { state.fitAddon.fit(); } catch (e) {}
+    });
+  }
+
+  // ---- Hover Persistence (Event Delegation) ----
+  function bindHoverListeners() {
+    // Using delegation on the parent container which is never re-rendered
+    dom.robotCards.addEventListener('mouseover', (e) => {
+        const card = e.target.closest('.robot-card');
+        if (card) {
+            const name = card.dataset.project;
+            if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = true;
+        }
+    });
+
+    dom.robotCards.addEventListener('mouseout', (e) => {
+        const card = e.target.closest('.robot-card');
+        if (card) {
+            const name = card.dataset.project;
+            if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = false;
         }
     });
   }
 
-  // ---- Draggable & Maximize ----
+  // ---- Walking Animation Logic ----
+  function startWalkingLoop() {
+    const updateInterval = 80; 
+    setInterval(() => {
+        state.projects.forEach(project => {
+            let r = state.walkingRobots[project.name];
+            if (!r) {
+                r = state.walkingRobots[project.name] = {
+                    x: 10 + Math.random() * 70, y: 10 + Math.random() * 70,
+                    tx: Math.random() * 100, ty: Math.random() * 100,
+                    speed: 0.15 + Math.random() * 0.25,
+                    isWalking: true, isHovered: false
+                };
+            }
+
+            // Stop if active terminal OR hovered
+            if (state.activeProject === project.name || r.isHovered) {
+                r.isWalking = false;
+            } else {
+                r.isWalking = true;
+            }
+
+            if (r.isWalking) {
+                const dx = r.tx - r.x;
+                const dy = r.ty - r.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 1) {
+                    r.tx = 10 + Math.random() * 80;
+                    r.ty = 10 + Math.random() * 80;
+                } else {
+                    r.x += (dx / dist) * r.speed;
+                    r.y += (dy / dist) * r.speed;
+                }
+            }
+
+            const el = dom.robotCards.querySelector(`[data-project="${project.name}"]`);
+            if (el) {
+                el.style.left = r.x + '%';
+                el.style.top = r.y + '%';
+            }
+        });
+    }, updateInterval);
+  }
+
+  // ---- Draggable ----
   function bindDraggable() {
     dom.terminalHeader.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.terminal-dot')) return;
-        if (state.isMaximized) return; // Disable drag when maximized
+        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container')) return;
+        if (state.isMaximized) return;
         
         state.dragging = true;
+        dom.terminalPanel.classList.add('dragging');
+        
         const rect = dom.terminalPanel.getBoundingClientRect();
         dom.terminalPanel.style.transform = 'none';
         dom.terminalPanel.style.left = rect.left + 'px';
@@ -149,7 +222,9 @@
     }
 
     function stopDragging() {
+        if (!state.dragging) return;
         state.dragging = false;
+        dom.terminalPanel.classList.remove('dragging');
         document.removeEventListener('mousemove', onDragging);
         document.removeEventListener('mouseup', stopDragging);
         if (state.fitAddon) try { state.fitAddon.fit(); } catch (e) {}
@@ -158,61 +233,41 @@
 
   function toggleMaximize() {
     if (state.isMaximized) {
-        // Restore
         const r = state.prevRect;
-        dom.terminalPanel.style.width = r.width + 'px';
-        dom.terminalPanel.style.height = r.height + 'px';
-        dom.terminalPanel.style.left = r.left + 'px';
-        dom.terminalPanel.style.top = r.top + 'px';
+        dom.terminalPanel.style.width = r.width + 'px'; dom.terminalPanel.style.height = r.height + 'px';
+        dom.terminalPanel.style.left = r.left + 'px'; dom.terminalPanel.style.top = r.top + 'px';
         state.isMaximized = false;
     } else {
-        // Maximize
         state.prevRect = dom.terminalPanel.getBoundingClientRect();
-        dom.terminalPanel.style.left = '20px';
-        dom.terminalPanel.style.top = '20px';
+        dom.terminalPanel.style.left = '20px'; dom.terminalPanel.style.top = '20px';
         dom.terminalPanel.style.width = (window.innerWidth - 40) + 'px';
         dom.terminalPanel.style.height = (window.innerHeight - 40) + 'px';
         dom.terminalPanel.style.transform = 'none';
         state.isMaximized = true;
     }
-    
-    setTimeout(() => {
-        if (state.fitAddon) {
-            state.fitAddon.fit();
-            if (state.terminal) {
-                const t = state.terminals[state.activeProject];
-                if (t) t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
-            }
-        }
-    }, 300);
+    setTimeout(() => { if (state.fitAddon) { state.fitAddon.fit(); if (state.terminal) { const t = state.terminals[state.activeProject]; if (t) t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows })); } } }, 300);
   }
 
-  // ---- Modal & Models ----
+  // ---- Modal & Projects ----
   async function openModal() {
-    dom.modal.classList.remove('hidden');
-    dom.modalInput.value = '';
-    dom.nicknameInput.value = '';
+    dom.modal.classList.remove('hidden'); dom.modalInput.value = ''; dom.nicknameInput.value = '';
     try {
         const res = await fetch('/api/models');
         const models = await res.json();
         dom.modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-        if (models.includes('qwen3.5:cloud')) dom.modelSelect.value = 'qwen3.5:cloud';
-        else if (models.length > 0) dom.modelSelect.value = models[0];
-    } catch (err) {
-        dom.modelSelect.innerHTML = '<option value="qwen3.5:cloud">qwen3.5:cloud</option>';
-    }
+        dom.modelSelect.value = models.includes('qwen3.5:cloud') ? 'qwen3.5:cloud' : models[0];
+    } catch (e) { dom.modelSelect.innerHTML = '<option value="qwen3.5:cloud">qwen3.5:cloud</option>'; }
     setTimeout(() => dom.modalInput.focus(), 100);
   }
-
   function closeModal() { dom.modal.classList.add('hidden'); }
   function openDeleteModal(project) {
     state.projectToDelete = project;
     dom.deleteRobotName.textContent = project.nickname || project.name;
     dom.deleteModal.classList.remove('hidden');
+    dom.terminalDropdown.classList.add('hidden');
   }
   function closeDeleteModal() { dom.deleteModal.classList.add('hidden'); }
 
-  // ---- Project Management ----
   async function loadProjects() {
     try {
         const res = await fetch('/api/projects');
@@ -233,8 +288,7 @@
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
         state.projects.push(data);
-        closeModal();
-        renderRobots();
+        closeModal(); renderRobots();
         setupTerminal(data.name, true);
     } catch (err) {} finally { dom.modalConfirm.disabled = false; }
   }
@@ -245,103 +299,95 @@
     try {
         await fetch(`/api/projects/${encodeURIComponent(project.name)}`, { method: 'DELETE' });
         state.projects = state.projects.filter(p => p.name !== project.name);
-        if (state.terminals[project.name]) {
-            state.terminals[project.name].ws.close();
-            state.terminals[project.name].container.remove();
-            delete state.terminals[project.name];
-        }
+        if (state.terminals[project.name]) { state.terminals[project.name].ws.close(); state.terminals[project.name].container.remove(); delete state.terminals[project.name]; }
         if (state.activeProject === project.name) hideTerminal();
-        closeDeleteModal();
-        renderRobots();
+        closeDeleteModal(); renderRobots();
+        showToast('success', '🗑️', 'Project removed');
     } catch (err) {}
   }
 
-  // ---- Render Robot Cards ----
+  // ---- Render ----
   function renderRobots() {
     if (state.projects.length === 0) { dom.emptyState.classList.remove('hidden'); dom.robotCards.innerHTML = ''; return; }
     dom.emptyState.classList.add('hidden');
-    const robotEmojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
-    dom.robotCards.innerHTML = state.projects.map((project, i) => {
-        const emoji = robotEmojis[i % robotEmojis.length];
-        const isActive = state.activeProject === project.name;
-        const tState = state.terminals && state.terminals[project.name];
-        const isReady = tState && tState.ready;
-        return `<div class="robot-card ${isActive ? 'active' : ''} ${!isReady ? 'initializing' : ''}" onclick="window.vagents.openTerminal('${project.name}')">
-            <button class="robot-card-delete-btn" onclick="event.stopPropagation(); window.vagents.confirmDelete('${project.name}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-            <span class="robot-card-emoji">${emoji}</span>
-            <div class="robot-card-name">${project.nickname}</div>
-            <div class="robot-card-path">${project.model}</div>
-            <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : '<div class="spinner-small"></div>Warming up...'}</div>
-        </div>`;
+    const emojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
+    dom.robotCards.innerHTML = state.projects.map((p, i) => {
+        const emoji = emojis[i % emojis.length];
+        const isActive = state.activeProject === p.name;
+        const isReady = state.terminals[p.name] && state.terminals[p.name].ready;
+        const r = state.walkingRobots[p.name];
+        const posStyle = r ? `left: ${r.x}%; top: ${r.y}%;` : '';
+        return `
+            <div class="robot-card ${isActive ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
+                 data-project="${p.name}" style="${posStyle}"
+                 onclick="window.vagents.openTerminal('${p.name}')">
+                <span class="robot-card-emoji">${emoji}</span>
+                <div class="robot-card-name">${p.nickname}</div>
+                <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Active' : 'Warming up...'}</div>
+            </div>`;
     }).join('');
   }
 
   // ---- Terminal Management ----
-  function openTerminal(projectName) {
-    if (!state.terminals[projectName] || !state.terminals[projectName].ready) return showToast('info', '⏳', 'Warming up...');
-    setupTerminal(projectName, true);
+  function openTerminal(pName) {
+    if (!state.terminals[pName] || !state.terminals[pName].ready) return showToast('info', '⏳', 'Warming up...');
+    setupTerminal(pName, true);
   }
 
-  function setupTerminal(projectName, showUI = false) {
+  function setupTerminal(pName, showUI = false) {
     if (showUI) {
-        state.activeProject = projectName;
-        renderRobots();
+        state.activeProject = pName; renderRobots();
         dom.terminalPanel.classList.remove('hidden');
-        const projectMeta = state.projects.find(p => p.name === projectName);
-        dom.terminalTitle.textContent = `Terminal — ${projectMeta ? projectMeta.nickname : projectName}`;
-        dom.terminalBadge.textContent = projectMeta ? projectMeta.model : '';
+        const meta = state.projects.find(x => x.name === pName);
+        dom.terminalTitle.textContent = meta ? meta.nickname : pName;
+        dom.terminalBadge.textContent = meta ? meta.model : '';
         Object.values(state.terminals).forEach(t => t.container.style.display = 'none');
     }
-    if (!state.terminals[projectName]) {
-        const projContainer = document.createElement('div');
-        projContainer.className = 'terminal-instance-container';
-        projContainer.style.width = '100%'; projContainer.style.height = '100%';
-        projContainer.style.display = showUI ? 'block' : 'none';
-        dom.terminalContainer.appendChild(projContainer);
+    if (!state.terminals[pName]) {
+        const cont = document.createElement('div');
+        cont.className = 'terminal-instance-container';
+        cont.style.width = '100%'; cont.style.height = '100%';
+        cont.style.display = showUI ? 'block' : 'none';
+        dom.terminalContainer.appendChild(cont);
         const term = new Terminal({ fontFamily: "monospace", fontSize: 13, theme: { background: '#0d1117', foreground: '#e6edf3' } });
-        const fitAddon = new FitAddon.FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(projContainer);
-        const wsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}?project=${encodeURIComponent(projectName)}`;
-        const ws = new WebSocket(wsUrl);
-        state.terminals[projectName] = { term, fitAddon, ws, container: projContainer, ready: false };
-        ws.onopen = () => {
-            setTimeout(() => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    try { fitAddon.fit(); } catch(e) {}
-                    ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-                    state.terminals[projectName].ready = true;
-                    renderRobots();
-                }
-            }, 1000);
-        };
-        ws.onmessage = (event) => {
-            try { const msg = JSON.parse(event.data); if (msg.type === 'output') term.write(msg.data); } catch (e) {}
-        };
-        term.onData(data => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data })); });
+        const fit = new FitAddon.FitAddon();
+        term.loadAddon(fit); term.open(cont);
+        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}?project=${encodeURIComponent(pName)}`);
+        state.terminals[pName] = { term, fitAddon: fit, ws, container: cont, ready: false };
+        ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { try { fit.fit(); } catch(e) {} ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); state.terminals[pName].ready = true; renderRobots(); } }, 1000); };
+        ws.onmessage = (e) => { try { const msg = JSON.parse(e.data); if (msg.type === 'output') term.write(msg.data); } catch (e) {} };
+        term.onData(d => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data: d })); });
     } else {
-        const t = state.terminals[projectName];
+        const t = state.terminals[pName];
         if (showUI) {
-            t.container.style.display = 'block';
-            state.terminal = t.term;
-            state.fitAddon = t.fitAddon;
-            setTimeout(() => { try { t.fitAddon.fit(); t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows })); t.term.focus(); } catch(e) {} }, 350);
+            t.container.style.display = 'block'; state.terminal = t.term; state.fitAddon = t.fitAddon;
+            setTimeout(() => { 
+                try { 
+                    t.fitAddon.fit(); 
+                    t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows })); 
+                    t.term.scrollToBottom();
+                    t.term.focus(); 
+                } catch(e) {} 
+            }, 350);
         }
     }
   }
 
-  function hideTerminal() { dom.terminalPanel.classList.add('hidden'); state.activeProject = null; renderRobots(); }
-  function showToast(type, icon, message) {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
-    dom.toastContainer.appendChild(toast);
-    setTimeout(() => { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); }, 4000);
+  function hideTerminal() { 
+    dom.terminalPanel.classList.add('hidden'); 
+    state.activeProject = null; 
+    // Reset all robots to walking state
+    Object.values(state.walkingRobots).forEach(r => r.isWalking = true);
+    renderRobots(); 
   }
 
-  window.vagents = { 
-    openTerminal, 
-    confirmDelete: (name) => { const p = state.projects.find(x => x.name === name); if (p) openDeleteModal(p); }
-  };
+  function showToast(type, icon, msg) {
+    const t = document.createElement('div'); t.className = `toast ${type}`;
+    t.innerHTML = `<span class="toast-icon">${icon}</span><span>${msg}</span>`;
+    dom.toastContainer.appendChild(t);
+    setTimeout(() => { t.classList.add('toast-out'); setTimeout(() => t.remove(), 300); }, 4000);
+  }
+
+  window.vagents = { openTerminal };
   document.addEventListener('DOMContentLoaded', init);
 })();

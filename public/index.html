@@ -86,6 +86,16 @@
           </div>
           <div class="terminal-header-right">
             <span class="terminal-project-badge" id="terminal-project-badge"></span>
+            <div class="terminal-menu-container">
+              <button id="terminal-menu-btn" class="terminal-menu-btn" title="More Options">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+              </button>
+              <div id="terminal-dropdown" class="terminal-dropdown hidden">
+                <button id="terminal-delete-btn" class="dropdown-item danger">
+                  <span>🗑️</span> Delete Project
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="terminal-container"></div>
