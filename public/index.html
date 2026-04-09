@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Vagents - Virtual Robot Agent Workspace with modern office environment">
-  <title>Vagents — Robot Workspace</title>
+  <meta name="description" content="Vagents - Virtual Agent Workspace with modern office environment">
+  <title>Vagents — Agent Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
       <section id="office-room">
         <div class="room-header">
           <h2>🏢 Modern Office</h2>
-          <p class="room-subtitle">Assign robots to projects — each one gets its own terminal</p>
+          <p class="room-subtitle">Assign agents to projects — each one gets its own terminal</p>
         </div>
 
         <!-- Office Floor -->
@@ -59,8 +59,8 @@
             <!-- Empty state -->
             <div id="empty-state" class="empty-state">
               <div class="empty-icon">🏗️</div>
-              <p>No robots assigned yet</p>
-              <p class="empty-hint">Click "Spawn Robot" to get started</p>
+              <p>No agents assigned yet</p>
+              <p class="empty-hint">Click "Spawn Agent" to get started</p>
             </div>
 
             <!-- Robot cards will be injected here -->
@@ -71,7 +71,7 @@
         <!-- Spawn Button -->
         <button id="spawn-btn" class="spawn-btn">
           <span class="spawn-btn-icon">⚡</span>
-          <span class="spawn-btn-text">Spawn Robot</span>
+          <span class="spawn-btn-text">Spawn Agent</span>
           <span class="spawn-btn-glow"></span>
         </button>
       </section>
@@ -110,7 +110,7 @@
     <div class="modal">
       <div class="modal-header">
         <span class="modal-icon">🤖</span>
-        <h3>Spawn New Robot</h3>
+        <h3>Spawn New Agent</h3>
       </div>
       <div class="modal-body">
         <div class="input-group">
@@ -135,7 +135,7 @@
       <div class="modal-footer">
         <button id="modal-cancel-btn" class="btn btn-ghost">Cancel</button>
         <button id="modal-confirm-btn" class="btn btn-primary">
-          <span>🚀</span> Deploy Robot
+          <span>🚀</span> Deploy Agent
         </button>
       </div>
     </div>
@@ -146,7 +146,7 @@
     <div class="modal">
       <div class="modal-header">
         <span class="modal-icon">⚠️</span>
-        <h3>Delete Robot?</h3>
+        <h3>Delete Agent?</h3>
       </div>
       <div class="modal-body">
         <p>This will permanently delete the agent <strong id="delete-robot-name"></strong> and its project folder.</p>

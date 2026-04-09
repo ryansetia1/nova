@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+*.swp
+projects/**/_uploads/
+projects/**/.DS_Store
+.vagents_init

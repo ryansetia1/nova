@@ -325,7 +325,20 @@
   function bringToFront(panel) {
     state.topZIndex += 1;
     panel.style.zIndex = state.topZIndex;
+    
+    // Auto-fit and scroll to bottom when brought to front
+    const pName = panel.dataset.project;
+    const t = state.terminals[pName];
+    if (t && t.fitAddon && !panel.classList.contains('hidden')) {
+        setTimeout(() => {
+            try {
+                t.fitAddon.fit();
+                t.term.scrollToBottom();
+            } catch(e) {}
+        }, 50);
+    }
   }
+
 
   function openTerminal(pName) {
     if (!state.terminals[pName] || !state.terminals[pName].ready) return showToast('info', '⏳', 'Warming up...');
@@ -462,10 +475,23 @@
         
         dom.mainContent.appendChild(panel);
 
-        const term = new Terminal({ fontFamily: "monospace", fontSize: 13, theme: { background: '#0d1117', foreground: '#e6edf3' } });
+        const term = new Terminal({ 
+            fontFamily: "var(--font-mono)", 
+            fontSize: 13, 
+            lineHeight: 1.2,
+            scrollback: 5000,
+            cursorBlink: true,
+            theme: { 
+                background: '#0d1117', 
+                foreground: '#e6edf3',
+                cursor: '#6366f1',
+                selectionBackground: 'rgba(99, 102, 241, 0.3)'
+            } 
+        });
         const fit = new FitAddon.FitAddon();
         term.loadAddon(fit); 
         term.open(container);
+
         
         const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}?project=${encodeURIComponent(pName)}`);
         
@@ -477,6 +503,60 @@
         
         bindWindowEvents(pName, panel, t);
 
+        // --- Handle File Drag & Drop ---
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add('drag-over');
+        });
+        
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Prevent flickering when dragging over child elements
+            if (e.relatedTarget && container.contains(e.relatedTarget)) return;
+            container.classList.remove('drag-over');
+        });
+        
+        container.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('drag-over');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                // Take first matched file (currently single item drag drop support)
+                const file = e.dataTransfer.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = async (event) => {
+                    const base64Data = event.target.result;
+                    try {
+                        showToast('info', '⏳', `Uploading ${file.name}...`);
+                        const res = await fetch(`/api/projects/${encodeURIComponent(pName)}/upload`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filename: file.name, filedata: base64Data })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast('success', '✅', `Uploaded: ${file.name}`);
+                            // Paste absolute path directly into the terminal
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'input', data: `"${data.absolutePath}" ` }));
+                                term.focus();
+                            }
+                        } else {
+                            showToast('error', '❌', data.error || 'Upload failed');
+                        }
+                    } catch (err) {
+                        showToast('error', '❌', 'Failed to upload file');
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+
         ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { try { fit.fit(); } catch(e) {} ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); t.ready = true; renderRobots(); } }, 1000); };
         ws.onmessage = (e) => { 
             try { 
@@ -486,7 +566,7 @@
                     const robot = state.walkingRobots[pName];
                     if (robot) {
                         const raw = msg.data;
-                        const isThinkingPattern = raw.includes('Thinking') || raw.includes('thinking') || raw.includes('🔍') || raw.includes('Working');
+                        const isThinkingPattern = /thinking|Thinking|🔍|Working|token|tokens/.test(raw);
                         if (isThinkingPattern) {
                             robot.isThinking = true;
                             if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
@@ -526,8 +606,11 @@
             try { 
                 t.fitAddon.fit(); 
                 t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows })); 
-                t.term.scrollToBottom(); 
-                t.term.focus(); 
+                setTimeout(() => {
+                    t.term.scrollToBottom(); 
+                    t.term.focus(); 
+                    t.term.refresh(0, t.term.rows - 1);
+                }, 50);
             } catch(e) {} 
         }, 350);
     }
