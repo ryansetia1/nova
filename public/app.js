@@ -303,15 +303,20 @@
         const isVisible = t && t.panel && !t.panel.classList.contains('hidden');
         const r = state.walkingRobots[p.name];
         const posStyle = r ? `left: ${r.x}%; top: ${r.y}%;` : '';
+        
+        const topLabel = p.nickname || p.name;
+        const bottomLabel = p.nickname ? p.name : '';
+
         return `
-            <div class="robot-card ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
                  data-project="${p.name}" style="${posStyle}"
                  onclick="window.vagents.openTerminal('${p.name}')">
+                <div class="robot-label top">${topLabel}</div>
                 <div class="robot-thought-bubble">💭</div>
                 <div class="robot-check-badge">✅</div>
                 <span class="robot-card-emoji">${emoji}</span>
-                <div class="robot-card-name">${p.nickname}</div>
-                <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Active' : 'Warming up...'}</div>
+                <div class="robot-label bottom">${bottomLabel}</div>
+                <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
             </div>`;
     }).join('');
   }

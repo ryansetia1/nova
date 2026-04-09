@@ -58,6 +58,14 @@ app.post('/api/projects', (req, res) => {
   try {
     fs.mkdirSync(projectPath, { recursive: true });
 
+    // Initialize a local git repo so agents treat this as a project root
+    try {
+      const { execSync } = require('child_process');
+      execSync('git init', { cwd: projectPath });
+    } catch (gitErr) {
+      console.warn(`⚠️  Failed to initialize git in ${projectPath}:`, gitErr.message);
+    }
+
     // Store metadata
     const meta = {
       name: safeName,
