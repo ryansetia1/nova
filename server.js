@@ -43,7 +43,7 @@ app.get('/api/models', (req, res) => {
 
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname } = req.body;
+  const { name, model, nickname, customPath } = req.body;
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Project name is required' });
@@ -58,14 +58,27 @@ app.post('/api/projects', (req, res) => {
   }
 
   try {
-    fs.mkdirSync(projectPath, { recursive: true });
+    let actualPath = projectPath;
+    if (customPath && customPath.trim()) {
+      actualPath = customPath.trim();
+      if (!path.isAbsolute(actualPath)) {
+         return res.status(400).json({ error: 'Custom path must be exactly an absolute path (e.g. /Users/name/Desktop/folder)' });
+      }
+      if (!fs.existsSync(actualPath)) {
+         fs.mkdirSync(actualPath, { recursive: true });
+      }
+      // Create symlink in projects dir pointing to custom path
+      fs.symlinkSync(actualPath, projectPath, 'dir');
+    } else {
+      fs.mkdirSync(projectPath, { recursive: true });
+    }
 
     // Initialize a local git repo so agents treat this as a project root
     try {
       const { execSync } = require('child_process');
-      execSync('git init', { cwd: projectPath });
+      execSync('git init', { cwd: actualPath });
     } catch (gitErr) {
-      console.warn(`⚠️  Failed to initialize git in ${projectPath}:`, gitErr.message);
+      console.warn(`⚠️  Failed to initialize git in ${actualPath}:`, gitErr.message);
     }
 
     // Store metadata
@@ -73,14 +86,16 @@ app.post('/api/projects', (req, res) => {
       name: safeName,
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
+      customPath: customPath ? actualPath : undefined,
       createdAt: new Date().toISOString()
     };
-    fs.writeFileSync(path.join(projectPath, '.vagents_meta.json'), JSON.stringify(meta));
+    fs.writeFileSync(path.join(actualPath, '.vagents_meta.json'), JSON.stringify(meta));
     
-    console.log(`✅ Created project: ${safeName} (Nickname: ${meta.nickname}) with model ${meta.model}`);
+    console.log(`✅ Created project: ${safeName} (Nickname: ${meta.nickname}) in ${actualPath}`);
     res.json(meta);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create project folder' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create project folder or symlink. Check permissions and path.' });
   }
 });
 
@@ -90,7 +105,15 @@ app.get('/api/projects', (req, res) => {
     if (!fs.existsSync(PROJECTS_DIR)) return res.json([]);
     const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
     const projects = entries
-      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .filter(e => {
+         if (e.name.startsWith('.')) return false;
+         if (e.isDirectory()) return true;
+         if (e.isSymbolicLink()) {
+             try { return fs.statSync(path.join(PROJECTS_DIR, e.name)).isDirectory(); }
+             catch(err) { return false; }
+         }
+         return false;
+      })
       .map(e => {
         const projectPath = path.join(PROJECTS_DIR, e.name);
         const metaPath = path.join(projectPath, '.vagents_meta.json');
@@ -126,11 +149,25 @@ app.delete('/api/projects/:name', (req, res) => {
       terminals.delete(name);
     }
 
-    fs.rmSync(projectPath, { recursive: true, force: true });
-    console.log(`🗑️  Deleted project: ${name}`);
-    res.json({ success: true, message: 'Project deleted' });
+    // Handle symlink deletion (follow link to delete original folder)
+    let finalPathToDelete = projectPath;
+    try {
+      if (fs.lstatSync(projectPath).isSymbolicLink()) {
+        finalPathToDelete = fs.readlinkSync(projectPath);
+        // Remove the symlink first
+        fs.unlinkSync(projectPath);
+      }
+    } catch (e) {}
+
+    // Delete the actual folder (either the symlink target or the local projects folder)
+    if (fs.existsSync(finalPathToDelete)) {
+      fs.rmSync(finalPathToDelete, { recursive: true, force: true });
+    }
+
+    console.log(`🗑️  Deleted project and folder: ${name} (at ${finalPathToDelete})`);
+    res.json({ success: true, message: 'Project and folder deleted' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete project folder' });
+    res.status(500).json({ error: 'Failed to delete project reference' });
   }
 });
 

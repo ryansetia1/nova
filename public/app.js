@@ -24,6 +24,7 @@
     modal: $('#spawn-modal'),
     modalInput: $('#project-name-input'),
     nicknameInput: $('#nickname-input'),
+    customPathInput: $('#custom-path-input'),
     modelSelect: $('#model-select'),
     modalCancel: $('#modal-cancel-btn'),
     modalConfirm: $('#modal-confirm-btn'),
@@ -225,7 +226,7 @@
 
   // ---- Modal & Projects ----
   async function openModal() {
-    dom.modal.classList.remove('hidden'); dom.modalInput.value = ''; dom.nicknameInput.value = '';
+    dom.modal.classList.remove('hidden'); dom.modalInput.value = ''; dom.nicknameInput.value = ''; dom.customPathInput.value = '';
     try {
         const res = await fetch('/api/models');
         const models = await res.json();
@@ -262,11 +263,12 @@
   async function handleSpawn() {
     const name = dom.modalInput.value.trim();
     const nickname = dom.nicknameInput.value.trim();
+    const customPath = dom.customPathInput.value.trim();
     const model = dom.modelSelect.value;
     if (!name) return showToast('error', '❌', 'Name required');
     dom.modalConfirm.disabled = true;
     try {
-        const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, nickname, model }) });
+        const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, nickname, model, customPath }) });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
         state.projects.push(data);
