@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vagents - Virtual Robot Agent Workspace with modern office environment">
+  <title>Vagents — Robot Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient particles -->
+  <div id="particles"></div>
+
+  <!-- Main Layout -->
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <span class="logo-icon">🤖</span>
+        <h1 class="logo-text">Vagents</h1>
+        <span class="logo-badge">WORKSPACE</span>
+      </div>
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text">System Online</span>
+        </div>
+        <div class="clock" id="clock"></div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content">
+      <!-- Office Room -->
+      <section id="office-room">
+        <div class="room-header">
+          <h2>🏢 Modern Office</h2>
+          <p class="room-subtitle">Assign robots to projects — each one gets its own terminal</p>
+        </div>
+
+        <!-- Office Floor -->
+        <div id="office-floor">
+          <!-- Furniture / Decor -->
+          <div class="office-decoration">
+            <div class="desk-row">
+              <div class="office-item plant">🪴</div>
+              <div class="office-item monitor">🖥️</div>
+              <div class="office-item coffee">☕</div>
+            </div>
+            <div class="office-floor-tiles"></div>
+          </div>
+
+          <!-- Robot spawn area -->
+          <div id="robot-area">
+            <!-- Empty state -->
+            <div id="empty-state" class="empty-state">
+              <div class="empty-icon">🏗️</div>
+              <p>No robots assigned yet</p>
+              <p class="empty-hint">Click "Spawn Robot" to get started</p>
+            </div>
+
+            <!-- Robot cards will be injected here -->
+            <div id="robot-cards"></div>
+          </div>
+        </div>
+
+        <!-- Spawn Button -->
+        <button id="spawn-btn" class="spawn-btn">
+          <span class="spawn-btn-icon">⚡</span>
+          <span class="spawn-btn-text">Spawn Robot</span>
+          <span class="spawn-btn-glow"></span>
+        </button>
+      </section>
+
+      <!-- Terminal Panel (slides up) -->
+      <section id="terminal-panel" class="terminal-panel hidden">
+        <div class="terminal-header">
+          <div class="terminal-header-left">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title" id="terminal-title">Terminal</span>
+          </div>
+          <div class="terminal-header-right">
+            <span class="terminal-project-badge" id="terminal-project-badge"></span>
+            <button id="terminal-close-btn" class="terminal-close-btn" title="Hide Terminal">
+              <span>▼</span>
+            </button>
+          </div>
+        </div>
+        <div id="terminal-container"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Spawn Modal -->
+  <div id="spawn-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-icon">🤖</span>
+        <h3>Spawn New Robot</h3>
+      </div>
+      <div class="modal-body">
+        <label for="project-name-input">Project Name</label>
+        <input 
+          type="text" 
+          id="project-name-input" 
+          placeholder="e.g. my-awesome-project" 
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <p class="modal-hint">A new folder will be created in <code>./projects/</code></p>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="modal-confirm-btn" class="btn btn-primary">
+          <span>🚀</span> Deploy Robot
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

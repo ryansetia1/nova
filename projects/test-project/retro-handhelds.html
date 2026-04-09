@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Handhelds - Nostalgia Gaming</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff6b6b;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 30px;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #ff6b6b;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 100px 20px;
+            background: radial-gradient(circle, rgba(255,107,107,0.1) 0%, transparent 70%);
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #ff6b6b, 0 0 30px #ff6b6b; }
+            to { text-shadow: 0 0 30px #4ecdc4, 0 0 40px #4ecdc4; }
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: #aaa;
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+        }
+
+        /* Products Section */
+        .products {
+            padding: 80px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 36px;
+            margin-bottom: 50px;
+            color: #4ecdc4;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .product-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: transform 0.3s, background 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .product-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .product-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .product-card h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #ff6b6b;
+        }
+
+        .product-card p {
+            color: #aaa;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .price {
+            font-size: 28px;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 40px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature {
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+
+        .feature h4 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #ff8e8e;
+        }
+
+        .feature p {
+            color: #aaa;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #666;
+        }
+
+        footer p {
+            margin-top: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            nav ul {
+                gap: 15px;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .products, .features {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🎮 RetroHandhelds</div>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#products">Produk</a></li>
+                <li><a href="#features">Fitur</a></li>
+                <li><a href="#contact">Kontak</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero" id="home">
+        <h1>🕹️ Main Klasik, Rasa Modern</h1>
+        <p>Rasakan kembali kenangan masa kecil dengan konsol handheld retro terbaik. Desain nostalgic, teknologi terkini!</p>
+        <a href="#products" class="cta-button">Lihat Produk</a>
+    </section>
+
+    <section class="products" id="products">
+        <h2 class="section-title">Produk Unggulan</h2>
+        <div class="product-grid">
+            <div class="product-card">
+                <div class="product-icon">🎯</div>
+                <h3>Retro Boy X1</h3>
+                <p>Layar 3.5" IPS, baterai 3000mAh, support GB/GBC/GBA. Desain klasik yang nyaman digenggam.</p>
+                <div class="price">Rp 450.000</div>
+            </div>
+            <div class="product-card">
+                <div class="product-icon">🎲</div>
+                <h3>Pixel Pocket</h3>
+                <p>Layar 2.8", open source, support emulator multi-sistem. Cocok untuk modding!</p>
+                <div class="price">Rp 380.000</div>
+            </div>
+            <div class="product-card">
+                <div class="product-icon">👾</div>
+                <h3>GameShell Pro</h3>
+                <p>Layar 4.3" HD, Android 11, WiFi & Bluetooth. Main game retro sampai PS1 lancar!</p>
+                <div class="price">Rp 1.200.000</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <h2 class="section-title">Kenapa Pilih Kami?</h2>
+        <div class="features-grid">
+            <div class="feature">
+                <div class="feature-icon">🔋</div>
+                <h4>Baterai Tahan Lama</h4>
+                <p>Main sampai 8-10 jam non-stop dengan sekali charge</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💾</div>
+                <h4>Save State</h4>
+                <p>Simpan progress kapan saja, nggak perlu password!</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📺</div>
+                <h4>Output TV</h4>
+                <p>Hubungkan ke TV untuk pengalaman yang lebih besar</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🛡️</div>
+                <h4>Garansi 1 Tahun</h4>
+                <p>Jaminan kualitas dan after-sales service terbaik</p>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact">
+        <div class="logo">🎮 RetroHandhelds</div>
+        <p>Jl. Gaming No. 99, Jakarta | WA: 0812-3456-7890</p>
+        <p>&copy; 2026 Retro Handhelds Indonesia. All rights reserved.</p>
+    </footer>
+</body>
+</html>
