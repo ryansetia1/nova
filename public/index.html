@@ -80,16 +80,12 @@
       <section id="terminal-panel" class="terminal-panel hidden">
         <div class="terminal-header">
           <div class="terminal-header-left">
-            <span class="terminal-dot red"></span>
-            <span class="terminal-dot yellow"></span>
-            <span class="terminal-dot green"></span>
+            <div class="terminal-dot red" id="terminal-close-dot" title="Close"></div>
+            <div class="terminal-dot green" id="terminal-maximize-dot" title="Maximize"></div>
             <span class="terminal-title" id="terminal-title">Terminal</span>
           </div>
           <div class="terminal-header-right">
             <span class="terminal-project-badge" id="terminal-project-badge"></span>
-            <button id="terminal-close-btn" class="terminal-close-btn" title="Hide Terminal">
-              <span>▼</span>
-            </button>
           </div>
         </div>
         <div id="terminal-container"></div>

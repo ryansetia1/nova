@@ -760,26 +760,32 @@ body {
 }
 
 /* ============================================
-   TERMINAL PANEL
+   TERMINAL PANEL (FLOATING WINDOW)
    ============================================ */
 
 .terminal-panel {
-  background: #0d1117;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 850px;
+  height: 550px;
+  background: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), var(--shadow-glow);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  transition: all var(--transition-slow);
-  opacity: 1;
-  transform: translateY(0);
-  max-height: 500px;
+  z-index: 2000;
+  transition: opacity var(--transition-base), transform var(--transition-base), visibility var(--transition-base);
 }
 
 .terminal-panel.hidden {
   opacity: 0;
-  transform: translateY(30px);
-  max-height: 0;
-  padding: 0;
-  border: none;
+  transform: translateX(-50%) translateY(40px) scale(0.95);
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -788,9 +794,14 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid var(--border-subtle);
+  cursor: grab;
   user-select: none;
+}
+
+.terminal-header:active {
+  cursor: grabbing;
 }
 
 .terminal-header-left {
@@ -803,11 +814,17 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  cursor: pointer;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
 }
 
-.terminal-dot.red { background: #ff5f57; }
-.terminal-dot.yellow { background: #febc2e; }
-.terminal-dot.green { background: #28c840; }
+.terminal-dot:hover {
+  filter: brightness(1.2);
+  transform: scale(1.1);
+}
+
+.terminal-dot.red { background: #ff5f57; border: 0.5px solid rgba(0,0,0,0.2); }
+.terminal-dot.green { background: #28c840; border: 0.5px solid rgba(0,0,0,0.2); }
 
 .terminal-title {
   margin-left: 8px;
@@ -851,12 +868,15 @@ body {
 }
 
 #terminal-container {
-  height: 380px;
-  padding: 8px;
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+  background: #0d1117;
 }
 
 #terminal-container .xterm {
-  padding: 8px;
+  height: 100%;
+  padding: 4px;
 }
 
 /* ============================================
