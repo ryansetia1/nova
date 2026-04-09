@@ -15,6 +15,7 @@
     resizingWindow: null,
     resizeStart: { w: 0, h: 0, x: 0, y: 0 },
     topZIndex: 2000,
+    selectedEmoji: '🤖',
     walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate } }
   };
 
@@ -43,6 +44,8 @@
     settingsBtn: $('#settings-btn'),
     settingsMenu: $('#settings-menu'),
     toggleVisualsBtn: $('#toggle-visuals-btn'),
+    emojiPicker: $('#emoji-picker'),
+    emojiPreview: $('#selected-emoji-preview'),
   };
 
   // ---- Initialization ----
@@ -194,6 +197,18 @@
         if (dom.settingsMenu) dom.settingsMenu.classList.add('hidden');
     });
     
+    // Emoji Picker Logic (Robust delegation)
+    document.addEventListener('emoji-click', (e) => {
+        if (e.target.id === 'emoji-picker') {
+            const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
+            if (emojiChar) {
+                state.selectedEmoji = emojiChar;
+                const preview = document.getElementById('selected-emoji-preview');
+                if (preview) preview.textContent = emojiChar;
+            }
+        }
+    });
+
     dom.modalInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleSpawn();
         if (e.key === 'Escape') closeModal();
@@ -380,6 +395,8 @@
   // ---- Modal & Projects ----
   async function openModal() {
     dom.modal.classList.remove('hidden'); dom.modalInput.value = ''; dom.nicknameInput.value = ''; dom.customPathInput.value = '';
+    state.selectedEmoji = '🤖';
+    if (dom.emojiPreview) dom.emojiPreview.textContent = '🤖';
     try {
         const res = await fetch('/api/models');
         const models = await res.json();
@@ -418,10 +435,15 @@
     const nickname = dom.nicknameInput.value.trim();
     const customPath = dom.customPathInput.value.trim();
     const model = dom.modelSelect.value;
+    const emoji = state.selectedEmoji || '🤖';
     if (!name) return showToast('error', '❌', 'Name required');
     dom.modalConfirm.disabled = true;
     try {
-        const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, nickname, model, customPath }) });
+        const res = await fetch('/api/projects', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ name, nickname, model, customPath, emoji }) 
+        });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
         state.projects.push(data);
@@ -450,9 +472,10 @@
   function renderRobots() {
     if (state.projects.length === 0) { dom.emptyState.classList.remove('hidden'); dom.robotCards.innerHTML = ''; return; }
     dom.emptyState.classList.add('hidden');
-    const emojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
+    const fallbackEmojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
     dom.robotCards.innerHTML = state.projects.map((p, i) => {
-        const emoji = emojis[i % emojis.length];
+        // Explicitly prioritize the saved emoji character
+        const emoji = p.emoji || fallbackEmojis[i % fallbackEmojis.length];
         const t = state.terminals[p.name];
         const isReady = t && t.ready;
         const isVisible = t && t.panel && !t.panel.classList.contains('hidden');

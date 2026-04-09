@@ -43,7 +43,7 @@ app.get('/api/models', (req, res) => {
 
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname, customPath } = req.body;
+  const { name, model, nickname, customPath, emoji } = req.body;
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Project name is required' });
@@ -86,6 +86,7 @@ app.post('/api/projects', (req, res) => {
       name: safeName,
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
+      emoji: emoji || '🤖',
       customPath: customPath ? actualPath : undefined,
       createdAt: new Date().toISOString()
     };
@@ -283,6 +284,28 @@ wss.on('connection', (ws, req) => {
   ptyProcess.onData((data) => {
     try {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data }));
+
+      // --- Auto-Recovery Logic ---
+      // If we see "No conversation found", it means the --continue flag failed.
+      // We should instantly fallback to a fresh start.
+      const errorMarkers = ["No conversation found", "no conversation matching"];
+      const hasError = errorMarkers.some(marker => data.includes(marker));
+      
+      if (hasError && !ptyProcess._hasRecovered) {
+          ptyProcess._hasRecovered = true; // Prevent infinite loops
+          console.log(`⚠️  Detected missing conversation for ${projectName}. Rescuing...`);
+          
+          // Clear the init marker so next cold start is also fresh
+          try { if (fs.existsSync(initMarker)) fs.unlinkSync(initMarker); } catch(e) {}
+
+          const fallbackCmd = `ollama launch claude --model ${model}`;
+          setTimeout(() => {
+              ptyProcess.write('\x03'); // Send Ctrl+C to clear any stuck prompt
+              setTimeout(() => {
+                  ptyProcess.write(fallbackCmd + '\r');
+              }, 500);
+          }, 500);
+      }
     } catch (e) {}
   });
 

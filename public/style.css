@@ -990,6 +990,57 @@ body:not(.show-visuals) #floor-wrapper svg {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
+.selected-emoji-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--bg-primary);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+#selected-emoji-preview {
+  font-size: 32px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-primary);
+}
+
+.emoji-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.emoji-picker-wrapper {
+  max-height: 300px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+emoji-picker {
+  --num-columns: 8;
+  --category-emoji-size: 1.25rem;
+  --emoji-size: 1.5rem;
+  width: 100%;
+  height: 300px;
+}
+
+/* Customize emoji-picker dark theme */
+emoji-picker.dark {
+  --background: var(--bg-primary);
+  --border-color: transparent;
+  --outline-color: var(--accent-primary);
+  --indicator-color: var(--accent-primary);
+}
+
 .modal-body input::placeholder {
   color: var(--text-muted);
 }
@@ -1134,6 +1185,7 @@ body:not(.show-visuals) #floor-wrapper svg {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
 .terminal-dot {
@@ -1300,17 +1352,6 @@ body:not(.show-visuals) #floor-wrapper svg {
 /* ============================================
    TERMINAL ENHANCEMENTS (Tabs, Explorer, Editor)
    ============================================ */
-
-.terminal-header {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-}
-
-.terminal-header-center {
-    display: flex;
-    justify-content: center;
-}
 
 .terminal-tabs {
     display: flex;

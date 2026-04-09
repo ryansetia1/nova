@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
 </head>
 <body>
   <!-- Ambient particles -->
@@ -136,6 +137,17 @@
         <div class="input-group">
           <label for="custom-path-input">Custom Folder Path (Optional)</label>
           <input type="text" id="custom-path-input" placeholder="e.g. /Users/name/Desktop/MyProject" autocomplete="off">
+        </div>
+
+        <div class="input-group">
+          <label>Avatar Emoji</label>
+          <div class="selected-emoji-container">
+            <span id="selected-emoji-preview">🤖</span>
+            <span class="emoji-hint">Click below to change</span>
+          </div>
+          <div class="emoji-picker-wrapper">
+             <emoji-picker id="emoji-picker" class="dark"></emoji-picker>
+          </div>
         </div>
 
         <div class="input-group">
