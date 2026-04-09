@@ -315,7 +315,7 @@
                  onclick="window.vagents.openTerminal('${p.name}')">
                 <div class="robot-label top">${topLabel}</div>
                 <div class="robot-thought-bubble">💭</div>
-                <div class="robot-check-badge">✅</div>
+                <div class="robot-check-badge"></div>
                 <span class="robot-card-emoji">${emoji}</span>
                 <div class="robot-label bottom">${bottomLabel}</div>
                 <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
