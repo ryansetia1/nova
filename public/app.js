@@ -9,20 +9,20 @@
   const state = {
     projects: [],
     activeProject: null,
-    terminal: null,
+    terminals: {}, // Persistent terminal objects: { projectName: { term, fitAddon, ws, container, ready } }
+    terminal: null, // Current active terminal ref
     fitAddon: null,
-    ws: null,
   };
 
   // ---- DOM Elements ----
   const $ = (sel) => document.querySelector(sel);
-  const $$ = (sel) => document.querySelectorAll(sel);
-
   const dom = {
     clock: $('#clock'),
     spawnBtn: $('#spawn-btn'),
     modal: $('#spawn-modal'),
     modalInput: $('#project-name-input'),
+    nicknameInput: $('#nickname-input'),
+    modelSelect: $('#model-select'),
     modalCancel: $('#modal-cancel-btn'),
     modalConfirm: $('#modal-confirm-btn'),
     robotCards: $('#robot-cards'),
@@ -100,16 +100,30 @@
     });
   }
 
-  // ---- Modal ----
-  function openModal() {
+  // ---- Modal & Models ----
+  async function openModal() {
     dom.modal.classList.remove('hidden');
     dom.modalInput.value = '';
+    dom.nicknameInput.value = '';
+    
+    // Fetch models and populate select
+    try {
+      dom.modelSelect.innerHTML = '<option value="" disabled selected>Loading models...</option>';
+      const res = await fetch('/api/models');
+      const models = await res.json();
+      dom.modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+      // Default select first or qwen if available
+      if (models.includes('qwen3.5:cloud')) dom.modelSelect.value = 'qwen3.5:cloud';
+      else if (models.length > 0) dom.modelSelect.value = models[0];
+    } catch (err) {
+      dom.modelSelect.innerHTML = '<option value="qwen3.5:cloud">qwen3.5:cloud (Default)</option>';
+    }
+
     setTimeout(() => dom.modalInput.focus(), 100);
   }
 
   function closeModal() {
     dom.modal.classList.add('hidden');
-    dom.modalInput.value = '';
   }
 
   // ---- Project Management ----
@@ -119,7 +133,7 @@
       state.projects = await res.json();
       renderRobots();
 
-      // Warm up all existing projects in background
+      // Warm up existing terminals in background
       state.projects.forEach(project => {
         setupTerminal(project.name, false);
       });
@@ -130,32 +144,35 @@
 
   async function handleSpawn() {
     const name = dom.modalInput.value.trim();
+    const nickname = dom.nicknameInput.value.trim();
+    const model = dom.modelSelect.value;
+
     if (!name) {
-      showToast('error', '❌', 'Please enter a project name');
+      showToast('error', '❌', 'Please enter a name for the folder');
       dom.modalInput.focus();
       return;
     }
 
     dom.modalConfirm.disabled = true;
-    dom.modalConfirm.innerHTML = '<div class="spinner"></div> Creating...';
+    dom.modalConfirm.innerHTML = '<div class="spinner-small"></div> Deploying...';
 
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, nickname, model }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        showToast('error', '❌', data.error || 'Failed to create project');
+        showToast('error', '❌', data.error || 'Failed to spawn robot');
         return;
       }
 
       state.projects.push(data);
       closeModal();
       renderRobots();
-      showToast('success', '🤖', `Robot deployed to "${data.name}"`);
+      showToast('success', '🤖', `Agent "${data.nickname}" is online!`);
 
       // Start the terminal for this new project immediately
       setupTerminal(data.name, true);
@@ -184,18 +201,17 @@
       const isActive = state.activeProject === project.name;
       const tState = state.terminals && state.terminals[project.name];
       const isReady = tState && tState.ready;
-      const shortPath = `./projects/${project.name}`;
-
+      
       return `
         <div class="robot-card ${isActive ? 'active' : ''} ${!isReady ? 'initializing' : ''}" 
              data-project="${project.name}" 
              style="animation-delay: ${i * 80}ms" 
              onclick="window.vagents.openTerminal('${project.name}')">
           <span class="robot-card-emoji">${emoji}</span>
-          <div class="robot-card-name">${project.name}</div>
-          <div class="robot-card-path">${shortPath}</div>
+          <div class="robot-card-name">${project.nickname}</div>
+          <div class="robot-card-path">${project.model}</div>
           <div class="robot-card-status">
-            ${isReady ? '<span class="dot ready"></span>Ready' : '<div class="spinner-small"></div>Initializing...'}
+            ${isReady ? '<span class="dot ready"></span>Ready' : '<div class="spinner-small"></div>Warming up...'}
           </div>
           <div class="robot-card-actions">
             <button class="robot-card-btn terminal-btn" ${!isReady ? 'disabled' : ''}>
@@ -223,19 +239,18 @@
       state.activeProject = projectName;
       renderRobots();
       dom.terminalPanel.classList.remove('hidden');
-      dom.terminalTitle.textContent = `Terminal — ${projectName}`;
-      dom.terminalBadge.textContent = projectName;
-    }
-
-    // Hide other terminal containers if UI is requested
-    if (showUI) {
+      
+      const projectMeta = state.projects.find(p => p.name === projectName);
+      dom.terminalTitle.textContent = `Terminal — ${projectMeta ? projectMeta.nickname : projectName}`;
+      dom.terminalBadge.textContent = projectMeta ? projectMeta.model : 'Agent';
+      
+      // Hide all containers
       Object.values(state.terminals).forEach(t => {
         t.container.style.display = 'none';
       });
     }
 
     if (!state.terminals[projectName]) {
-      // Create new terminal container
       const projContainer = document.createElement('div');
       projContainer.className = 'terminal-instance-container';
       projContainer.style.width = '100%';
@@ -259,15 +274,10 @@
       const wsUrl = `${wsProtocol}//${location.host}?project=${encodeURIComponent(projectName)}`;
       const ws = new WebSocket(wsUrl);
 
-      state.terminals[projectName] = {
-        term, fitAddon, ws, container: projContainer, ready: false
-      };
+      state.terminals[projectName] = { term, fitAddon, ws, container: projContainer, ready: false };
 
       ws.onopen = () => {
-        // Initial silent fit if hidden
         try { fitAddon.fit(); } catch(e) {}
-        
-        // Wait a bit longer for server pty to settle
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
             try { fitAddon.fit(); } catch(e) {}
@@ -275,13 +285,14 @@
             state.terminals[projectName].ready = true;
             renderRobots();
           }
-        }, 800);
+        }, 1000); // Wait for PTY to be ready on server
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'output') term.write(msg.data);
+          else if (msg.type === 'exit') term.writeln('\r\n\x1b[90m[Process exited]\x1b[0m');
         } catch (e) {}
       };
 
@@ -289,22 +300,19 @@
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data }));
       });
     } else {
-      // Existing terminal
       const t = state.terminals[projectName];
       if (showUI) {
         t.container.style.display = 'block';
         state.terminal = t.term;
         state.fitAddon = t.fitAddon;
         
-        // CRITICAL: Wait for the panel's CSS transition (fade/slide) to finish 
-        // before fitting, otherwise the dimensions will be wrong.
         setTimeout(() => {
           try {
             t.fitAddon.fit();
             t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
             t.term.focus();
           } catch(e) {}
-        }, 350); // Matches the CSS transition time roughly
+        }, 350);
       }
     }
   }
@@ -314,8 +322,6 @@
     state.activeProject = null;
     renderRobots();
   }
-
-  function closeTerminalConnection() {}
 
   // ---- Toast Notifications ----
   function showToast(type, icon, message) {
@@ -327,14 +333,11 @@
     setTimeout(() => {
       toast.classList.add('toast-out');
       setTimeout(() => toast.remove(), 300);
-    }, 3500);
+    }, 4000);
   }
 
   // ---- Expose for inline handlers ----
-  window.vagents = {
-    openTerminal,
-  };
+  window.vagents = { openTerminal };
 
-  // ---- Boot ----
   document.addEventListener('DOMContentLoaded', init);
 })();

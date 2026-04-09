@@ -105,15 +105,24 @@
         <h3>Spawn New Robot</h3>
       </div>
       <div class="modal-body">
-        <label for="project-name-input">Project Name</label>
-        <input 
-          type="text" 
-          id="project-name-input" 
-          placeholder="e.g. my-awesome-project" 
-          autocomplete="off"
-          spellcheck="false"
-        >
-        <p class="modal-hint">A new folder will be created in <code>./projects/</code></p>
+        <div class="input-group">
+          <label for="project-name-input">Project Name (Folder)</label>
+          <input type="text" id="project-name-input" placeholder="e.g. my-agent" autocomplete="off">
+        </div>
+
+        <div class="input-group">
+          <label for="nickname-input">Nickname (Display Name - Optional)</label>
+          <input type="text" id="nickname-input" placeholder="e.g. Code Assistant" autocomplete="off">
+        </div>
+
+        <div class="input-group">
+          <label for="model-select">Agent Model</label>
+          <select id="model-select">
+            <option value="qwen3.5:cloud">qwen3.5:cloud</option>
+          </select>
+        </div>
+
+        <p class="modal-hint">Folder: <code>./projects/[Name]</code></p>
       </div>
       <div class="modal-footer">
         <button id="modal-cancel-btn" class="btn btn-ghost">Cancel</button>
