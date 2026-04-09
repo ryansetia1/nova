@@ -568,7 +568,7 @@
                     const robot = state.walkingRobots[pName];
                     if (robot) {
                         const raw = msg.data;
-                        const isThinkingPattern = /thinking|Thinking|🔍|Working|token|tokens/.test(raw);
+                        const isThinkingPattern = /thinking|Thinking|🔍|Working|token|tokens|\.\.\./.test(raw);
                         if (isThinkingPattern) {
                             robot.isThinking = true;
                             if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
