@@ -12,6 +12,8 @@
     terminals: {}, 
     draggingWindow: null, // the element being dragged
     dragOffset: { x: 0, y: 0 },
+    resizingWindow: null,
+    resizeStart: { w: 0, h: 0, x: 0, y: 0 },
     topZIndex: 2000,
     walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate } }
   };
@@ -519,7 +521,7 @@
         e.stopPropagation();
         bringToFront(panel);
         if (tState.isMaximized) {
-            const r = tState.prevRect || {width: 850, height: 550, left: window.innerWidth/2 - 425, top: 100};
+            const r = tState.prevRect || {width: 400, height: 400, left: window.innerWidth/2 - 200, top: 100};
             panel.style.width = r.width + 'px'; panel.style.height = r.height + 'px';
             panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px';
             tState.isMaximized = false;
@@ -597,6 +599,61 @@
         // Retrigger fit on active dragged window
         const t = state.terminals[panel.dataset.project];
         if (t && t.fitAddon) try { t.fitAddon.fit(); } catch(e){}
+    }
+
+    // Resizable
+    const resizer = panel.querySelector('.terminal-resizer');
+    resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        bringToFront(panel);
+        state.resizingWindow = panel;
+        panel.classList.add('resizing');
+        
+        const rect = panel.getBoundingClientRect();
+        state.resizeStart = { 
+            w: rect.width, 
+            h: rect.height, 
+            x: e.clientX, 
+            y: e.clientY 
+        };
+        
+        document.addEventListener('mousemove', onResizing);
+        document.addEventListener('mouseup', stopResizing);
+    });
+
+    function onResizing(e) {
+        if (!state.resizingWindow) return;
+        const panel = state.resizingWindow;
+        const dx = e.clientX - state.resizeStart.x;
+        const dy = e.clientY - state.resizeStart.y;
+        
+        const newW = Math.max(300, state.resizeStart.w + dx);
+        const newH = Math.max(200, state.resizeStart.h + dy);
+        
+        panel.style.width = newW + 'px';
+        panel.style.height = newH + 'px';
+        
+        const t = state.terminals[panel.dataset.project];
+        if (t && t.fitAddon) try { t.fitAddon.fit(); } catch(e){}
+    }
+
+    function stopResizing() {
+        if (!state.resizingWindow) return;
+        const panel = state.resizingWindow;
+        panel.classList.remove('resizing');
+        state.resizingWindow = null;
+        document.removeEventListener('mousemove', onResizing);
+        document.removeEventListener('mouseup', stopResizing);
+        
+        const t = state.terminals[panel.dataset.project];
+        if (t && t.fitAddon) {
+            try { 
+                t.fitAddon.fit();
+                t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
+            } catch(e){}
+        }
     }
   }
 

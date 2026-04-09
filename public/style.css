@@ -1072,9 +1072,9 @@ body:not(.show-visuals) #floor-wrapper svg {
 .terminal-panel {
   position: fixed;
   top: 100px;
-  left: calc(50% - 425px); /* Half of 850px width */
-  width: 850px;
-  height: 550px;
+  left: calc(50% - 200px); /* Centered 400px window */
+  width: 400px;
+  height: 400px;
   background: rgba(13, 17, 23, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-accent);
@@ -1096,6 +1096,23 @@ body:not(.show-visuals) #floor-wrapper svg {
   transform: translateY(40px) scale(0.95);
   visibility: hidden;
   pointer-events: none;
+}
+
+.terminal-resizer {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  z-index: 1001;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.1) 50%);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+.terminal-panel.resizing {
+  transition: none !important;
+  user-select: none;
 }
 
 .terminal-header {
