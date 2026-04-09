@@ -568,7 +568,10 @@
                     const robot = state.walkingRobots[pName];
                     if (robot) {
                         const raw = msg.data;
-                        const isThinkingPattern = /thinking/i.test(raw);
+                        const cleanText = raw.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+                        
+                        // Check for the specific spinner characters (✽, ✢, ✥) or the old patterns
+                        const isThinkingPattern = /✽|✢|✥|thinking/i.test(raw) || /[a-z]*ing\.\.\./i.test(cleanText) || /\.\.\.\s*\(\d+/i.test(cleanText);
                         if (isThinkingPattern) {
                             robot.isThinking = true;
                             if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
