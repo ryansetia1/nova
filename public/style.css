@@ -376,6 +376,67 @@ body {
   z-index: 99;
 }
 
+/* Thinking State */
+.robot-thought-bubble {
+  position: absolute;
+  top: -20px;
+  right: -10px;
+  font-size: 20px;
+  opacity: 0;
+  transform: translateY(10px) scale(0.5);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+.robot-card.thinking .robot-thought-bubble {
+  opacity: 1;
+  transform: translateY(0) scale(1.1);
+  animation: floatThought 2s ease-in-out infinite;
+}
+
+.robot-card.thinking {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+/* Check Badge */
+.robot-check-badge {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  font-size: 18px;
+  background: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 105;
+}
+
+.robot-card.has-update .robot-check-badge {
+  opacity: 1;
+  transform: scale(1);
+  animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes floatThought {
+  0%, 100% { transform: translateY(0) scale(1.1); }
+  50% { transform: translateY(-5px) scale(1.15); }
+}
+
 .robot-card-emoji {
   font-size: 32px;
   margin: 0;
@@ -699,6 +760,22 @@ body {
   letter-spacing: 0.5px;
 }
 
+.terminal-container {
+  flex: 1;
+  padding: 16px;
+  background: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-y: auto;
+  position: relative;
+}
+
+.terminal-container .xterm-viewport {
+  overflow-y: auto !important;
+}
+
 .modal-body input, .modal-body select {
   width: 100%;
   padding: 12px 16px;
@@ -912,14 +989,14 @@ body {
   color: var(--text-primary);
 }
 
-#terminal-container {
+.terminal-container {
   flex: 1;
   padding: 4px;
   overflow: hidden;
   background: #0d1117;
 }
 
-#terminal-container .xterm {
+.terminal-container .xterm {
   height: 100%;
   padding: 4px;
 }
