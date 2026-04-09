@@ -9,8 +9,9 @@
   const state = {
     projects: [],
     activeProject: null,
-    terminals: {}, // Persistent terminal objects: { projectName: { term, fitAddon, ws, container, ready } }
-    terminal: null, // Current active terminal ref
+    projectToDelete: null,
+    terminals: {}, // Persistent terminal objects
+    terminal: null,
     fitAddon: null,
   };
 
@@ -34,6 +35,11 @@
     terminalCloseBtn: $('#terminal-close-btn'),
     toastContainer: $('#toast-container'),
     particles: $('#particles'),
+    // Delete Modal
+    deleteModal: $('#delete-modal'),
+    deleteRobotName: $('#delete-robot-name'),
+    deleteCancelBtn: $('#delete-cancel-btn'),
+    deleteConfirmBtn: $('#delete-confirm-btn'),
   };
 
   // ---- Initialization ----
@@ -44,7 +50,7 @@
     bindEvents();
   }
 
-  // ---- Particles ---- 
+  // ---- Particles & Clock ---- 
   function createParticles() {
     for (let i = 0; i < 25; i++) {
       const particle = document.createElement('div');
@@ -59,7 +65,6 @@
     }
   }
 
-  // ---- Clock ----
   function startClock() {
     function update() {
       const now = new Date();
@@ -78,18 +83,29 @@
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.terminalCloseBtn.addEventListener('click', hideTerminal);
 
+    dom.deleteCancelBtn.addEventListener('click', closeDeleteModal);
+    dom.deleteConfirmBtn.addEventListener('click', handleDelete);
+
     dom.modalInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') handleSpawn();
       if (e.key === 'Escape') closeModal();
     });
 
-    dom.modal.addEventListener('click', (e) => {
-      if (e.target === dom.modal) closeModal();
+    // Close on overlay clicks
+    [dom.modal, dom.deleteModal].forEach(m => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) {
+          closeModal();
+          closeDeleteModal();
+        }
+      });
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !dom.terminalPanel.classList.contains('hidden')) {
-        hideTerminal();
+      if (e.key === 'Escape') {
+        closeModal();
+        closeDeleteModal();
+        if (!dom.terminalPanel.classList.contains('hidden')) hideTerminal();
       }
     });
 
@@ -106,24 +122,32 @@
     dom.modalInput.value = '';
     dom.nicknameInput.value = '';
     
-    // Fetch models and populate select
     try {
       dom.modelSelect.innerHTML = '<option value="" disabled selected>Loading models...</option>';
       const res = await fetch('/api/models');
       const models = await res.json();
       dom.modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-      // Default select first or qwen if available
       if (models.includes('qwen3.5:cloud')) dom.modelSelect.value = 'qwen3.5:cloud';
       else if (models.length > 0) dom.modelSelect.value = models[0];
     } catch (err) {
       dom.modelSelect.innerHTML = '<option value="qwen3.5:cloud">qwen3.5:cloud (Default)</option>';
     }
-
     setTimeout(() => dom.modalInput.focus(), 100);
   }
 
   function closeModal() {
     dom.modal.classList.add('hidden');
+  }
+
+  function openDeleteModal(project) {
+    state.projectToDelete = project;
+    dom.deleteRobotName.textContent = project.nickname || project.name;
+    dom.deleteModal.classList.remove('hidden');
+  }
+
+  function closeDeleteModal() {
+    dom.deleteModal.classList.add('hidden');
+    state.projectToDelete = null;
   }
 
   // ---- Project Management ----
@@ -132,11 +156,7 @@
       const res = await fetch('/api/projects');
       state.projects = await res.json();
       renderRobots();
-
-      // Warm up existing terminals in background
-      state.projects.forEach(project => {
-        setupTerminal(project.name, false);
-      });
+      state.projects.forEach(project => setupTerminal(project.name, false));
     } catch (err) {
       console.error('Failed to load projects:', err);
     }
@@ -146,12 +166,7 @@
     const name = dom.modalInput.value.trim();
     const nickname = dom.nicknameInput.value.trim();
     const model = dom.modelSelect.value;
-
-    if (!name) {
-      showToast('error', '❌', 'Please enter a name for the folder');
-      dom.modalInput.focus();
-      return;
-    }
+    if (!name) return showToast('error', '❌', 'Project name is required');
 
     dom.modalConfirm.disabled = true;
     dom.modalConfirm.innerHTML = '<div class="spinner-small"></div> Deploying...';
@@ -162,26 +177,55 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, nickname, model }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        showToast('error', '❌', data.error || 'Failed to spawn robot');
-        return;
-      }
+      if (!res.ok) return showToast('error', '❌', data.error || 'Failed to spawn robot');
 
       state.projects.push(data);
       closeModal();
       renderRobots();
       showToast('success', '🤖', `Agent "${data.nickname}" is online!`);
-
-      // Start the terminal for this new project immediately
       setupTerminal(data.name, true);
-
     } catch (err) {
       showToast('error', '❌', 'Network error');
     } finally {
       dom.modalConfirm.disabled = false;
       dom.modalConfirm.innerHTML = '<span>🚀</span> Deploy Robot';
+    }
+  }
+
+  async function handleDelete() {
+    if (!state.projectToDelete) return;
+    const project = state.projectToDelete;
+    
+    dom.deleteConfirmBtn.disabled = true;
+    dom.deleteConfirmBtn.innerHTML = '<div class="spinner-small"></div> Deleting...';
+
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(project.name)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Delete failed');
+
+      // Cleanup local state
+      state.projects = state.projects.filter(p => p.name !== project.name);
+      if (state.terminals[project.name]) {
+        try {
+          state.terminals[project.name].ws.close();
+          state.terminals[project.name].container.remove();
+        } catch(e) {}
+        delete state.terminals[project.name];
+      }
+      
+      if (state.activeProject === project.name) hideTerminal();
+      
+      closeDeleteModal();
+      renderRobots();
+      showToast('success', '🗑️', `Agent "${project.nickname}" removed.`);
+    } catch (err) {
+      showToast('error', '❌', 'Failed to delete project.');
+    } finally {
+      dom.deleteConfirmBtn.disabled = false;
+      dom.deleteConfirmBtn.innerHTML = '<span>🗑️</span> Delete Forever';
     }
   }
 
@@ -207,6 +251,11 @@
              data-project="${project.name}" 
              style="animation-delay: ${i * 80}ms" 
              onclick="window.vagents.openTerminal('${project.name}')">
+          
+          <button class="robot-card-delete-btn" onclick="event.stopPropagation(); window.vagents.confirmDelete('${project.name}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+
           <span class="robot-card-emoji">${emoji}</span>
           <div class="robot-card-name">${project.nickname}</div>
           <div class="robot-card-path">${project.model}</div>
@@ -239,15 +288,10 @@
       state.activeProject = projectName;
       renderRobots();
       dom.terminalPanel.classList.remove('hidden');
-      
       const projectMeta = state.projects.find(p => p.name === projectName);
       dom.terminalTitle.textContent = `Terminal — ${projectMeta ? projectMeta.nickname : projectName}`;
       dom.terminalBadge.textContent = projectMeta ? projectMeta.model : 'Agent';
-      
-      // Hide all containers
-      Object.values(state.terminals).forEach(t => {
-        t.container.style.display = 'none';
-      });
+      Object.values(state.terminals).forEach(t => t.container.style.display = 'none');
     }
 
     if (!state.terminals[projectName]) {
@@ -285,7 +329,7 @@
             state.terminals[projectName].ready = true;
             renderRobots();
           }
-        }, 1000); // Wait for PTY to be ready on server
+        }, 1000);
       };
 
       ws.onmessage = (event) => {
@@ -305,7 +349,6 @@
         t.container.style.display = 'block';
         state.terminal = t.term;
         state.fitAddon = t.fitAddon;
-        
         setTimeout(() => {
           try {
             t.fitAddon.fit();
@@ -329,7 +372,6 @@
     toast.className = `toast ${type}`;
     toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
     dom.toastContainer.appendChild(toast);
-
     setTimeout(() => {
       toast.classList.add('toast-out');
       setTimeout(() => toast.remove(), 300);
@@ -337,7 +379,13 @@
   }
 
   // ---- Expose for inline handlers ----
-  window.vagents = { openTerminal };
+  window.vagents = { 
+    openTerminal, 
+    confirmDelete: (projectName) => {
+      const project = state.projects.find(p => p.name === projectName);
+      if (project) openDeleteModal(project);
+    }
+  };
 
   document.addEventListener('DOMContentLoaded', init);
 })();

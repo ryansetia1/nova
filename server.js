@@ -100,6 +100,30 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
+// API: Delete a project
+app.delete('/api/projects/:name', (req, res) => {
+  const { name } = req.params;
+  const projectPath = path.join(PROJECTS_DIR, name);
+
+  if (!fs.existsSync(projectPath)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  try {
+    // Kill existing terminal if running
+    if (terminals.has(name)) {
+      try { terminals.get(name).kill(); } catch(e) {}
+      terminals.delete(name);
+    }
+
+    fs.rmSync(projectPath, { recursive: true, force: true });
+    console.log(`🗑️  Deleted project: ${name}`);
+    res.json({ success: true, message: 'Project deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete project folder' });
+  }
+});
+
 // WebSocket: Terminal sessions
 const terminals = new Map();
 

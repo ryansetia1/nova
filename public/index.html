@@ -133,6 +133,26 @@
     </div>
   </div>
 
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-icon">⚠️</span>
+        <h3>Delete Robot?</h3>
+      </div>
+      <div class="modal-body">
+        <p>This will permanently delete the agent <strong id="delete-robot-name"></strong> and its project folder.</p>
+        <p class="modal-hint" style="color: var(--accent-rose); margin-top: 12px;">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="delete-confirm-btn" class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-rose), #be123c);">
+          <span>🗑️</span> Delete Forever
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notifications -->
   <div id="toast-container"></div>
 

@@ -449,6 +449,35 @@ body {
   pointer-events: none;
 }
 
+.robot-card-delete-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  color: var(--accent-rose);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-fast);
+  z-index: 10;
+}
+
+.robot-card:hover .robot-card-delete-btn {
+  opacity: 1;
+}
+
+.robot-card-delete-btn:hover {
+  background: var(--accent-rose);
+  color: white;
+  transform: scale(1.1);
+}
+
 .spinner-small {
   width: 12px;
   height: 12px;
