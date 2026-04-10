@@ -485,6 +485,11 @@ body {
 #robot-area {
   position: absolute;
   inset: 0;
+  transition: opacity 0.3s ease;
+}
+
+body.drawing-mode #robot-area {
+  display: none !important;
 }
 
 .empty-state {
@@ -635,12 +640,19 @@ body:not(.show-visuals) .anchor-adjuster {
   margin-top: 8px;
 }
 
-body.show-visuals svg polygon {
-  display: block;
+body.show-visuals svg polygon,
+body.drawing-mode svg polygon {
+  display: block !important;
 }
 
-/* If SVG has nothing else, we can hide the whole SVG */
-body:not(.show-visuals) #floor-wrapper svg {
+/* Ensure SVG is visible in both modes and stays above foreground (z-index 50) */
+body.show-visuals #floor-wrapper svg,
+body.drawing-mode #floor-wrapper svg {
+  display: block !important;
+  z-index: 9999 !important;
+}
+
+body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   display: none;
 }
 
