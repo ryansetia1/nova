@@ -72,7 +72,7 @@ app.post('/api/projects', (req, res) => {
     if (metaPath) {
       try {
         const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        if (meta.active) {
+        if (meta.active === true || meta.active === "true") {
           return res.status(409).json({ error: 'Agent already active for this folder' });
         }
         console.log(`♻️  Re-activating orphaned project: ${safeName}`);
@@ -119,8 +119,8 @@ app.post('/api/projects', (req, res) => {
       model: model || 'qwen3.5:cloud',
       emoji: emoji || '🪐',
       customPath: customPath ? actualPath : undefined,
-      created_at: new Date().toISOString(),
-      last_agent_spawned: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      lastAgentSpawned: new Date().toISOString(),
       active: true
     };
     fs.writeFileSync(path.join(actualPath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
@@ -133,8 +133,8 @@ app.post('/api/projects', (req, res) => {
   }
 });
 
-// API: List all projects with metadata
-app.get('/api/projects', (req, res) => {
+  app.get('/api/projects', (req, res) => {
+  console.log(`[${new Date().toLocaleTimeString()}] 📊 API: Fetching project list for client`);
   try {
     if (!fs.existsSync(PROJECTS_DIR)) return res.json([]);
     const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });

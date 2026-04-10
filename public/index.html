@@ -145,12 +145,15 @@
         <h3>Spawn New Agent</h3>
       </div>
       <div class="modal-body">
-        <div id="orphaned-selector-group" class="input-group hidden">
-          <label for="orphaned-select">Resume Existing Folder</label>
-          <select id="orphaned-select">
-            <option value="">-- New Folder --</option>
+        <!-- Resume Selector moved to top with explicit styling -->
+        <div id="orphaned-selector-group" class="input-group hidden" style="background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
+          <label for="orphaned-select" style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
+             <span>📂</span> RESUME EXISTING FOLDER
+          </label>
+          <select id="orphaned-select" style="margin-top: 8px;">
+            <option value="">-- Choose an orphaned folder --</option>
           </select>
-          <p class="modal-hint" style="margin-top: 4px; font-size: 10px;">Select a previously created folder to reactivate its agent.</p>
+          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created folder to reactivate its agent.</p>
         </div>
 
         <div class="modal-row">
@@ -315,6 +318,6 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

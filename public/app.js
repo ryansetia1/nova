@@ -894,6 +894,14 @@
 
   // ---- Modal & Projects ----
   async function openModal() {
+    // Refresh projects list from server to ensure orphaned folders are up to date
+    try {
+        const pRes = await fetch('/api/projects');
+        state.projects = await pRes.json();
+    } catch (e) {
+        console.warn('Failed to sync projects for modal', e);
+    }
+
     dom.modal.classList.remove('hidden'); 
     dom.modalInput.value = ''; dom.modalInput.disabled = false;
     dom.nicknameInput.value = ''; dom.customPathInput.value = '';
@@ -906,18 +914,26 @@
     if (dom.spawnTypeToggle) {
         const btns = dom.spawnTypeToggle.querySelectorAll('.type-btn');
         btns.forEach(b => b.classList.toggle('active', b.dataset.type === 'emoji'));
-        dom.spawnEmojiArea.classList.remove('hidden');
+        dom.spawnEmojiZone.classList.remove('hidden');
         dom.spawnCharacterArea.classList.add('hidden');
     }
     
     // Check for orphaned projects to show selector
-    const orphaned = state.projects.filter(p => !p.active);
+    // Use a more inclusive check for 'falsey' values
+    const orphaned = state.projects.filter(p => p.active === false || p.active === "false" || !p.active);
+    console.log(`[NOVA] Found ${orphaned.length} orphaned folders among ${state.projects.length} total projects.`);
+
     if (orphaned.length > 0) {
         dom.orphanedGroup.classList.remove('hidden');
-        dom.orphanedSelect.innerHTML = '<option value="">-- Start Fresh Folder --</option>' + 
-            orphaned.map(p => `<option value="${p.name}">${p.nickname || p.name} (${p.name})</option>`).join('');
+        dom.orphanedGroup.style.display = 'block'; 
+        dom.orphanedSelect.innerHTML = '<option value="">-- Choose an orphaned folder --</option>' + 
+            orphaned.map(p => {
+                const displayName = p.nickname || p.name;
+                return `<option value="${p.name}">${displayName} (${p.name})</option>`;
+            }).join('');
     } else {
         dom.orphanedGroup.classList.add('hidden');
+        dom.orphanedGroup.style.display = 'none';
     }
 
     try {
