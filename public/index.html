@@ -134,37 +134,42 @@
           <p class="modal-hint" style="margin-top: 4px; font-size: 10px;">Select a previously created folder to reactivate its agent.</p>
         </div>
 
-        <div class="input-group">
-          <label for="project-name-input">Project Name (Folder)</label>
-          <input type="text" id="project-name-input" placeholder="e.g. my-agent" autocomplete="off">
-        </div>
-
-        <div class="input-group">
-          <label for="nickname-input">Nickname (Display Name - Optional)</label>
-          <input type="text" id="nickname-input" placeholder="e.g. Code Assistant" autocomplete="off">
-        </div>
-
-        <div class="input-group">
-          <label for="custom-path-input">Custom Folder Path (Optional)</label>
-          <input type="text" id="custom-path-input" placeholder="e.g. /Users/name/Desktop/MyProject" autocomplete="off">
-        </div>
-
-        <div class="input-group">
-          <label>Avatar Emoji</label>
-          <div class="selected-emoji-container">
-            <span id="selected-emoji-preview">🤖</span>
-            <span class="emoji-hint">Click below to change</span>
+        <div class="modal-row">
+          <div class="input-group">
+            <label for="project-name-input">Project Name (Folder)</label>
+            <input type="text" id="project-name-input" placeholder="folder-name" autocomplete="off">
           </div>
-          <div class="emoji-picker-wrapper">
-             <emoji-picker id="emoji-picker" class="dark"></emoji-picker>
+          <div class="input-group">
+            <label for="nickname-input">Nickname <span class="label-hint">optional</span></label>
+            <input type="text" id="nickname-input" placeholder="display name" autocomplete="off">
           </div>
         </div>
 
         <div class="input-group">
-          <label for="model-select">Agent Model</label>
-          <select id="model-select">
-            <option value="qwen3.5:cloud">qwen3.5:cloud</option>
-          </select>
+          <label for="custom-path-input">Custom Folder Path <span class="label-hint">optional</span></label>
+          <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
+        </div>
+
+        <div class="modal-row">
+          <div class="input-group relative">
+            <label>Avatar Emoji</label>
+            <div id="emoji-trigger" class="selected-emoji-container compact">
+              <span id="selected-emoji-preview">🤖</span>
+              <span class="emoji-hint">click to change</span>
+            </div>
+            
+            <!-- Emoji Popover with full picker -->
+            <div id="emoji-popover" class="emoji-popover hidden">
+              <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="model-select">Agent Model</label>
+            <select id="model-select">
+              <option value="qwen3.5:cloud">qwen3.5:cloud</option>
+            </select>
+          </div>
         </div>
 
         <p class="modal-hint">Folder: <code>./projects/[Name]</code></p>

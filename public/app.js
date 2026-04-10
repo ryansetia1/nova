@@ -53,6 +53,11 @@
     emojiUpdateModal: $('#emoji-update-modal'),
     emojiUpdateCancel: $('#emoji-update-cancel-btn'),
     updateEmojiPicker: $('#update-emoji-picker'),
+    
+    // New Emoji Popover elements
+    emojiTrigger: $('#emoji-trigger'),
+    emojiPopover: $('#emoji-popover'),
+    modalEmojiPicker: $('#modal-emoji-picker'),
   };
 
   // ---- Initialization ----
@@ -64,6 +69,7 @@
     startWalkingLoop();
     bindHoverListeners();
     initDevTool(); 
+    initEmojiPopover();
   }
 
   // ---- Dev Tools ----
@@ -253,6 +259,7 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeModal(); closeDeleteAgentModal();
+            dom.emojiPopover.classList.add('hidden');
             // Hide topmost window
             const visiblePanels = Object.values(state.terminals).map(t => t.panel).filter(p => p && !p.classList.contains('hidden'));
             if (visiblePanels.length > 0) {
@@ -453,6 +460,27 @@
     }, 80);
   }
 
+  // ---- Emoji Popover Logic ----
+  function initEmojiPopover() {
+    dom.emojiTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.emojiPopover.classList.toggle('hidden');
+    });
+
+    dom.modalEmojiPicker.addEventListener('emoji-click', (e) => {
+        const emoji = e.detail.unicode;
+        state.selectedEmoji = emoji;
+        dom.emojiPreview.textContent = emoji;
+        dom.emojiPopover.classList.add('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dom.emojiPopover.contains(e.target) && e.target !== dom.emojiTrigger) {
+            dom.emojiPopover.classList.add('hidden');
+        }
+    });
+  }
+
   // ---- Modal & Projects ----
   async function openModal() {
     dom.modal.classList.remove('hidden'); 
@@ -460,6 +488,7 @@
     dom.nicknameInput.value = ''; dom.customPathInput.value = '';
     state.selectedEmoji = '🤖';
     if (dom.emojiPreview) dom.emojiPreview.textContent = '🤖';
+    dom.emojiPopover.classList.add('hidden');
     
     // Check for orphaned projects to show selector
     const orphaned = state.projects.filter(p => !p.active);
