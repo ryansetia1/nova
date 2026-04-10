@@ -1,0 +1,82 @@
+
+🤖 NOVA server running at http://localhost:3000
+
+GET /Char1/Walk/Char1Walk_00009.png
+GET /Char1/Walk/Char1Walk_00010.png
+GET /Char1/Walk/Char1Walk_00011.png
+GET /Char1/Walk/Char1Walk_00012.png
+GET /Char1/Walk/Char1Walk_00013.png
+GET /Char1/Walk/Char1Walk_00014.png
+GET /Char1/Walk/Char1Walk_00015.png
+GET /Char1/Walk/Char1Walk_00016.png
+GET /Char1/Walk/Char1Walk_00017.png
+GET /Char1/Walk/Char1Walk_00018.png
+GET /
+GET /style.css
+GET /app.js?v=2
+GET /Gemini_Generated_Image_uazj4xuazj4xuazj.png
+GET /foreground.png
+GET /api/projects
+💬 Chat opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🚀 Chat spawn for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- -p --input-format stream-json --output-format stream-json --verbose --continue
+GET /Char1/Walk/Char1Walk_00001.png
+💬 Chat opened for project: News using model: qwen3.5:cloud
+🚀 Chat spawn for News: ollama launch claude --model qwen3.5:cloud -- -p --input-format stream-json --output-format stream-json --verbose --continue
+💬 Chat opened for project: Retro-Handhelds using model: qwen3.5:cloud
+🚀 Chat spawn for Retro-Handhelds: ollama launch claude --model qwen3.5:cloud -- -p --input-format stream-json --output-format stream-json --verbose --continue
+GET /favicon.ico
+[chat-stderr Ask-Me-Anything] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+🔚 Chat process exited for Ask-Me-Anything with code 1
+GET /Char1/Walk/Char1Walk_00002.png
+🔌 Chat WebSocket closed for Ask-Me-Anything
+[chat-stderr News] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+💬 Chat opened for project: lokalan using model: qwen3.5-arch:latest
+🚀 Chat spawn for lokalan: ollama launch claude --model qwen3.5-arch:latest -- -p --input-format stream-json --output-format stream-json --verbose --continue
+🔚 Chat process exited for News with code 1
+🔌 Chat WebSocket closed for News
+[chat-stderr Retro-Handhelds] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+🔚 Chat process exited for Retro-Handhelds with code 1
+🔌 Chat WebSocket closed for Retro-Handhelds
+💬 Chat opened for project: projectdelet using model: qwen3.5:cloud
+🚀 Chat spawn for projectdelet: ollama launch claude --model qwen3.5:cloud -- -p --input-format stream-json --output-format stream-json --verbose --continue
+[chat-stderr lokalan] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+🔚 Chat process exited for lokalan with code 1
+🔌 Chat WebSocket closed for lokalan
+[chat-stderr projectdelet] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+🔚 Chat process exited for projectdelet with code 1
+🔌 Chat WebSocket closed for projectdelet
+GET /Char1/Walk/Char1Walk_00003.png
+GET /Char1/Walk/Char1Walk_00004.png
+GET /Char1/Walk/Char1Walk_00005.png
+GET /Char1/Walk/Char1Walk_00006.png
+GET /Char1/Walk/Char1Walk_00007.png
+GET /Char1/Walk/Char1Walk_00008.png
+GET /Char1/Walk/Char1Walk_00009.png
+GET /Char1/Walk/Char1Walk_00010.png
+GET /Char1/Walk/Char1Walk_00011.png
+GET /Char1/Walk/Char1Walk_00012.png
+GET /Char1/Walk/Char1Walk_00013.png
+GET /Char1/Walk/Char1Walk_00014.png
+GET /Char1/Walk/Char1Walk_00015.png
+GET /Char1/Walk/Char1Walk_00016.png
+GET /Char1/Walk/Char1Walk_00017.png
+GET /Char1/Walk/Char1Walk_00018.png
+GET /Char1/Walk/Char1Walk_00019.png
+GET /Char1/Walk/Char1Walk_00020.png
+GET /Char1/Walk/Char1Walk_00021.png
+GET /Char1/Walk/Char1Walk_00022.png
+GET /Char1/Walk/Char1Walk_00023.png
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+POST /api/projects/Ask-Me-Anything/restart
+💬 Chat opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🚀 Chat spawn for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- -p --input-format stream-json --output-format stream-json --verbose
+[chat-stderr Ask-Me-Anything] Error: claude is not installed, install from https://code.claude.com/docs/en/quickstart
+
+🔚 Chat process exited for Ask-Me-Anything with code 1
+🔌 Chat WebSocket closed for Ask-Me-Anything

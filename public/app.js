@@ -22,6 +22,7 @@
     walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame } }
     projectForEmojiUpdate: null,
     charFrames: Array.from({ length: 31 }, (_, i) => `Char1/Walk/Char1Walk_${(i + 1).toString().padStart(5, '0')}.png`),
+    idleFrames: Array.from({ length: 86 }, (_, i) => `Char1/Idle/Char1Idle_${(i + 1).toString().padStart(5, '0')}.png`),
     anchor: { x: 50, y: 85 }
   };
 
@@ -408,7 +409,12 @@
         const card = e.target.closest('.robot-avatar');
         if (card) {
             const name = card.dataset.project;
-            if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = true;
+            if (state.walkingRobots[name]) {
+                if (!state.walkingRobots[name].isHovered) {
+                    state.walkingRobots[name].isHovered = true;
+                    state.walkingRobots[name].frame = 0;
+                }
+            }
         }
     });
 
@@ -419,7 +425,12 @@
             // Only set to false if the mouse is actually leaving the card, not just moving to a child
             const nextElement = e.relatedTarget;
             if (!nextElement || !card.contains(nextElement)) {
-                if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = false;
+                if (state.walkingRobots[name]) {
+                    if (state.walkingRobots[name].isHovered) {
+                        state.walkingRobots[name].isHovered = false;
+                        state.walkingRobots[name].frame = 0;
+                    }
+                }
             }
         }
     });
@@ -543,14 +554,20 @@
                 el.style.zIndex = Math.floor(r.y * 100);
                 
                 // Animation Frame
-                if (r.isWalking) {
-                    r.frame = (r.frame + 1) % state.charFrames.length;
+                if (r.isWalking || r.isHovered) {
+                    const frames = r.isHovered ? state.idleFrames : state.charFrames;
+                    r.frame = (r.frame + 1) % frames.length;
                     const sprite = el.querySelector('.robot-char-sprite');
                     if (sprite) {
-                        sprite.src = state.charFrames[r.frame];
+                        sprite.src = frames[r.frame];
                         // Flip based on direction
-                        const isFlipped = r.tx < r.x;
-                        sprite.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+                        if (r.isWalking) {
+                            const isFlipped = r.tx < r.x;
+                            sprite.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+                        } else {
+                            // Reset flip when idle/hovered
+                            sprite.style.transform = 'scaleX(1)';
+                        }
                     }
                 }
 
@@ -805,7 +822,7 @@
 
         const spriteHtml = isSprite ? `
                 <div class="robot-sprite-container">
-                    <img class="robot-char-sprite" src="${state.charFrames[r?.frame || 0]}" alt="Agent">
+                    <img class="robot-char-sprite" src="${(r?.isHovered ? state.idleFrames : state.charFrames)[r?.frame || 0]}" alt="Agent">
                 </div>
         ` : `
                 <span class="robot-card-emoji">${entityLabel}</span>
@@ -1221,7 +1238,12 @@
   window.nova = { 
       openTerminal,
       setHover: (name, isActive) => {
-          if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = isActive;
+          if (state.walkingRobots[name]) {
+              if (state.walkingRobots[name].isHovered !== isActive) {
+                  state.walkingRobots[name].isHovered = isActive;
+                  state.walkingRobots[name].frame = 0;
+              }
+          }
       },
       spawnAtOrphaned(pName) {
           const p = state.projects.find(x => x.active === false && x.name === pName);
