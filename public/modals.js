@@ -223,7 +223,11 @@ export function setupAppearanceToggles(toggleContainer, typeVarName, onTypeChang
 export function initEmojiPopover() {
     document.addEventListener('click', (e) => {
         if (dom.emojiPopover && !dom.emojiPopover.classList.contains('hidden')) {
-            if (!dom.emojiPopover.contains(e.target) && !e.target.closest('.emoji-hint')) {
+            // Don't close if clicking the popover itself or the trigger previews
+            const isClickInside = dom.emojiPopover.contains(e.target);
+            const isClickOnTrigger = e.target.closest('#selected-emoji-preview') || e.target.closest('#update-emoji-preview');
+            
+            if (!isClickInside && !isClickOnTrigger && !e.target.closest('.emoji-hint')) {
                 dom.emojiPopover.classList.add('hidden');
             }
         }

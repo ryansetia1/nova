@@ -181,6 +181,20 @@ function bindEvents() {
         if (dom.settingsMenu) dom.settingsMenu.classList.add('hidden');
     });
     
+    if (dom.emojiPreview) {
+        dom.emojiPreview.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dom.emojiPopover.classList.toggle('hidden');
+        });
+    }
+
+    if (dom.updateEmojiPreview) {
+        dom.updateEmojiPreview.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dom.updateEmojiArea.classList.toggle('hidden');
+        });
+    }
+
     document.addEventListener('emoji-click', (e) => {
         if (e.target.id === 'modal-emoji-picker') {
             const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
