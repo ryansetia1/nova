@@ -70,15 +70,18 @@ export function renderSidebar() {
 
     // Render Active Agents
     if (dom.activeAgentList) {
-      dom.activeAgentList.innerHTML = activeAgents.map(p => `
+      dom.activeAgentList.innerHTML = activeAgents.map(p => {
+        const isNested = !!p.parentAgent;
+        const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
+        return `
         <div class="sidebar-item" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
-            <div class="sidebar-item-name">${p.nickname || p.name}</div>
+            <div class="sidebar-item-name">${prefix}${p.nickname || p.name}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
         </div>
-      `).join('');
+      `;}).join('');
     }
 
     // Render Orphaned Folders
@@ -110,8 +113,6 @@ export function renderRobots() {
         const posStyle = r ? `left: ${r.x}%; top: ${r.y}%; z-index: ${Math.floor(r.y * 100)};` : '';
         const isIllegal = r?.isIllegal;
         
-        const topLabel = p.nickname || p.name;
-
         if (!p.active) {
             return '';
         }
@@ -125,6 +126,9 @@ export function renderRobots() {
                     ${getAppearanceHtml(rawAppearance, 'robot-card-emoji')}
                 </div>
         `;
+
+        const isNested = !!p.parentAgent;
+        const topLabel = (isNested ? '↳ ' : '') + (p.nickname || p.name);
 
         return `
             <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''}" 

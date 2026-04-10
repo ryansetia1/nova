@@ -53,7 +53,8 @@ app.get('/api/models', (req, res) => {
 
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname, customPath, emoji } = req.body;
+  const { name, model, nickname, customPath, emoji, parentAgent } = req.body;
+  console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath });
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Project name is required' });
@@ -86,7 +87,64 @@ app.post('/api/projects', (req, res) => {
 
   try {
     let actualPath = projectPath;
-    if (customPath && customPath.trim()) {
+    
+    if (parentAgent && parentAgent.trim()) {
+      // Logic for nesting inside an existing agent
+      const parentName = parentAgent.trim();
+      const parentProjectPath = path.join(PROJECTS_DIR, parentName);
+      
+      // Safety check: ensure it's actually within PROJECTS_DIR and not the directory itself
+      if (!fs.existsSync(parentProjectPath) || parentName === '.' || parentName === '..') {
+        return res.status(404).json({ error: `Parent agent "${parentName}" not found` });
+      }
+      // Resolve symlink to get the real path
+      const resolvedParentPath = fs.realpathSync(parentProjectPath);
+      
+      const nestedFolderPath = path.join(resolvedParentPath, safeName);
+      
+      // If a real directory already exists in /projects/[name], we should MOVE it to the nested location
+      if (fs.existsSync(projectPath) && !fs.lstatSync(projectPath).isSymbolicLink()) {
+        if (!fs.existsSync(nestedFolderPath)) {
+          console.log(`📦 Moving existing standalone folder to nested location: ${projectPath} -> ${nestedFolderPath}`);
+          fs.renameSync(projectPath, nestedFolderPath);
+        } else if (projectPath !== nestedFolderPath) {
+          // Conflict. Note: if they are the same path (unlikely given logic), we skip.
+          console.warn(`⚠️  Conflict: Both standalone and nested folders exist for ${safeName}. Using nested.`);
+        }
+      }
+
+      if (fs.existsSync(nestedFolderPath)) {
+        // allow resumption
+        const nestedMetaPath = path.join(nestedFolderPath, '.nova-meta.json');
+        if (fs.existsSync(nestedMetaPath)) {
+            try {
+                const nestedMeta = JSON.parse(fs.readFileSync(nestedMetaPath, 'utf8'));
+                if (nestedMeta.active === true || nestedMeta.active === "true") {
+                    return res.status(409).json({ error: 'Agent already active for this folder' });
+                }
+                console.log(`♻️  Re-activating nested orphaned folder: ${safeName}`);
+            } catch(e) {}
+        }
+      } else {
+        fs.mkdirSync(nestedFolderPath, { recursive: true });
+      }
+      
+      actualPath = nestedFolderPath;
+
+      // Create a symlink in /projects pointing to the nested folder (if not exists or if it was a directory we just moved)
+      if (!fs.existsSync(projectPath)) {
+        fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
+        console.log(`🔗 Created symlink for nested agent: ${projectPath} -> ${nestedFolderPath}`);
+      } else if (!fs.lstatSync(projectPath).isSymbolicLink()) {
+        // If it's still a directory here (which shouldn't happen if we moved it, but safety first)
+        // We'll rename it as a backup and then symlink
+        const backupPath = `${projectPath}_backup_${Date.now()}`;
+        fs.renameSync(projectPath, backupPath);
+        fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
+        console.log(`🔗 Safety-linked nested agent after backup: ${projectPath} -> ${nestedFolderPath}`);
+      }
+
+    } else if (customPath && customPath.trim()) {
       actualPath = customPath.trim();
       if (!path.isAbsolute(actualPath)) {
          return res.status(400).json({ error: 'Custom path must be exactly an absolute path (e.g. /Users/name/Desktop/folder)' });
@@ -118,7 +176,9 @@ app.post('/api/projects', (req, res) => {
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
       emoji: emoji || '🪐',
-      customPath: customPath ? actualPath : undefined,
+      customPath: customPath ? actualPath : (parentAgent ? undefined : undefined),
+      parentAgent: parentAgent || undefined,
+      nestedPath: parentAgent ? actualPath : undefined,
       createdAt: new Date().toISOString(),
       lastAgentSpawned: new Date().toISOString(),
       active: true
@@ -129,7 +189,7 @@ app.post('/api/projects', (req, res) => {
     res.json(meta);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to create project folder or symlink. Check permissions and path.' });
+    res.status(500).json({ error: 'Failed to create project. Check permissions and path.' });
   }
 });
 
@@ -295,8 +355,32 @@ app.delete('/api/projects/:name', (req, res) => {
     const isSymlink = fs.lstatSync(projectPath).isSymbolicLink();
     const deleteFiles = req.query.deleteFiles === 'true';
 
+    // Get metadata to check if it's a nested agent
+    let meta = null;
+    const metaPathNew = path.join(projectPath, '.nova-meta.json');
+    const metaPathOld = path.join(projectPath, '.nova_meta.json');
+    const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
+    if (metaPath) {
+      try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch(e) {}
+    }
+
     if (isSymlink) {
-      // 1. If symlink: Remove the symlink only. NEVER touch original.
+      // If it's a nested agent (has parentAgent), we might want to delete the actual folder
+      if (meta && meta.parentAgent && meta.nestedPath) {
+        if (deleteFiles) {
+          if (fs.existsSync(meta.nestedPath)) {
+            fs.rmSync(meta.nestedPath, { recursive: true, force: true });
+            console.log(`🗑️  Deleted nested project folder: ${meta.nestedPath}`);
+          }
+        } else {
+          // Keep folder, but set active: false so it can be resumed
+          meta.active = false;
+          fs.writeFileSync(path.join(meta.nestedPath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
+          console.log(`💼 Nested agent marked as inactive (orphaned): ${name}`);
+        }
+      }
+      
+      // Always remove the symlink from /projects
       fs.unlinkSync(projectPath);
       console.log(`🗑️  Removed symlink: ${name}`);
       return res.json({ success: true, message: 'Agent removed', type: 'symlink' });
@@ -308,22 +392,19 @@ app.delete('/api/projects/:name', (req, res) => {
         return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
       } else {
         // Just remove agent status, keep folder orphaned
-        const metaPathNew = path.join(projectPath, '.nova-meta.json');
-        const metaPathOld = path.join(projectPath, '.nova_meta.json');
-        const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
-        
         if (metaPath) {
           try {
-            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-            meta.active = false;
-            fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+            if (meta) {
+              meta.active = false;
+              fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+            }
           } catch(e) {
             console.error(`Failed to update meta for orphan: ${name}`, e);
           }
         } else {
            // create a basic meta to mark as inactive
-           const meta = { name, active: false };
-           fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
+           const newMeta = { name, active: false };
+           fs.writeFileSync(metaPathNew, JSON.stringify(newMeta, null, 2));
         }
         console.log(`💼 Agent removed, folder kept (orphaned): ${name}`);
         return res.json({ success: true, message: 'Agent removed, project files kept', type: 'orphaned' });

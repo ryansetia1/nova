@@ -118,8 +118,23 @@ function bindEvents() {
                     }
                 }
             }
+            updateFolderHint();
         });
     }
+
+    const updateFolderHint = () => {
+        if (!dom.folderHint) return;
+        const name = dom.modalInput.value || '[Name]';
+        const parent = dom.nestParentSelect ? dom.nestParentSelect.value : '';
+        if (parent) {
+            dom.folderHint.innerHTML = `Folder: <code>./projects/${parent}/${name}</code>`;
+        } else {
+            dom.folderHint.innerHTML = `Folder: <code>./projects/${name}</code>`;
+        }
+    };
+
+    if (dom.modalInput) dom.modalInput.addEventListener('input', updateFolderHint);
+    if (dom.nestParentSelect) dom.nestParentSelect.addEventListener('change', updateFolderHint);
 
     if (dom.deleteAgentOnlyBtn) dom.deleteAgentOnlyBtn.addEventListener('click', () => handleDeleteAgent(false));
     if (dom.deleteConfirmBtn) dom.deleteConfirmBtn.addEventListener('click', () => handleDeleteAgent(true));

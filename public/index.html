@@ -224,6 +224,15 @@
           <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
         </div>
 
+        <div id="nest-agent-group" class="input-group">
+          <label class="form-label" for="nest-parent-select" style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>
+          <select id="nest-parent-select">
+            <option value="">— None (create standalone agent) —</option>
+            <!-- Populated with active agents -->
+          </select>
+          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Creates a new folder inside the selected agent's project directory.</p>
+        </div>
+
         <div class="modal-row">
           <div class="input-group relative avatar-selection-group">
             <label>Avatar Appearance</label>

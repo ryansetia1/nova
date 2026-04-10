@@ -45,6 +45,17 @@ export async function openModal() {
         dom.orphanedGroup.style.display = 'none';
     }
 
+    // Populate Parent Agent dropdown for nesting
+    const activeAgents = state.projects.filter(p => p.active === true || p.active === "true");
+    if (dom.nestParentSelect) {
+        dom.nestParentSelect.innerHTML = '<option value="">— None (create standalone agent) —</option>' +
+            activeAgents.map(p => {
+                const displayName = p.nickname || p.name;
+                return `<option value="${p.name}">${displayName} (${p.name})</option>`;
+            }).join('');
+        dom.nestParentSelect.value = '';
+    }
+
     try {
         const res = await fetch('/api/models');
         const models = await res.json();
@@ -54,7 +65,10 @@ export async function openModal() {
     setTimeout(() => dom.modalInput.focus(), 100);
 }
 
-export function closeModal() { dom.modal.classList.add('hidden'); }
+export function closeModal() { 
+    dom.modal.classList.add('hidden'); 
+    if (dom.nestParentSelect) dom.nestParentSelect.value = '';
+}
 
 export function openEmojiUpdateModal(pName) {
     state.projectForEmojiUpdate = pName;
@@ -151,6 +165,7 @@ export async function handleSpawn() {
     const name = dom.modalInput.value.trim();
     const nickname = dom.nicknameInput.value.trim();
     const customPath = dom.customPathInput.value.trim();
+    const parentAgent = dom.nestParentSelect ? dom.nestParentSelect.value || null : null;
     const model = dom.modelSelect.value;
     let emoji = state.selectedEmoji || '🪐';
     if (state.spawnAppearanceType === 'character') {
@@ -162,7 +177,7 @@ export async function handleSpawn() {
         const res = await fetch('/api/projects', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ name, nickname, model, customPath, emoji }) 
+            body: JSON.stringify({ name, nickname, model, customPath, emoji, parentAgent }) 
         });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
