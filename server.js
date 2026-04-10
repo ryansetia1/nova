@@ -21,8 +21,12 @@ if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
 }
 
+// Simplified logging: exclude static assets (images, css, etc.) to keep terminal clean
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  const isStatic = req.url.match(/\.(png|jpg|jpeg|gif|css|js|ico|svg|woff2?|ttf|png\.map)$/i);
+  if (!isStatic) {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+  }
   next();
 });
 

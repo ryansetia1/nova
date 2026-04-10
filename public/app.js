@@ -684,7 +684,8 @@
             }
         });
 
-        // Resolve Collisions
+        // Resolve Collisions (Disabled by user request)
+        /*
         for (let i = 0; i < projectNames.length; i++) {
             for (let j = i + 1; j < projectNames.length; j++) {
                 const r1 = state.walkingRobots[projectNames[i]];
@@ -720,6 +721,7 @@
                 }
             }
         }
+        */
 
         // Apply DOM
         projectNames.forEach(name => {
