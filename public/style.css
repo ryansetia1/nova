@@ -513,8 +513,13 @@ body:not(.show-visuals) #floor-wrapper svg {
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
 }
 
-.robot-avatar.active .robot-card-emoji {
+.robot-avatar.active .robot-card-emoji,
+.robot-avatar:hover .robot-card-emoji {
   filter: drop-shadow(0 0 10px var(--accent-primary));
+}
+
+.robot-avatar:hover .robot-card-emoji {
+  animation-play-state: paused;
 }
 
 .robot-card-status {
@@ -1207,9 +1212,27 @@ emoji-picker.dark {
 .terminal-title {
   margin-left: 8px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.terminal-folder {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
   font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
 }
 
 .terminal-header-right {

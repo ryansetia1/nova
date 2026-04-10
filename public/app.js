@@ -268,14 +268,14 @@
 
   function bindHoverListeners() {
     dom.robotCards.addEventListener('mouseover', (e) => {
-        const card = e.target.closest('.robot-card');
+        const card = e.target.closest('.robot-avatar');
         if (card) {
             const name = card.dataset.project;
             if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = true;
         }
     });
     dom.robotCards.addEventListener('mouseout', (e) => {
-        const card = e.target.closest('.robot-card');
+        const card = e.target.closest('.robot-avatar');
         if (card) {
             const name = card.dataset.project;
             if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = false;
@@ -484,7 +484,6 @@
         const isIllegal = r?.isIllegal;
         
         const topLabel = p.nickname || p.name;
-        const bottomLabel = p.nickname ? p.name : '';
 
         return `
             <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
@@ -494,7 +493,6 @@
                 <div class="robot-thought-bubble">💭</div>
                 <div class="robot-check-badge"></div>
                 <span class="robot-card-emoji">${emoji}</span>
-                <div class="robot-label bottom">${bottomLabel}</div>
                 <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
                 <div class="robot-anchor-dot ${isIllegal ? 'illegal' : ''}"></div>
             </div>`;
@@ -705,8 +703,13 @@
         
         // Metadata
         const meta = state.projects.find(x => x.name === pName);
-        panel.querySelector('.terminal-title').textContent = meta ? meta.nickname : pName;
-        panel.querySelector('.terminal-project-badge').textContent = meta ? meta.model : '';
+        if (meta) {
+            panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
+            panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
+            panel.querySelector('.terminal-project-badge').textContent = meta.model || '';
+        } else {
+            panel.querySelector('.terminal-title').textContent = pName;
+        }
         
         dom.mainContent.appendChild(panel);
 
