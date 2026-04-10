@@ -157,3 +157,29 @@
 🚀 Executing for News: ollama launch claude --model qwen3.5:cloud -- --continue
 🚀 Executing for lokalan: ollama launch claude --model qwen3.5-arch:latest -- --continue
 🚀 Executing for testing: ollama launch claude --model qwen3.5:cloud
+[3:07:37 AM] GET /
+🔌 WebSocket closed for testing
+🔌 WebSocket closed for Ask-Me-Anything
+🔌 WebSocket closed for lokalan
+🔌 WebSocket closed for News
+🔚 Terminal exited for testing with code 1
+🔚 Terminal exited for News with code 1
+🔚 Terminal exited for lokalan with code 1
+[3:07:37 AM] GET /app.js?v=5
+🔚 Terminal exited for Ask-Me-Anything with code 1
+[3:07:37 AM] GET /api/walkable-path
+[3:07:37 AM] GET /api/anchor
+[3:07:37 AM] GET /api/projects
+[3:07:37 AM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: News using model: qwen3.5:cloud
+🖥️  Terminal opened for project: lokalan using model: qwen3.5-arch:latest
+🖥️  Terminal opened for project: testing using model: qwen3.5:cloud
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for News: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for lokalan: ollama launch claude --model qwen3.5-arch:latest -- --continue
+🚀 Executing for testing: ollama launch claude --model qwen3.5:cloud -- --continue
+⚠️  Detected missing conversation for testing. Rescuing...
+[3:07:51 AM] GET /api/projects
+[3:07:51 AM] 📊 API: Fetching project list for client
+[3:07:51 AM] GET /api/models

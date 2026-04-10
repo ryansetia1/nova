@@ -2112,3 +2112,188 @@ emoji-picker.dark {
 .robot-avatar.orphaned:hover::before {
   opacity: 1;
 }
+
+/* ============================================
+   SIDEBAR AGENT SELECTOR
+   ============================================ */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 74px; /* Header height offset */
+  bottom: 0;
+  width: 250px;
+  background: rgba(10, 14, 26, 0.7);
+  backdrop-filter: blur(25px);
+  border-right: 1px solid var(--border-subtle);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-base), width var(--transition-base);
+}
+
+.sidebar.collapsed {
+  width: 50px;
+}
+
+.sidebar.collapsed .sidebar-content,
+.sidebar.collapsed .sidebar-title {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-header {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  transition: opacity var(--transition-fast);
+}
+
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent-primary);
+}
+
+.sidebar.collapsed .sidebar-toggle-btn {
+  transform: rotate(180deg);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 12px;
+  transition: opacity var(--transition-fast);
+}
+
+.sidebar-section {
+  margin-bottom: 30px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.count-badge {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+}
+
+.agent-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item.active {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--border-accent);
+}
+
+.sidebar-item-icon {
+  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-item-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.orphaned-item {
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.orphaned-item:hover {
+  border-style: solid;
+  border-color: var(--accent-amber);
+}
+
+/* Adjust main content when sidebar is present */
+#app {
+  padding-left: 50px; /* Width of collapsed sidebar */
+  transition: padding var(--transition-base);
+}
+
+#app:has(.sidebar:not(.collapsed)) {
+  padding-left: 250px;
+}
+
+/* Highlight animation for focusing from sidebar */
+@keyframes highlightGlow {
+  0% { box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
+  50% { box-shadow: 0 0 40px var(--accent-primary); transform: scale(1.02); }
+  100% { box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+.highlight-glow {
+  animation: highlightGlow 1s ease-out;
+  z-index: 100000 !important;
+}

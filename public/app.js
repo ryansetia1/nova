@@ -101,6 +101,13 @@
     inputAnchorY: $('#input-anchor-y'),
     valAnchorX: $('#val-anchor-x'),
     valAnchorY: $('#val-anchor-y'),
+    // Sidebar Elements
+    sidebar: $('#agent-sidebar'),
+    sidebarToggle: $('#sidebar-toggle'),
+    activeAgentList: $('#active-agent-list'),
+    orphanedFolderList: $('#orphaned-folder-list'),
+    activeCount: $('#active-count'),
+    orphanedCount: $('#orphaned-count'),
   };
 
   // ---- Initialization ----
@@ -113,6 +120,7 @@
     
     await loadWalkablePath(); // Load path before starting walking loop
     await loadAnchorConfig(); // Load anchor before starting
+    initSidebar();
     loadProjects();
     bindEvents();
     startWalkingLoop();
@@ -1154,7 +1162,83 @@
                 <div class="robot-anchor-dot ${isIllegal ? 'illegal' : ''}"></div>
             </div>`;
     }).join('');
+    
+    // Update sidebar whenever robots are re-rendered
+    renderSidebar();
   }
+
+  /* ============================================
+     SIDEBAR LOGIC
+     ============================================ */
+  function initSidebar() {
+    if (!dom.sidebarToggle) return;
+    dom.sidebarToggle.addEventListener('click', () => {
+      dom.sidebar.classList.toggle('collapsed');
+    });
+  }
+
+  function renderSidebar() {
+    const activeAgents = state.projects.filter(p => p.active === true || p.active === "true");
+    const orphanedFolders = state.projects.filter(p => p.active === false || p.active === "false" || !p.active);
+
+    // Update Counts
+    if (dom.activeCount) dom.activeCount.innerText = activeAgents.length;
+    if (dom.orphanedCount) dom.orphanedCount.innerText = orphanedFolders.length;
+
+    // Render Active Agents
+    if (dom.activeAgentList) {
+      dom.activeAgentList.innerHTML = activeAgents.map(p => `
+        <div class="sidebar-item" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
+          <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
+          <div class="sidebar-item-info">
+            <div class="sidebar-item-name">${p.nickname || p.name}</div>
+            <div class="sidebar-item-sub">${p.name}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Orphaned Folders
+    if (dom.orphanedFolderList) {
+      dom.orphanedFolderList.innerHTML = orphanedFolders.map(p => `
+        <div class="sidebar-item orphaned-item" data-name="${p.name}" onclick="window.resumeOrphanedFolder('${p.name}')">
+          <div class="sidebar-item-icon">📂</div>
+          <div class="sidebar-item-info">
+            <div class="sidebar-item-name">${p.nickname || p.name}</div>
+            <div class="sidebar-item-sub">Orphaned Project</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Global helpers for sidebar clicks
+  window.focusAgentTerminal = (name) => {
+    const term = state.terminals[name];
+    if (term && term.panel) {
+      term.panel.classList.remove('hidden');
+      // Bring to front
+      bringToFront(term.panel);
+      // Highlights it
+      term.panel.classList.add('highlight-glow');
+      setTimeout(() => term.panel.classList.remove('highlight-glow'), 2000);
+      
+      // Auto-scrollTo if the card exists? 
+      // For now just focus the window
+    }
+  };
+
+  window.resumeOrphanedFolder = (name) => {
+    openModal();
+    // Pre-select in the dropdown
+    setTimeout(() => {
+        if (dom.orphanedSelect) {
+            dom.orphanedSelect.value = name;
+            // Trigger change to fill inputs
+            dom.orphanedSelect.dispatchEvent(new Event('change'));
+        }
+    }, 150);
+  };
 
   // ---- Terminal Management ----
   function bringToFront(panel) {
