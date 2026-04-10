@@ -429,7 +429,7 @@ body {
   max-width: 800px;
   height: auto;
   aspect-ratio: 1 / 1;
-  background-image: url('Gemini_Generated_Image_uazj4xuazj4xuazj.png');
+  background-image: url('assets/office/day/office_bg_day.png');
   background-size: cover;
   background-position: center;
   /* Removed shadows and radius to let the transparent image float */
@@ -440,7 +440,7 @@ body {
 .floor-foreground {
   position: absolute;
   inset: 0;
-  background-image: url('foreground.png');
+  background-image: url('assets/office/day/office_fg_day.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

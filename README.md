@@ -3,7 +3,7 @@
 **Nucleus Orchestrator for Virtual Agents**  
 A high-fidelity, interactive office environment for autonomous coding agents. NOVA provides a physical workspace for your AI agents, where they can roam, think, and execute tasks in dedicated persistent terminals.
 
-![NOVA Preview](public/Gemini_Generated_Image_uazj4xuazj4xuazj.png)
+![NOVA Preview](public/assets/office/day/office_bg_day.png)
 
 ## ✨ Features
 
