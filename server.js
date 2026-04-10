@@ -65,21 +65,22 @@ app.post('/api/projects', (req, res) => {
 
   if (fs.existsSync(projectPath)) {
     // Check if it is an orphaned NOVA project
-    const metaPath = path.join(projectPath, '.nova-meta.json');
-    if (fs.existsSync(metaPath)) {
+    const metaPathNew = path.join(projectPath, '.nova-meta.json');
+    const metaPathOld = path.join(projectPath, '.nova_meta.json');
+    const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
+
+    if (metaPath) {
       try {
         const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        if (!meta.active) {
-          console.log(`♻️  Re-activating orphaned project: ${safeName}`);
-          // Proceed to update and activate below by jumping out of the 409 check
-        } else {
+        if (meta.active) {
           return res.status(409).json({ error: 'Agent already active for this folder' });
         }
+        console.log(`♻️  Re-activating orphaned project: ${safeName}`);
       } catch (e) {
-        return res.status(409).json({ error: 'Project folder already exists and is invalid' });
+        // invalid meta? just overwrite later
       }
     } else {
-      return res.status(409).json({ error: 'Project folder already exists' });
+      console.log(`📂 Using existing folder without meta: ${safeName}`);
     }
   }
 
@@ -93,10 +94,14 @@ app.post('/api/projects', (req, res) => {
       if (!fs.existsSync(actualPath)) {
          fs.mkdirSync(actualPath, { recursive: true });
       }
-      // Create symlink in projects dir pointing to custom path
-      fs.symlinkSync(actualPath, projectPath, 'dir');
+      // Create symlink in projects dir pointing to custom path (if it doesn't exist yet)
+      if (!fs.existsSync(projectPath)) {
+        fs.symlinkSync(actualPath, projectPath, 'dir');
+      }
     } else {
-      fs.mkdirSync(projectPath, { recursive: true });
+      if (!fs.existsSync(projectPath)) {
+        fs.mkdirSync(projectPath, { recursive: true });
+      }
     }
 
     // Initialize a local git repo so agents treat this as a project root
@@ -145,27 +150,28 @@ app.get('/api/projects', (req, res) => {
       })
       .map(e => {
         const projectPath = path.join(PROJECTS_DIR, e.name);
-        // Look for new hyphenated meta or old underscored meta for compatibility
         const metaPathNew = path.join(projectPath, '.nova-meta.json');
         const metaPathOld = path.join(projectPath, '.nova_meta.json');
         
-        let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud', active: true };
+        let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud', active: false };
         
         const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
         
         if (metaPath) {
           try {
             const saved = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            const wasActiveDefined = saved.active !== undefined;
             meta = { ...meta, ...saved };
-            // If it's the old format without active flag, assume active
-            if (meta.active === undefined) meta.active = true;
+            // Auto-activate projects that existed before the 'active' flag was introduced
+            if (!wasActiveDefined) {
+                meta.active = true;
+            }
           } catch(err) {}
         } else {
-           // No meta file at all? Not a NOVA project as per user request
-           return null;
+           meta.active = false;
         }
         
-        if (e.isSymbolicLink() && !meta.active) return null; // Terminated symlinks disappear
+        if (e.isSymbolicLink() && !meta.active) return null;
         
         return meta;
       })
@@ -185,7 +191,10 @@ app.post('/api/update-emoji', (req, res) => {
     return res.status(404).json({ error: 'Project not found' });
   }
 
-  const metaPath = path.join(projectPath, '.nova_meta.json');
+  const metaPathNew = path.join(projectPath, '.nova-meta.json');
+  const metaPathOld = path.join(projectPath, '.nova_meta.json');
+  const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : metaPathNew);
+
   try {
     let meta = {};
     if (fs.existsSync(metaPath)) {
@@ -196,7 +205,13 @@ app.post('/api/update-emoji', (req, res) => {
     if (nickname) meta.nickname = nickname;
     if (model) meta.model = model;
     
-    fs.writeFileSync(metaPath, JSON.stringify(meta));
+    // Always save as new format for consistency
+    fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
+    // Remove old format if it exists and we're switching
+    if (metaPath === metaPathOld && fs.existsSync(metaPathOld)) {
+      fs.unlinkSync(metaPathOld);
+    }
+    
     console.log(`✨ Updated metadata for ${name}:`, meta);
     res.json(meta);
   } catch (err) {
@@ -293,11 +308,22 @@ app.delete('/api/projects/:name', (req, res) => {
         return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
       } else {
         // Just remove agent status, keep folder orphaned
-        const metaPath = path.join(projectPath, '.nova-meta.json');
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-          meta.active = false;
-          fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+        const metaPathNew = path.join(projectPath, '.nova-meta.json');
+        const metaPathOld = path.join(projectPath, '.nova_meta.json');
+        const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
+        
+        if (metaPath) {
+          try {
+            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            meta.active = false;
+            fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+          } catch(e) {
+            console.error(`Failed to update meta for orphan: ${name}`, e);
+          }
+        } else {
+           // create a basic meta to mark as inactive
+           const meta = { name, active: false };
+           fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
         }
         console.log(`💼 Agent removed, folder kept (orphaned): ${name}`);
         return res.json({ success: true, message: 'Agent removed, project files kept', type: 'orphaned' });
@@ -362,10 +388,12 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // Resolve model from metadata
-  const metaPath = path.join(projectPath, '.nova_meta.json');
+  const metaPathNew = path.join(projectPath, '.nova-meta.json');
+  const metaPathOld = path.join(projectPath, '.nova_meta.json');
+  const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
+
   let model = 'qwen3.5:cloud';
-  if (fs.existsSync(metaPath)) {
+  if (metaPath) {
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
       model = meta.model || model;
