@@ -1,4 +1,4 @@
-# NOVA — Agent Workspace 🤖
+# NOVA — Agent Workspace 🪐
 
 **Nucleus Orchestrator for Virtual Agents**  
 A high-fidelity, interactive office environment for autonomous coding agents. NOVA provides a physical workspace for your AI agents, where they can roam, think, and execute tasks in dedicated persistent terminals.

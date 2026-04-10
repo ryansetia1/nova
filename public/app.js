@@ -5,6 +5,15 @@
 (() => {
   'use strict';
 
+  // ---- Helpers ----
+  function getAppearanceHtml(appearance, className = "") {
+      if (appearance && appearance.startsWith('SPRITE:')) {
+          const charName = appearance.split(':')[1];
+          return `<img src="assets/characters/${charName}/avatar/${charName}Avatar.png" class="avatar-icon ${className}" alt="${charName}" onerror="this.style.display='none'">`;
+      }
+      return `<span class="${className}">${appearance || '🪐'}</span>`;
+  }
+
   // ---- State ----
   const state = {
     projects: [],
@@ -15,8 +24,8 @@
     resizingWindow: null,
     resizeStart: { w: 0, h: 0, x: 0, y: 0 },
     topZIndex: 100000,
-    selectedEmoji: '🤖',
-    updateSelectedEmoji: '🤖',
+    selectedEmoji: '🪐',
+    updateSelectedEmoji: '🪐',
     spawnAppearanceType: 'emoji', // 'emoji' or 'character'
     updateAppearanceType: 'emoji',
     walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame } }
@@ -65,7 +74,8 @@
     
     // Per-Agent Style Selectors
     spawnTypeToggle: $('#spawn-avatar-type-toggle'),
-    spawnEmojiArea: $('#spawn-emoji-area'),
+    spawnEmojiZone: $('#spawn-emoji-trigger-area'),
+    spawnCharZone: $('#spawn-character-hint-area'),
     spawnCharacterArea: $('#spawn-character-area'),
     spawnCharacterSelect: $('#spawn-character-select'),
 
@@ -73,11 +83,18 @@
     updateEmojiArea: $('#update-emoji-area'),
     updateCharacterArea: $('#update-character-area'),
     updateCharacterSelect: $('#update-character-select'),
+    updateEmojiPreview: $('#update-emoji-preview'),
+    updateEmojiHint: $('#update-emoji-hint-container'),
 
     // New Emoji Popover elements
     emojiTrigger: $('#emoji-trigger'),
     emojiPopover: $('#emoji-popover'),
     modalEmojiPicker: $('#modal-emoji-picker'),
+
+    // Loader
+    loader: $('#app-loader'),
+    loaderProgress: $('#loader-progress'),
+    loaderStatus: $('.loader-status'),
 
     // Anchor Adj
     inputAnchorX: $('#input-anchor-x'),
@@ -90,6 +107,10 @@
   async function init() {
     createParticles();
     startClock();
+    
+    // Preload all heavy assets first
+    await preloadAllAssets();
+    
     await loadWalkablePath(); // Load path before starting walking loop
     await loadAnchorConfig(); // Load anchor before starting
     loadProjects();
@@ -100,6 +121,55 @@
     initEmojiPopover();
     initAnchorAdjuster();
     initThemeControl();
+    
+    // Hide loader after a tiny delay for smoothness
+    setTimeout(() => {
+        if (dom.loader) dom.loader.classList.add('hidden');
+    }, 500);
+  }
+
+  async function preloadAllAssets() {
+    const assets = [
+        'assets/office/day/office_bg_day.png',
+        'assets/office/day/office_fg_day.png',
+        'assets/office/night/office_bg_night.png',
+        'assets/office/night/office_fg_night.png',
+        'assets/office/night/office_fx_night.png',
+        ...state.charFrames,
+        ...state.idleFrames
+    ];
+
+    let loaded = 0;
+    const total = assets.length;
+
+    const promises = assets.map((src, index) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = src;
+            img.onload = () => {
+                loaded++;
+                const percent = (loaded / total) * 100;
+                if (dom.loaderProgress) dom.loaderProgress.style.width = percent + '%';
+                
+                if (dom.loaderStatus) {
+                    if (loaded < total * 0.2) dom.loaderStatus.textContent = 'Loading HQ Environment...';
+                    else if (loaded < total * 0.8) dom.loaderStatus.textContent = 'Syncing Agent Sprites...';
+                    else dom.loaderStatus.textContent = 'Finalizing Neural Workspace...';
+                }
+                resolve();
+            };
+            img.onerror = () => {
+                loaded++; // Skip failed
+                resolve();
+            };
+        });
+    });
+
+    // Fail-safe: Maximum 4 seconds loading screen for slow internets
+    await Promise.race([
+        Promise.all(promises),
+        new Promise(resolve => setTimeout(resolve, 4000))
+    ]);
   }
 
   // ---- Dev Tools ----
@@ -156,13 +226,13 @@
           if (dev.toolbar) dev.toolbar.remove();
           dev.toolbar = document.createElement('div');
           dev.toolbar.id = 'dev-toolbar';
-          dev.toolbar.setAttribute('style', 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(13,17,28,0.95); padding:8px; border-radius:12px; z-index:40000; border:1px solid #6366f1; display:flex; gap:8px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px);');
+          dev.toolbar.setAttribute('style', 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(13,17,28,0.95); padding:8px; border-radius:12px; z-index:40000; border:1px solid #3b82f6; display:flex; gap:8px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px);');
           
           const btnStyle = 'padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; cursor:pointer; font-size:12px; transition:all 0.2s;';
           
           dev.toolbar.innerHTML = `
-              <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#6366f1; border-color:#6366f1;' : ''}">🖋️ Draw</button>
-              <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#6366f1; border-color:#6366f1;' : ''}">🎯 Tweak</button>
+              <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🖋️ Draw</button>
+              <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
               <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
               <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
               <button id="dev-btn-cancel" style="${btnStyle}">❌ Cancel</button>
@@ -247,8 +317,8 @@
           const points = targetPolygon.map(p => `${p.x},${p.y}`).join(' ');
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           poly.setAttribute('points', points);
-          poly.setAttribute('fill', 'rgba(99, 102, 241, 0.2)');
-          poly.setAttribute('stroke', '#6366f1');
+          poly.setAttribute('fill', 'rgba(59, 130, 246, 0.2)');
+          poly.setAttribute('stroke', '#3b82f6');
           poly.setAttribute('stroke-width', '0.4');
           poly.setAttribute('stroke-dasharray', '1,1');
           dev.svg.appendChild(poly);
@@ -258,7 +328,7 @@
               const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
               line.setAttribute('x1', targetPolygon[i].x); line.setAttribute('y1', targetPolygon[i].y);
               line.setAttribute('x2', targetPolygon[i+1].x); line.setAttribute('y2', targetPolygon[i+1].y);
-              line.setAttribute('stroke', '#6366f1'); line.setAttribute('stroke-width', '0.4');
+              line.setAttribute('stroke', '#3b82f6'); line.setAttribute('stroke-width', '0.4');
               dev.svg.appendChild(line);
           }
       }
@@ -293,7 +363,7 @@
 
   // ---- Features ---- 
   function createParticles() {
-    const colors = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
+    const colors = ['#3b82f6', '#2563eb', '#06b6d4', '#10b981'];
     for (let i = 0; i < 25; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
@@ -316,6 +386,13 @@
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.deleteCancelBtn.addEventListener('click', closeDeleteAgentModal);
     
+    dom.spawnCharacterSelect.onchange = () => {
+        if (state.spawnAppearanceType === 'character') {
+            const preview = document.getElementById('selected-emoji-preview');
+            if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + dom.spawnCharacterSelect.value);
+        }
+    };
+
     dom.orphanedSelect.addEventListener('change', (e) => {
         const pName = e.target.value;
         if (!pName) {
@@ -369,17 +446,27 @@
                 btns.forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 if (onTypeChange) onTypeChange(type);
+                
+                // Update preview immediately when switching tabs
+                const preview = document.getElementById(typeVarName === 'spawnAppearanceType' ? 'selected-emoji-preview' : 'update-emoji-preview');
+                if (preview) {
+                    let appearance = (typeVarName === 'spawnAppearanceType' ? state.selectedEmoji : state.updateSelectedEmoji) || '🪐';
+                    if (state[typeVarName] === 'character') {
+                        appearance = 'SPRITE:' + (typeVarName === 'spawnAppearanceType' ? dom.spawnCharacterSelect.value : dom.updateCharacterSelect.value);
+                    }
+                    preview.innerHTML = getAppearanceHtml(appearance);
+                }
             });
         });
     }
 
     setupAppearanceToggles(dom.spawnTypeToggle, 'spawnAppearanceType', (type) => {
         if (type === 'emoji') {
-            dom.spawnEmojiArea.classList.remove('hidden');
-            dom.spawnCharacterArea.classList.add('hidden');
+            if (dom.spawnEmojiZone) dom.spawnEmojiZone.classList.remove('hidden');
+            if (dom.spawnCharacterArea) dom.spawnCharacterArea.classList.add('hidden');
         } else {
-            dom.spawnEmojiArea.classList.add('hidden');
-            dom.spawnCharacterArea.classList.remove('hidden');
+            if (dom.spawnEmojiZone) dom.spawnEmojiZone.classList.add('hidden');
+            if (dom.spawnCharacterArea) dom.spawnCharacterArea.classList.remove('hidden');
         }
     });
 
@@ -387,15 +474,17 @@
         if (type === 'emoji') {
             dom.updateEmojiArea.classList.remove('hidden');
             dom.updateCharacterArea.classList.add('hidden');
+            if (dom.updateEmojiHint) dom.updateEmojiHint.classList.remove('hidden');
         } else {
             dom.updateEmojiArea.classList.add('hidden');
             dom.updateCharacterArea.classList.remove('hidden');
+            if (dom.updateEmojiHint) dom.updateEmojiHint.classList.add('hidden');
         }
     });
 
     if (dom.emojiUpdateSaveBtn) {
         dom.emojiUpdateSaveBtn.addEventListener('click', () => {
-             let finalAppearance = state.updateSelectedEmoji || '🤖';
+             let finalAppearance = state.updateSelectedEmoji || '🪐';
              if (state.updateAppearanceType === 'character') {
                  finalAppearance = 'SPRITE:' + dom.updateCharacterSelect.value;
              }
@@ -413,17 +502,19 @@
     
     // Emoji Picker Logic (Robust delegation)
     document.addEventListener('emoji-click', (e) => {
-        if (e.target.id === 'emoji-picker' || e.target.id === 'modal-emoji-picker') {
+        if (e.target.id === 'modal-emoji-picker') {
             const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
             if (emojiChar) {
                 state.selectedEmoji = emojiChar;
-                const preview = document.getElementById('selected-emoji-preview');
-                if (preview) preview.textContent = emojiChar;
+                if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml(emojiChar);
             }
         }
         if (e.target.id === 'update-emoji-picker') {
             const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
-            if (emojiChar) state.updateSelectedEmoji = emojiChar;
+            if (emojiChar) {
+                state.updateSelectedEmoji = emojiChar;
+                if (dom.updateEmojiPreview) dom.updateEmojiPreview.innerHTML = getAppearanceHtml(emojiChar);
+            }
         }
     });
 
@@ -540,19 +631,26 @@
   // ---- Theme Control (Day/Night) ----
   function initThemeControl() {
       const updateTheme = () => {
-          const hour = new Date().getHours();
+          const now = new Date();
+          const hour = now.getHours();
+          
+          // Night is 6 PM (18:00) to 6 AM (06:00)
           const isNight = hour >= 18 || hour < 6;
           
           if (isNight) {
-              document.body.classList.add('theme-night');
+              if (!document.body.classList.contains('theme-night')) {
+                  document.body.classList.add('theme-night');
+              }
           } else {
-              document.body.classList.remove('theme-night');
+              if (document.body.classList.contains('theme-night')) {
+                  document.body.classList.remove('theme-night');
+              }
           }
       };
 
       updateTheme();
-      // Check every minute if theme needs to change
-      setInterval(updateTheme, 60000);
+      // Check every 30 seconds
+      setInterval(updateTheme, 30000);
   }
 
   async function loadWalkablePath() {
@@ -784,21 +882,12 @@
 
   // ---- Emoji Popover Logic ----
   function initEmojiPopover() {
-    dom.emojiTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dom.emojiPopover.classList.toggle('hidden');
-    });
-
-    dom.modalEmojiPicker.addEventListener('emoji-click', (e) => {
-        const emoji = e.detail.unicode;
-        state.selectedEmoji = emoji;
-        dom.emojiPreview.textContent = emoji;
-        dom.emojiPopover.classList.add('hidden');
-    });
-
+    // Click outside to close for the spawn modal popover
     document.addEventListener('click', (e) => {
-        if (!dom.emojiPopover.contains(e.target) && e.target !== dom.emojiTrigger) {
-            dom.emojiPopover.classList.add('hidden');
+        if (dom.emojiPopover && !dom.emojiPopover.classList.contains('hidden')) {
+            if (!dom.emojiPopover.contains(e.target) && !e.target.closest('.emoji-hint')) {
+                dom.emojiPopover.classList.add('hidden');
+            }
         }
     });
   }
@@ -808,9 +897,9 @@
     dom.modal.classList.remove('hidden'); 
     dom.modalInput.value = ''; dom.modalInput.disabled = false;
     dom.nicknameInput.value = ''; dom.customPathInput.value = '';
-    state.selectedEmoji = '🤖';
+    state.selectedEmoji = '🪐';
     state.spawnAppearanceType = 'emoji';
-    if (dom.emojiPreview) dom.emojiPreview.textContent = '🤖';
+    if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml('🪐');
     dom.emojiPopover.classList.add('hidden');
     
     // Reset toggle UI
@@ -844,13 +933,19 @@
   function openEmojiUpdateModal(pName) {
     state.projectForEmojiUpdate = pName;
     const p = state.projects.find(x => x.name === pName);
-    
     if (p && p.emoji && p.emoji.startsWith('SPRITE:')) {
         state.updateAppearanceType = 'character';
-        if (dom.updateCharacterSelect) dom.updateCharacterSelect.value = p.emoji.split(':')[1];
+        if (dom.updateCharacterSelect) {
+            dom.updateCharacterSelect.value = p.emoji.split(':')[1];
+        }
     } else {
         state.updateAppearanceType = 'emoji';
-        state.updateSelectedEmoji = p ? p.emoji : '🤖'; 
+        state.updateSelectedEmoji = p ? p.emoji : '🪐';
+    }
+    
+    // Initial preview for update modal
+    if (dom.updateEmojiPreview) {
+        dom.updateEmojiPreview.innerHTML = getAppearanceHtml(p ? p.emoji : '🪐');
     }
     
     if (dom.updateTypeToggle) {
@@ -897,8 +992,8 @@
         // Update Terminal Header
         const t = state.terminals[pName];
         if (t && t.panel) {
-            const emojiEl = t.panel.querySelector('.terminal-header-emoji');
-            if (emojiEl) emojiEl.textContent = emoji;
+        const emojiEl = t.panel.querySelector('.terminal-header-emoji');
+        if (emojiEl) emojiEl.innerHTML = getAppearanceHtml(emoji);
         }
         
         closeEmojiUpdateModal();
@@ -946,7 +1041,7 @@
     const nickname = dom.nicknameInput.value.trim();
     const customPath = dom.customPathInput.value.trim();
     const model = dom.modelSelect.value;
-    let emoji = state.selectedEmoji || '🤖';
+    let emoji = state.selectedEmoji || '🪐';
     if (state.spawnAppearanceType === 'character') {
          emoji = 'SPRITE:' + dom.spawnCharacterSelect.value;
     }
@@ -1000,7 +1095,7 @@
   function renderRobots() {
     if (state.projects.length === 0) { dom.emptyState.classList.remove('hidden'); dom.robotCards.innerHTML = ''; return; }
     dom.emptyState.classList.add('hidden');
-    const fallbackEmojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
+    const fallbackEmojis = ['🪐', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
     dom.robotCards.innerHTML = state.projects.map((p, i) => {
         // Explicitly prioritize the saved emoji character
         const rawAppearance = p.emoji || fallbackEmojis[i % fallbackEmojis.length];
@@ -1026,7 +1121,9 @@
                     <img class="robot-char-sprite" src="${(r?.isHovered || r?.naturalIdleTimer > 0 ? state.idleFrames : state.charFrames)[r?.frame || 0]}" alt="Agent">
                 </div>
         ` : `
-                <span class="robot-card-emoji">${entityLabel}</span>
+                <div class="robot-card-emoji-container">
+                    ${getAppearanceHtml(rawAppearance, 'robot-card-emoji')}
+                </div>
         `;
 
         return `
@@ -1142,7 +1239,7 @@
 
     // Draggable
     header.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container')) return;
+        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-header-emoji')) return;
         if (tState.isMaximized) return;
         
         bringToFront(panel);
@@ -1263,11 +1360,11 @@
             panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
             panel.querySelector('.terminal-project-badge').textContent = meta.model || '';
             const emojiEl = panel.querySelector('.terminal-header-emoji');
-            if (emojiEl) emojiEl.textContent = meta.emoji || '🤖';
+            if (emojiEl) emojiEl.innerHTML = getAppearanceHtml(meta.emoji);
         } else {
             panel.querySelector('.terminal-title').textContent = pName;
             const emojiEl = panel.querySelector('.terminal-header-emoji');
-            if (emojiEl) emojiEl.textContent = '🤖';
+            if (emojiEl) emojiEl.innerHTML = getAppearanceHtml('🪐');
         }
         
         dom.mainContent.appendChild(panel);

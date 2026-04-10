@@ -112,7 +112,7 @@ app.post('/api/projects', (req, res) => {
       name: safeName,
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
-      emoji: emoji || '🤖',
+      emoji: emoji || '🪐',
       customPath: customPath ? actualPath : undefined,
       created_at: new Date().toISOString(),
       last_agent_spawned: new Date().toISOString(),
@@ -472,5 +472,5 @@ wss.on('connection', (ws, req) => {
 
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`\n🤖 NOVA server running at http://localhost:${PORT}\n`);
+  console.log(`\n🪐 NOVA server running at http://localhost:${PORT}\n`);
 });
