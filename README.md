@@ -8,11 +8,12 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 ## ✨ Features
 
 - **Autonomous Agent Visuals**: Beautiful sprite-based character animations with support for walking, idling, and "thinking" states.
+- **Dynamic Day/Night System**: The office environment automatically transitions between Day and Night themes based on your local system time, featuring custom lighting (FX) and dimmed agent states.
 - **Persistent Terminals**: Every agent manages its own project folder with a real, integrated terminal (powered by `xterm.js` and `node-pty`).
-- **Dynamic Office Environment**:
+- **Dynamic Office Environment (NOVA HQ)**:
     - **Depth Sorting**: Agents naturally overlap based on their vertical position, creating a 3D depth illusion.
     - **Walkable Zones**: Precise pathing logic to keep agents within the office floor boundaries.
-    - **Ambient Particles**: Subtle visual effects for a premium "living" workspace feel.
+    - **Polished Feedback**: Large, high-visibility "thinking" bubbles and status indicators for better interaction monitoring.
 - **Developer Suite (Ctrl+D)**:
     - **Floor Drawing**: Draw custom walkable paths directly on the floor.
     - **Point Tweaking**: Interactive drag-and-drop system to refine paths.
