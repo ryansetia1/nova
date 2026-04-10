@@ -444,7 +444,7 @@ body {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  z-index: 50; /* Higher than agents (z-index:10) */
+  z-index: 20000; /* Higher than dynamically sorted agents (max 10000) */
   pointer-events: none; /* Let clicks pass through to agents */
 }
 
@@ -546,7 +546,7 @@ body.drawing-mode #robot-area {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  width: 180px;
+  width: 210px;
   z-index: 10;
   padding: 10px;
   /* Anchor is adjustable via CSS variables */
@@ -649,7 +649,7 @@ body.drawing-mode svg polygon {
 body.show-visuals #floor-wrapper svg,
 body.drawing-mode #floor-wrapper svg {
   display: block !important;
-  z-index: 9999 !important;
+  z-index: 30000 !important;
 }
 
 body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
@@ -729,7 +729,7 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   font-size: 11px;
   text-align: center;
   white-space: nowrap;
-  width: 180px;
+  width: 210px;
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
@@ -755,8 +755,8 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 }
 
 .robot-sprite-container {
-  width: 180px;
-  height: 180px;
+  width: 210px;
+  height: 210px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -784,7 +784,7 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 }
 
 .robot-card-emoji {
-  font-size: 64px;
+  font-size: 74px;
   margin: 0;
   animation: robotIdle 3s ease-in-out infinite;
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
@@ -1473,7 +1473,7 @@ emoji-picker.dark {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 2000;
+  z-index: 100000;
   transition: opacity var(--transition-base), transform var(--transition-base), visibility var(--transition-base);
 }
 

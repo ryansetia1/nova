@@ -14,6 +14,7 @@
     dragOffset: { x: 0, y: 0 },
     resizingWindow: null,
     resizeStart: { w: 0, h: 0, x: 0, y: 0 },
+    topZIndex: 100000,
     selectedEmoji: '🤖',
     updateSelectedEmoji: '🤖',
     spawnAppearanceType: 'emoji', // 'emoji' or 'character'
@@ -112,7 +113,7 @@
                       dev.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                       dev.svg.id = 'dev-svg-layer';
                       dev.svg.setAttribute('viewBox', '0 0 100 100');
-                      dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:9999;');
+                      dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30000;');
                       $('#floor-wrapper').appendChild(dev.svg);
                   }
                   if (dev.overlay) dev.overlay.remove();
@@ -164,7 +165,7 @@
           dev.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
           dev.svg.id = 'dev-svg-layer';
           dev.svg.setAttribute('viewBox', '0 0 100 100');
-          dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:9999;');
+          dev.svg.setAttribute('style', 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30000;');
           $('#floor-wrapper').appendChild(dev.svg);
       }
       dev.svg.innerHTML = '';
@@ -538,6 +539,8 @@
             if (el) {
                 el.style.left = r.x + '%';
                 el.style.top = r.y + '%';
+                // Depth Sorting: Agents further down (higher Y) should be on top
+                el.style.zIndex = Math.floor(r.y * 100);
                 
                 // Animation Frame
                 if (r.isWalking) {
@@ -790,7 +793,7 @@
         const isReady = t && t.ready;
         const isVisible = t && t.panel && !t.panel.classList.contains('hidden');
         const r = state.walkingRobots[p.name];
-        const posStyle = r ? `left: ${r.x}%; top: ${r.y}%;` : '';
+        const posStyle = r ? `left: ${r.x}%; top: ${r.y}%; z-index: ${Math.floor(r.y * 100)};` : '';
         const isIllegal = r?.isIllegal;
         
         const topLabel = p.nickname || p.name;
