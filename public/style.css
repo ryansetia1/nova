@@ -157,7 +157,6 @@ body {
   justify-content: center;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  margin-right: 4px;
 }
 
 .terminal-header-emoji:hover {
@@ -576,6 +575,7 @@ body:not(.show-visuals) #floor-wrapper svg {
 
 .robot-avatar:hover .robot-card-emoji {
   animation-play-state: paused;
+  filter: drop-shadow(0 0 10px var(--accent-primary));
 }
 
 .robot-card-status {
@@ -1266,7 +1266,6 @@ emoji-picker.dark {
 .terminal-dot.green { background: #28c840; border: 0.5px solid rgba(0,0,0,0.2); }
 
 .terminal-title {
-  margin-left: 8px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
@@ -1608,3 +1607,73 @@ emoji-picker.dark {
     border-color: var(--text-muted);
 }
 
+/* Orphaned Projects */
+.robot-avatar.orphaned {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  cursor: default;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  min-height: 120px;
+}
+
+.robot-avatar.orphaned:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-primary);
+  transform: translateY(-5px);
+}
+
+.robot-avatar.orphaned .robot-label.top {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-primary);
+  margin-bottom: 4px;
+}
+
+.robot-avatar.orphaned .robot-label.bottom {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.spawn-badge {
+  margin-top: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: var(--accent-primary);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  pointer-events: none; /* Let the card handle clicks */
+}
+
+.robot-avatar.orphaned:hover .spawn-badge {
+  background: var(--accent-primary);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.robot-avatar.orphaned::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.robot-avatar.orphaned:hover::before {
+  opacity: 1;
+}

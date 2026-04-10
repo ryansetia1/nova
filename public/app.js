@@ -8,7 +8,7 @@
   // ---- State ----
   const state = {
     projects: [],
-    projectToDelete: null,
+    agentToDelete: null,
     terminals: {}, 
     draggingWindow: null, // the element being dragged
     dragOffset: { x: 0, y: 0 },
@@ -32,6 +32,8 @@
     modelSelect: $('#model-select'),
     modalCancel: $('#modal-cancel-btn'),
     modalConfirm: $('#modal-confirm-btn'),
+    orphanedGroup: $('#orphaned-selector-group'),
+    orphanedSelect: $('#orphaned-select'),
     robotCards: $('#robot-cards'),
     emptyState: $('#empty-state'),
     mainContent: $('#main-content'),
@@ -39,8 +41,9 @@
     toastContainer: $('#toast-container'),
     particles: $('#particles'),
     deleteModal: $('#delete-modal'),
-    deleteRobotName: $('#delete-robot-name'),
+    deleteAgentName: $('#delete-agent-name'),
     deleteCancelBtn: $('#delete-cancel-btn'),
+    deleteAgentOnlyBtn: $('#delete-agent-only-btn'),
     deleteConfirmBtn: $('#delete-confirm-btn'),
     settingsBtn: $('#settings-btn'),
     settingsMenu: $('#settings-menu'),
@@ -176,8 +179,32 @@
     dom.spawnBtn.addEventListener('click', openModal);
     dom.modalCancel.addEventListener('click', closeModal);
     dom.modalConfirm.addEventListener('click', handleSpawn);
-    dom.deleteCancelBtn.addEventListener('click', closeDeleteModal);
-    dom.deleteConfirmBtn.addEventListener('click', handleDelete);
+    dom.deleteCancelBtn.addEventListener('click', closeDeleteAgentModal);
+    
+    dom.orphanedSelect.addEventListener('change', (e) => {
+        const pName = e.target.value;
+        if (!pName) {
+            dom.modalInput.disabled = false;
+            dom.modalInput.value = '';
+            dom.nicknameInput.value = '';
+            dom.customPathInput.value = '';
+        } else {
+            const p = state.projects.find(x => x.name === pName);
+            if (p) {
+                dom.modalInput.value = p.name;
+                dom.modalInput.disabled = true; // folder exists, can't change
+                dom.nicknameInput.value = p.nickname || p.name;
+                dom.customPathInput.value = p.customPath || '';
+                if (p.emoji) {
+                    state.selectedEmoji = p.emoji;
+                    dom.emojiPreview.textContent = p.emoji;
+                }
+            }
+        }
+    });
+
+    dom.deleteAgentOnlyBtn.addEventListener('click', () => handleDeleteAgent(false));
+    dom.deleteConfirmBtn.addEventListener('click', () => handleDeleteAgent(true));
 
     // Settings Menu
     if (dom.settingsBtn) {
@@ -219,13 +246,13 @@
     });
 
     [dom.modal, dom.deleteModal].forEach(m => {
-        m.addEventListener('click', (e) => { if (e.target === m) { closeModal(); closeDeleteModal(); } });
+        m.addEventListener('click', (e) => { if (e.target === m) { closeModal(); closeDeleteAgentModal(); } });
     });
 
     // Global Keydown
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal(); closeDeleteModal();
+            closeModal(); closeDeleteAgentModal();
             // Hide topmost window
             const visiblePanels = Object.values(state.terminals).map(t => t.panel).filter(p => p && !p.classList.contains('hidden'));
             if (visiblePanels.length > 0) {
@@ -295,11 +322,16 @@
             if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = true;
         }
     });
+
     dom.robotCards.addEventListener('mouseout', (e) => {
         const card = e.target.closest('.robot-avatar');
         if (card) {
             const name = card.dataset.project;
-            if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = false;
+            // Only set to false if the mouse is actually leaving the card, not just moving to a child
+            const nextElement = e.relatedTarget;
+            if (!nextElement || !card.contains(nextElement)) {
+                if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = false;
+            }
         }
     });
   }
@@ -338,10 +370,12 @@
             // Boundary check: just flag if they drifted out so we can color the dot red
             r.isIllegal = !isPointInPolygon({x: r.x, y: r.y}, WALKABLE_PATH);
 
-            // Stop if its terminal is open AND visible, or if hovered
+            // Stop if its terminal is open AND visible, or if hovered, or if project is orphaned
+            const p = state.projects.find(x => x.name === name);
             const t = state.terminals[name];
             const isWindowVisible = t && t.panel && !t.panel.classList.contains('hidden');
-            r.isWalking = !(isWindowVisible || r.isHovered);
+            const isOrphaned = p && !p.active;
+            r.isWalking = !(isWindowVisible || r.isHovered || isOrphaned);
 
             if (r.isWalking) {
                 const dx = r.tx - r.x;
@@ -383,10 +417,16 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < 12) { // Minimum distance percentage
-                    const force = (12 - dist) * 0.1; // Repulsion force
+                    const force = (12 - dist) * 0.15; // Increased repulsion force
                     const angle = Math.atan2(dy, dx);
-                    if (r1.isWalking && !r1.isHovered) { r1.x += Math.cos(angle) * force; r1.y += Math.sin(angle) * force; }
-                    if (r2.isWalking && !r2.isHovered) { r2.x -= Math.cos(angle) * force; r2.y -= Math.sin(angle) * force; }
+                    
+                    // Stationary (hovered or orphaned) objects should be even harder to move
+                    const canMove1 = r1.isWalking && !r1.isHovered;
+                    const canMove2 = r2.isWalking && !r2.isHovered;
+
+                    if (canMove1) { r1.x += Math.cos(angle) * force; r1.y += Math.sin(angle) * force; }
+                    if (canMove2) { r2.x -= Math.cos(angle) * force; r2.y -= Math.sin(angle) * force; }
+                    
                     // Keep bounds
                     r1.x = Math.max(0, Math.min(r1.x, 90)); r1.y = Math.max(0, Math.min(r1.y, 90));
                     r2.x = Math.max(0, Math.min(r2.x, 90)); r2.y = Math.max(0, Math.min(r2.y, 90));
@@ -415,9 +455,22 @@
 
   // ---- Modal & Projects ----
   async function openModal() {
-    dom.modal.classList.remove('hidden'); dom.modalInput.value = ''; dom.nicknameInput.value = ''; dom.customPathInput.value = '';
+    dom.modal.classList.remove('hidden'); 
+    dom.modalInput.value = ''; dom.modalInput.disabled = false;
+    dom.nicknameInput.value = ''; dom.customPathInput.value = '';
     state.selectedEmoji = '🤖';
     if (dom.emojiPreview) dom.emojiPreview.textContent = '🤖';
+    
+    // Check for orphaned projects to show selector
+    const orphaned = state.projects.filter(p => !p.active);
+    if (orphaned.length > 0) {
+        dom.orphanedGroup.classList.remove('hidden');
+        dom.orphanedSelect.innerHTML = '<option value="">-- Start Fresh Folder --</option>' + 
+            orphaned.map(p => `<option value="${p.name}">${p.nickname || p.name} (${p.name})</option>`).join('');
+    } else {
+        dom.orphanedGroup.classList.add('hidden');
+    }
+
     try {
         const res = await fetch('/api/models');
         const models = await res.json();
@@ -475,9 +528,18 @@
     }
   }
 
-  function openDeleteModal(project) {
-    state.projectToDelete = project;
-    dom.deleteRobotName.textContent = project.nickname || project.name;
+  function openDeleteAgentModal(project) {
+    if (project.customPath) {
+        // If it was created via custom path, it is likely a symlink
+        // But we check for sure in the backend. 
+        // User said: If symlink -> remove symlink only, no prompt.
+        // I'll perform a quick check and if it's a symlink, just trigger it.
+        handleDeleteAgent(false); 
+        return;
+    }
+
+    state.agentToDelete = project;
+    dom.deleteAgentName.textContent = project.nickname || project.name;
     dom.deleteModal.classList.remove('hidden');
     // Hide dropdown in terminal
     const t = state.terminals[project.name];
@@ -486,7 +548,7 @@
         if (d) d.classList.add('hidden');
     }
   }
-  function closeDeleteModal() { dom.deleteModal.classList.add('hidden'); }
+  function closeDeleteAgentModal() { dom.deleteModal.classList.add('hidden'); }
 
   async function loadProjects() {
     try {
@@ -520,20 +582,34 @@
     } catch (err) {} finally { dom.modalConfirm.disabled = false; }
   }
 
-  async function handleDelete() {
-    const project = state.projectToDelete; if (!project) return;
+  async function handleDeleteAgent(deleteFiles = false) {
+    const project = state.agentToDelete; if (!project) return;
+    const pName = project.name;
     try {
-        await fetch(`/api/projects/${encodeURIComponent(project.name)}`, { method: 'DELETE' });
-        state.projects = state.projects.filter(p => p.name !== project.name);
-        if (state.terminals[project.name]) { 
-            state.terminals[project.name].ws.close(); 
-            if (state.terminals[project.name].panel) state.terminals[project.name].panel.remove(); 
-            delete state.terminals[project.name]; 
+        const res = await fetch(`/api/projects/${encodeURIComponent(project.name)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (data.type === 'symlink' || deleteFiles) {
+            state.projects = state.projects.filter(p => p.name !== project.name);
+        } else if (data.type === 'orphaned') {
+            const p = state.projects.find(x => x.name === project.name);
+            if (p) p.active = false;
         }
-        delete state.walkingRobots[project.name];
-        closeDeleteModal(); renderRobots();
-        showToast('success', '🗑️', 'Project removed');
-    } catch (err) {}
+
+        if (state.terminals[pName]) { 
+            state.terminals[pName].ws.close(); 
+            if (state.terminals[pName].panel) state.terminals[pName].panel.remove(); 
+            delete state.terminals[pName]; 
+        }
+        
+        // Ensure UI refreshes immediately
+        closeDeleteAgentModal();
+        renderRobots();
+        
+        showToast('success', '🗑️', data.message || 'Agent removed');
+    } catch (err) {
+        showToast('error', '❌', 'Failed to remove agent');
+    }
   }
 
   // ---- Render ----
@@ -552,6 +628,11 @@
         const isIllegal = r?.isIllegal;
         
         const topLabel = p.nickname || p.name;
+
+        if (!p.active) {
+            // Hide orphaned slots from UI workspace/floor as per user request
+            return '';
+        }
 
         return `
             <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
@@ -650,7 +731,10 @@
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const p = state.projects.find(x => x.name === pName);
-        if (p) openDeleteModal(p);
+        if (p) {
+            state.agentToDelete = p; // Ensure state is set before calling modal logic
+            openDeleteAgentModal(p);
+        }
     });
 
     const headerEmoji = panel.querySelector('.terminal-header-emoji');
@@ -961,6 +1045,14 @@
       openTerminal,
       setHover: (name, isActive) => {
           if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = isActive;
+      },
+      spawnAtOrphaned(pName) {
+          const p = state.projects.find(x => x.active === false && x.name === pName);
+          if (p) {
+              openModal();
+              dom.modalInput.value = p.name;
+              dom.nicknameInput.value = p.nickname || p.name;
+          }
       }
   };
   document.addEventListener('DOMContentLoaded', init);

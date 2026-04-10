@@ -57,7 +57,23 @@ app.post('/api/projects', (req, res) => {
   const projectPath = path.join(PROJECTS_DIR, safeName);
 
   if (fs.existsSync(projectPath)) {
-    return res.status(409).json({ error: 'Project folder already exists' });
+    // Check if it is an orphaned NOVA project
+    const metaPath = path.join(projectPath, '.nova-meta.json');
+    if (fs.existsSync(metaPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        if (!meta.active) {
+          console.log(`♻️  Re-activating orphaned project: ${safeName}`);
+          // Proceed to update and activate below by jumping out of the 409 check
+        } else {
+          return res.status(409).json({ error: 'Agent already active for this folder' });
+        }
+      } catch (e) {
+        return res.status(409).json({ error: 'Project folder already exists and is invalid' });
+      }
+    } else {
+      return res.status(409).json({ error: 'Project folder already exists' });
+    }
   }
 
   try {
@@ -91,9 +107,11 @@ app.post('/api/projects', (req, res) => {
       model: model || 'qwen3.5:cloud',
       emoji: emoji || '🤖',
       customPath: customPath ? actualPath : undefined,
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      last_agent_spawned: new Date().toISOString(),
+      active: true
     };
-    fs.writeFileSync(path.join(actualPath, '.nova_meta.json'), JSON.stringify(meta));
+    fs.writeFileSync(path.join(actualPath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
     
     console.log(`✅ Created project: ${safeName} (Nickname: ${meta.nickname}) in ${actualPath}`);
     res.json(meta);
@@ -120,17 +138,31 @@ app.get('/api/projects', (req, res) => {
       })
       .map(e => {
         const projectPath = path.join(PROJECTS_DIR, e.name);
-        const metaPath = path.join(projectPath, '.nova_meta.json');
-        let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud' };
+        // Look for new hyphenated meta or old underscored meta for compatibility
+        const metaPathNew = path.join(projectPath, '.nova-meta.json');
+        const metaPathOld = path.join(projectPath, '.nova_meta.json');
         
-        if (fs.existsSync(metaPath)) {
+        let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud', active: true };
+        
+        const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
+        
+        if (metaPath) {
           try {
             const saved = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
             meta = { ...meta, ...saved };
+            // If it's the old format without active flag, assume active
+            if (meta.active === undefined) meta.active = true;
           } catch(err) {}
+        } else {
+           // No meta file at all? Not a NOVA project as per user request
+           return null;
         }
+        
+        if (e.isSymbolicLink() && !meta.active) return null; // Terminated symlinks disappear
+        
         return meta;
-      });
+      })
+      .filter(m => m !== null);
     res.json(projects);
   } catch (err) {
     res.json([]);
@@ -184,25 +216,35 @@ app.delete('/api/projects/:name', (req, res) => {
       terminals.delete(name);
     }
 
-    // Handle symlink deletion (follow link to delete original folder)
-    let finalPathToDelete = projectPath;
-    try {
-      if (fs.lstatSync(projectPath).isSymbolicLink()) {
-        finalPathToDelete = fs.readlinkSync(projectPath);
-        // Remove the symlink first
-        fs.unlinkSync(projectPath);
+    const isSymlink = fs.lstatSync(projectPath).isSymbolicLink();
+    const deleteFiles = req.query.deleteFiles === 'true';
+
+    if (isSymlink) {
+      // 1. If symlink: Remove the symlink only. NEVER touch original.
+      fs.unlinkSync(projectPath);
+      console.log(`🗑️  Removed symlink: ${name}`);
+      return res.json({ success: true, message: 'Agent removed', type: 'symlink' });
+    } else {
+      // 2. If real directory
+      if (deleteFiles) {
+        fs.rmSync(projectPath, { recursive: true, force: true });
+        console.log(`🗑️  Deleted project folder entirely: ${name}`);
+        return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
+      } else {
+        // Just remove agent status, keep folder orphaned
+        const metaPath = path.join(projectPath, '.nova-meta.json');
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+          meta.active = false;
+          fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+        }
+        console.log(`💼 Agent removed, folder kept (orphaned): ${name}`);
+        return res.json({ success: true, message: 'Agent removed, project files kept', type: 'orphaned' });
       }
-    } catch (e) {}
-
-    // Delete the actual folder (either the symlink target or the local projects folder)
-    if (fs.existsSync(finalPathToDelete)) {
-      fs.rmSync(finalPathToDelete, { recursive: true, force: true });
     }
-
-    console.log(`🗑️  Deleted project and folder: ${name} (at ${finalPathToDelete})`);
-    res.json({ success: true, message: 'Project and folder deleted' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete project reference' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process deletion' });
   }
 });
 

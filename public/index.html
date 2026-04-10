@@ -91,9 +91,9 @@
         <div class="terminal-panel hidden">
           <div class="terminal-header">
             <div class="terminal-header-left">
-              <span class="terminal-header-emoji" title="Click to change emoji"></span>
               <div class="terminal-dot red terminal-close-dot" title="Close"></div>
               <div class="terminal-dot green terminal-maximize-dot" title="Maximize"></div>
+              <span class="terminal-header-emoji" title="Click to change emoji"></span>
               <span class="terminal-title">Terminal</span>
               <span class="terminal-folder"></span>
             </div>
@@ -105,7 +105,7 @@
                 </button>
                 <div class="terminal-dropdown hidden">
                   <button class="terminal-delete-btn dropdown-item danger">
-                    <span>🗑️</span> Delete Project
+                    <span>🗑️</span> Delete Agent
                   </button>
                 </div>
               </div>
@@ -126,6 +126,14 @@
         <h3>Spawn New Agent</h3>
       </div>
       <div class="modal-body">
+        <div id="orphaned-selector-group" class="input-group hidden">
+          <label for="orphaned-select">Resume Existing Folder</label>
+          <select id="orphaned-select">
+            <option value="">-- New Folder --</option>
+          </select>
+          <p class="modal-hint" style="margin-top: 4px; font-size: 10px;">Select a previously created folder to reactivate its agent.</p>
+        </div>
+
         <div class="input-group">
           <label for="project-name-input">Project Name (Folder)</label>
           <input type="text" id="project-name-input" placeholder="e.g. my-agent" autocomplete="off">
@@ -178,14 +186,19 @@
         <h3>Delete Agent?</h3>
       </div>
       <div class="modal-body">
-        <p>This will permanently delete the agent <strong id="delete-robot-name"></strong> and its project folder.</p>
+        <p>This will permanently delete the agent <strong id="delete-agent-name"></strong> and its project folder.</p>
         <p class="modal-hint" style="color: var(--accent-rose); margin-top: 12px;">This action cannot be undone.</p>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" id="delete-modal-footer">
         <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
-        <button id="delete-confirm-btn" class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-rose), #be123c);">
-          <span>🗑️</span> Delete Forever
-        </button>
+        <div style="display: flex; gap: 8px;">
+          <button id="delete-agent-only-btn" class="btn btn-secondary">
+             Remove Agent Only
+          </button>
+          <button id="delete-confirm-btn" class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-rose), #be123c);">
+            <span>🗑️</span> Delete Everything
+          </button>
+        </div>
       </div>
     </div>
   </div>
