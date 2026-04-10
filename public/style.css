@@ -437,6 +437,17 @@ body {
   border-radius: 0;
 }
 
+.floor-foreground {
+  position: absolute;
+  inset: 0;
+  background-image: url('foreground.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 50; /* Higher than agents (z-index:10) */
+  pointer-events: none; /* Let clicks pass through to agents */
+}
+
 /* Removed floor dark overlay */
 #floor-wrapper::before {
   display: none;
