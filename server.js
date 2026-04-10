@@ -402,6 +402,15 @@ wss.on('connection', (ws, req) => {
 
   console.log(`🖥️  Terminal opened for project: ${projectName} using model: ${model}`);
 
+  // Fix 2: Kill existing PTY if it exists for this project to avoid zombie processes
+  if (terminals.has(projectName)) {
+    try { 
+      terminals.get(projectName).kill(); 
+      console.log(`🔄 Killed existing PTY for ${projectName} before reconnect`);
+    } catch(e) {}
+    terminals.delete(projectName);
+  }
+
   const shell = '/bin/zsh';
   let ptyProcess;
   try {
@@ -412,7 +421,15 @@ wss.on('connection', (ws, req) => {
       cwd: projectPath,
       env: {
         HOME: process.env.HOME || os.homedir(),
-        PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin',
+        PATH: [
+          '/usr/local/bin',
+          '/usr/bin', 
+          '/bin',
+          '/usr/sbin',
+          '/sbin',
+          '/opt/homebrew/bin',
+          process.env.PATH || ''
+        ].filter(Boolean).join(':'),
         SHELL: shell,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',

@@ -4,7 +4,7 @@
 
 import { state, dom } from './state.js';
 import { showToast, renderRobots, getAppearanceHtml } from './ui.js';
-import { setupTerminal } from './terminal.js';
+import { setupTerminal, disposeTerminal } from './terminal.js';
 
 export async function openModal() {
     try {
@@ -179,17 +179,13 @@ export async function handleDeleteAgent(deleteFiles = false) {
         const res = await fetch(`/api/projects/${encodeURIComponent(project.name)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
         const data = await res.json();
         
+        disposeTerminal(pName);
+
         if (data.type === 'symlink' || deleteFiles) {
             state.projects = state.projects.filter(p => p.name !== project.name);
         } else if (data.type === 'orphaned') {
             const p = state.projects.find(x => x.name === project.name);
             if (p) p.active = false;
-        }
-
-        if (state.terminals[pName]) { 
-            state.terminals[pName].ws.close(); 
-            if (state.terminals[pName].panel) state.terminals[pName].panel.remove(); 
-            delete state.terminals[pName]; 
         }
         
         closeDeleteAgentModal();

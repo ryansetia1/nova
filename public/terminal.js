@@ -30,7 +30,34 @@ export function hideTerminal(pName) {
     renderRobots(); 
 }
 
+export function disposeTerminal(pName) {
+    const t = state.terminals[pName];
+    if (!t) return;
+    try { t.ws.close(); } catch(e) {}
+    try { t.term.dispose(); } catch(e) {}
+    try { t.panel.remove(); } catch(e) {}
+    delete state.terminals[pName];
+}
+
 export function setupTerminal(pName, showUI = false) {
+    const existing = state.terminals[pName];
+    if (existing && existing.term) {
+        if (showUI) {
+            existing.panel.classList.remove('hidden');
+            bringToFront(existing.panel);
+            try {
+                existing.fitAddon.fit();
+                existing.ws.send(JSON.stringify({ 
+                    type: 'resize', 
+                    cols: existing.term.cols, 
+                    rows: existing.term.rows 
+                }));
+                existing.term.focus();
+            } catch(e) {}
+        }
+        return;
+    }
+    
     let t = state.terminals[pName];
 
     if (!t) {
