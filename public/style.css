@@ -2416,3 +2416,27 @@ emoji-picker.dark {
   background: rgba(59, 130, 246, 0.1);
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 }
+
+/* Error State for Agents */
+.robot-avatar.has-error .robot-thought-bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1.1);
+  animation: errorShake 0.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px var(--accent-rose));
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(-50%) scale(1.1); }
+  25% { transform: translateX(-55%) scale(1.1); }
+  75% { transform: translateX(-45%) scale(1.1); }
+}
+
+.robot-avatar.has-error .robot-char-sprite,
+.robot-avatar.has-error .robot-card-emoji {
+  filter: drop-shadow(0 0 20px var(--accent-rose)) !important;
+}
+
+.robot-avatar.has-error .robot-label {
+  color: var(--accent-rose);
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+}

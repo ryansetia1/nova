@@ -1158,11 +1158,11 @@
         `;
 
         return `
-            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''}" 
                  data-project="${p.name}" style="${posStyle}"
                  onclick="window.nova.openTerminal('${p.name}')">
                 <div class="robot-label top">${topLabel}</div>
-                <div class="robot-thought-bubble">💭</div>
+                <div class="robot-thought-bubble">${r?.hasError ? '⚠️' : '💭'}</div>
                 <div class="robot-check-badge"></div>
                 ${spriteHtml}
                 <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
@@ -1633,10 +1633,19 @@
                     if (robot) {
                         const raw = msg.data;
                         const cleanText = raw.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-                        
-                        // Check for the specific spinner characters (✽, ✢, ✥) or the old patterns
                         const isThinkingPattern = /✽|✢|✥|thinking/i.test(raw) || /[a-z]*ing\.\.\./i.test(cleanText) || /\.\.\.\s*\(\d+/i.test(cleanText);
-                        if (isThinkingPattern) {
+                        
+                        // Detect Rate Limit Error
+                        const isRateLimit = /rate_limit_error|429/i.test(cleanText);
+
+                        if (isRateLimit) {
+                            robot.hasError = true;
+                            robot.isThinking = false;
+                            if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
+                            renderRobots();
+                            console.warn(`[NOVA] Rate limit detected for ${pName}`);
+                        } else if (isThinkingPattern) {
+                            robot.hasError = false; 
                             robot.isThinking = true;
                             if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
                             t.thinkingTimer = setTimeout(() => {
@@ -1652,18 +1661,31 @@
                         } else if (raw.length > 20 && !raw.includes('\u001b')) {
                             const isHidden = t.panel.classList.contains('hidden');
                             if (robot.isThinking && isHidden) {
-                                const m = state.projects.find(x => x.name === pName);
+                                const m = state.projects.find(x => x.nickname === pName || x.name === pName);
                                 showToast('success', '✅', `${m ? m.nickname : pName} has finished thinking.`);
                                 robot.hasUpdate = true;
                                 renderRobots();
                             }
                             robot.isThinking = false;
+                            if (robot.hasError) {
+                                robot.hasError = false;
+                                renderRobots();
+                            }
                         }
                     }
                 }
             } catch (err) {} 
         };
-        term.onData(d => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data: d })); });
+        term.onData(d => { 
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', data: d })); 
+                const robot = state.walkingRobots[pName];
+                if (robot && robot.hasError) {
+                    robot.hasError = false;
+                    renderRobots();
+                }
+            }
+        });
     }
 
     if (showUI) {
