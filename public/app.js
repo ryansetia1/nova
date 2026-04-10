@@ -108,6 +108,12 @@
     orphanedFolderList: $('#orphaned-folder-list'),
     activeCount: $('#active-count'),
     orphanedCount: $('#orphaned-count'),
+    
+    // Youtube Player
+    youtubeUrlInput: $('#youtube-url-input'),
+    youtubeLoadBtn: $('#youtube-load-btn'),
+    youtubePlayer: $('#sidebar-youtube-player'),
+    headerPlayBtn: $('#header-play-btn'),
   };
 
   // ---- Initialization ----
@@ -121,6 +127,7 @@
     await loadWalkablePath(); // Load path before starting walking loop
     await loadAnchorConfig(); // Load anchor before starting
     initSidebar();
+    initYouTubePlayer();
     loadProjects();
     bindEvents();
     startWalkingLoop();
@@ -1165,6 +1172,71 @@
     
     // Update sidebar whenever robots are re-rendered
     renderSidebar();
+  }
+
+  let isYouTubePlaying = false;
+  function initYouTubePlayer() {
+    if (!dom.youtubeLoadBtn || !dom.youtubeUrlInput || !dom.youtubePlayer) return;
+
+    function sendCommand(func, args = '') {
+        if (dom.youtubePlayer && dom.youtubePlayer.contentWindow) {
+            dom.youtubePlayer.contentWindow.postMessage(JSON.stringify({
+                event: 'command',
+                func: func,
+                args: args
+            }), '*');
+        }
+    }
+
+    const togglePlay = () => {
+        isYouTubePlaying = !isYouTubePlaying;
+        sendCommand(isYouTubePlaying ? 'playVideo' : 'pauseVideo');
+
+        if (dom.headerPlayBtn) {
+            dom.headerPlayBtn.textContent = isYouTubePlaying ? '⏸️' : '🎵';
+            dom.headerPlayBtn.classList.toggle('playing', isYouTubePlaying);
+        }
+    };
+
+    if (dom.headerPlayBtn) {
+        dom.headerPlayBtn.addEventListener('click', togglePlay);
+    }
+
+    dom.youtubeLoadBtn.addEventListener('click', () => {
+        let input = dom.youtubeUrlInput.value.trim();
+        if (!input) return;
+
+        let videoId = '';
+        
+        // Extract ID from URL
+        if (input.includes('youtube.com/watch?v=')) {
+            videoId = input.split('v=')[1].split('&')[0];
+        } else if (input.includes('youtu.be/')) {
+            videoId = input.split('youtu.be/')[1].split('?')[0];
+        } else if (input.includes('youtube.com/embed/')) {
+            videoId = input.split('embed/')[1].split('?')[0];
+        } else {
+            // Assume it's just the ID
+            videoId = input;
+        }
+
+        if (videoId) {
+            dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1`;
+            isYouTubePlaying = true;
+            if (dom.headerPlayBtn) {
+                dom.headerPlayBtn.textContent = '⏸️';
+                dom.headerPlayBtn.classList.add('playing');
+            }
+            showToast('info', '🎵', 'Loading YouTube video...');
+        } else {
+            showToast('error', '⚠️', 'Invalid YouTube URL or ID');
+        }
+    });
+
+    // Also load on Enter
+    dom.youtubeUrlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') dom.youtubeLoadBtn.click();
+    });
   }
 
   /* ============================================

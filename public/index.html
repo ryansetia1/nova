@@ -47,6 +47,7 @@
           <span class="status-text">System Online</span>
         </div>
         <div class="clock" id="clock"></div>
+        <button id="header-play-btn" class="header-action-btn" title="Toggle Ambient Music">🎵</button>
         <div class="settings-container">
           <button id="settings-btn" class="settings-btn">⚙️</button>
           <div id="settings-menu" class="settings-menu hidden">
@@ -79,6 +80,29 @@
           <div class="section-label">ORPHANED FOLDERS <span id="orphaned-count" class="count-badge">0</span></div>
           <div id="orphaned-folder-list" class="agent-list-items">
             <!-- Injected by JS -->
+          </div>
+        </div>
+
+        <!-- Ambient Player Section -->
+        <div class="sidebar-section">
+          <div class="section-label">AMBIENT MUSIC</div>
+          <div class="youtube-player-container">
+            <div class="youtube-player-wrapper">
+              <iframe 
+                id="sidebar-youtube-player"
+                src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1" 
+                title="YouTube video player" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+              </iframe>
+            </div>
+            <div class="youtube-controls">
+              <input type="text" id="youtube-url-input" placeholder="YouTube URL or ID...">
+              <button id="youtube-load-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
