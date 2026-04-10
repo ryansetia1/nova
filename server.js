@@ -13,6 +13,9 @@ const wss = new WebSocket.Server({ server });
 
 const PROJECTS_DIR = path.join(__dirname, 'projects');
 
+const WALKABLE_PATH_FILE = path.join(__dirname, 'walkable_path.json');
+const ANCHOR_CONFIG_FILE = path.join(__dirname, 'anchor_config.json');
+
 // Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
@@ -199,6 +202,60 @@ app.post('/api/update-emoji', (req, res) => {
 
 // API: Ping to check server status
 app.get('/api/ping', (req, res) => res.json({ status: 'alive', time: new Date() }));
+
+// API: Get/Save Walkable Path
+app.get('/api/walkable-path', (req, res) => {
+  if (fs.existsSync(WALKABLE_PATH_FILE)) {
+    try {
+      const data = fs.readFileSync(WALKABLE_PATH_FILE, 'utf8');
+      return res.json(JSON.parse(data));
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to read path file' });
+    }
+  }
+  res.json([]); // Return empty if not found
+});
+
+app.post('/api/walkable-path', (req, res) => {
+  const { path: newPath } = req.body;
+  if (!Array.isArray(newPath)) {
+    return res.status(400).json({ error: 'Path must be an array of points' });
+  }
+  try {
+    fs.writeFileSync(WALKABLE_PATH_FILE, JSON.stringify(newPath, null, 2));
+    console.log(`🗺️  Walkable path updated: ${newPath.length} points`);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save path' });
+  }
+});
+
+// API: Get/Save Anchor Config
+app.get('/api/anchor', (req, res) => {
+  if (fs.existsSync(ANCHOR_CONFIG_FILE)) {
+    try {
+      const data = fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8');
+      return res.json(JSON.parse(data));
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to read anchor file' });
+    }
+  }
+  res.json({ x: 50, y: 85 }); // Default fallback
+});
+
+app.post('/api/anchor', (req, res) => {
+  const { x, y } = req.body;
+  if (typeof x !== 'number' || typeof y !== 'number') {
+    return res.status(400).json({ error: 'Invalid anchor coordinates' });
+  }
+  try {
+    fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify({ x, y }, null, 2));
+    console.log(`⚓  Anchor updated: x=${x}, y=${y}`);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save anchor' });
+  }
+});
 
 // API: Delete a project
 app.delete('/api/projects/:name', (req, res) => {
