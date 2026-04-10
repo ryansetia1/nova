@@ -1,17 +1,69 @@
 
 🪐 NOVA server running at http://localhost:3000
 
-[2:38:38 AM] GET /api/projects
-[2:38:59 AM] GET /
-[2:38:59 AM] GET /app.js?v=2
-[2:38:59 AM] GET /api/walkable-path
-[2:38:59 AM] GET /api/anchor
-[2:38:59 AM] GET /api/projects
+[2:55:11 AM] GET /
+[2:55:11 AM] GET /app.js?v=3
+[2:55:12 AM] GET /api/walkable-path
+[2:55:12 AM] GET /api/anchor
+[2:55:12 AM] GET /api/projects
+[2:55:12 AM] 📊 API: Fetching project list for client
 🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
 🖥️  Terminal opened for project: News using model: qwen3.5:cloud
-🖥️  Terminal opened for project: Retro-Handhelds using model: qwen3.5:cloud
 🖥️  Terminal opened for project: lokalan using model: qwen3.5-arch:latest
+🖥️  Terminal opened for project: testing using model: qwen3.5:cloud
 🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
 🚀 Executing for News: ollama launch claude --model qwen3.5:cloud -- --continue
-🚀 Executing for Retro-Handhelds: ollama launch claude --model qwen3.5:cloud -- --continue
 🚀 Executing for lokalan: ollama launch claude --model qwen3.5-arch:latest -- --continue
+🚀 Executing for testing: ollama launch claude --model qwen3.5:cloud
+[2:55:13 AM] GET /api/projects
+[2:55:13 AM] 📊 API: Fetching project list for client
+[2:55:40 AM] GET /
+🔌 WebSocket closed for testing
+🔌 WebSocket closed for lokalan
+🔌 WebSocket closed for News
+🔌 WebSocket closed for Ask-Me-Anything
+🔚 Terminal exited for testing with code 1
+🔚 Terminal exited for News with code 1
+[2:55:40 AM] GET /app.js?v=3
+🔚 Terminal exited for Ask-Me-Anything with code 1
+🔚 Terminal exited for lokalan with code 1
+[2:55:40 AM] GET /api/walkable-path
+[2:55:40 AM] GET /api/anchor
+[2:55:40 AM] GET /api/projects
+[2:55:40 AM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: News using model: qwen3.5:cloud
+🖥️  Terminal opened for project: lokalan using model: qwen3.5-arch:latest
+🖥️  Terminal opened for project: testing using model: qwen3.5:cloud
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for News: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for lokalan: ollama launch claude --model qwen3.5-arch:latest -- --continue
+🚀 Executing for testing: ollama launch claude --model qwen3.5:cloud -- --continue
+[2:55:42 AM] GET /api/projects
+[2:55:42 AM] 📊 API: Fetching project list for client
+⚠️  Detected missing conversation for testing. Rescuing...
+[2:58:55 AM] GET /
+🔌 WebSocket closed for Ask-Me-Anything
+🔌 WebSocket closed for lokalan
+🔌 WebSocket closed for News
+🔌 WebSocket closed for testing
+🔚 Terminal exited for Ask-Me-Anything with code 1
+🔚 Terminal exited for testing with code 1
+[2:58:55 AM] GET /app.js?v=4
+🔚 Terminal exited for News with code 1
+🔚 Terminal exited for lokalan with code 1
+[2:58:55 AM] GET /api/walkable-path
+[2:58:55 AM] GET /api/anchor
+[2:58:55 AM] GET /api/projects
+[2:58:55 AM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: News using model: qwen3.5:cloud
+🖥️  Terminal opened for project: lokalan using model: qwen3.5-arch:latest
+🖥️  Terminal opened for project: testing using model: qwen3.5:cloud
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for News: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for lokalan: ollama launch claude --model qwen3.5-arch:latest -- --continue
+🚀 Executing for testing: ollama launch claude --model qwen3.5:cloud
+[2:58:58 AM] GET /api/projects
+[2:58:58 AM] 📊 API: Fetching project list for client
+[2:58:58 AM] GET /api/models
