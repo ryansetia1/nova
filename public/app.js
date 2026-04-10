@@ -463,7 +463,7 @@
                     tx: target.x, ty: target.y,
                     speed: 0.07 + Math.random() * 0.13,
                     isWalking: true, isHovered: false, isThinking: false, hasUpdate: false,
-                    isIllegal: false, frame: 0
+                    isIllegal: false, frame: 0, naturalIdleTimer: 0
                 };
             }
 
@@ -475,7 +475,19 @@
             const t = state.terminals[name];
             const isWindowVisible = t && t.panel && !t.panel.classList.contains('hidden');
             const isOrphaned = p && !p.active;
-            r.isWalking = !(isWindowVisible || r.isHovered || isOrphaned);
+            const isManualStop = isWindowVisible || r.isHovered || isOrphaned;
+            
+            if (r.naturalIdleTimer > 0) {
+                r.naturalIdleTimer--;
+                r.isWalking = false;
+            } else {
+                r.isWalking = !isManualStop;
+                // Small chance to stop and idle randomly while walking
+                if (r.isWalking && Math.random() < 0.002) {
+                    r.naturalIdleTimer = 50 + Math.random() * 100;
+                    r.frame = 0;
+                }
+            }
 
             if (r.isWalking) {
                 const dx = r.tx - r.x;
@@ -483,6 +495,11 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < 1.5) { // Arrived at target
+                    // Higher chance to idle when arriving
+                    if (Math.random() < 0.5) {
+                        r.naturalIdleTimer = 80 + Math.random() * 150;
+                        r.frame = 0;
+                    }
                     const next = pickSafePoint();
                     r.tx = next.x; r.ty = next.y;
                 } else {
@@ -554,8 +571,9 @@
                 el.style.zIndex = Math.floor(r.y * 100);
                 
                 // Animation Frame
-                if (r.isWalking || r.isHovered) {
-                    const frames = r.isHovered ? state.idleFrames : state.charFrames;
+                const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0;
+                if (r.isWalking || isPlayingIdle) {
+                    const frames = isPlayingIdle ? state.idleFrames : state.charFrames;
                     r.frame = (r.frame + 1) % frames.length;
                     const sprite = el.querySelector('.robot-char-sprite');
                     if (sprite) {
@@ -822,7 +840,7 @@
 
         const spriteHtml = isSprite ? `
                 <div class="robot-sprite-container">
-                    <img class="robot-char-sprite" src="${(r?.isHovered ? state.idleFrames : state.charFrames)[r?.frame || 0]}" alt="Agent">
+                    <img class="robot-char-sprite" src="${(r?.isHovered || r?.naturalIdleTimer > 0 ? state.idleFrames : state.charFrames)[r?.frame || 0]}" alt="Agent">
                 </div>
         ` : `
                 <span class="robot-card-emoji">${entityLabel}</span>
