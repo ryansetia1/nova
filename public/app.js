@@ -99,6 +99,7 @@
     initDevTool(); 
     initEmojiPopover();
     initAnchorAdjuster();
+    initThemeControl();
   }
 
   // ---- Dev Tools ----
@@ -535,6 +536,24 @@
 
   // ---- Pathing & Walking Animation Logic ----
   let WALKABLE_PATH = [{"x":17.75,"y":73.69},{"x":53.13,"y":55.56},{"x":59.62,"y":58.94},{"x":67.63,"y":60.31},{"x":71.13,"y":58.31},{"x":88.13,"y":66.94},{"x":84,"y":67.94},{"x":85.88,"y":71.31},{"x":74,"y":77.69},{"x":70.63,"y":75.19},{"x":62.88,"y":80.06},{"x":59.62,"y":83.94},{"x":44,"y":74.94},{"x":33.13,"y":81.06},{"x":18.13,"y":73.81}];
+
+  // ---- Theme Control (Day/Night) ----
+  function initThemeControl() {
+      const updateTheme = () => {
+          const hour = new Date().getHours();
+          const isNight = hour >= 18 || hour < 6;
+          
+          if (isNight) {
+              document.body.classList.add('theme-night');
+          } else {
+              document.body.classList.remove('theme-night');
+          }
+      };
+
+      updateTheme();
+      // Check every minute if theme needs to change
+      setInterval(updateTheme, 60000);
+  }
 
   async function loadWalkablePath() {
       try {

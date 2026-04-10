@@ -446,6 +446,44 @@ body {
   background-repeat: no-repeat;
   z-index: 20000; /* Higher than dynamically sorted agents (max 10000) */
   pointer-events: none; /* Let clicks pass through to agents */
+  transition: background-image 1s ease-in-out;
+}
+
+/* Night Theme Overrides */
+body.theme-night #floor-wrapper {
+  background-image: url('assets/office/night/office_bg_night.png');
+}
+
+body.theme-night .floor-foreground {
+  background-image: url('assets/office/night/office_fg_night.png');
+}
+
+/* Optional FX layer for night light glow */
+body.theme-night .floor-foreground::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('assets/office/night/office_fx_night.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.8;
+  mix-blend-mode: screen; /* Makes black parts transparent and highlights glow */
+  pointer-events: none;
+}
+
+/* Dim agents/emojis at night */
+body.theme-night .robot-char-sprite,
+body.theme-night .robot-card-emoji {
+  filter: brightness(0.8) contrast(1.1) saturate(0.9);
+  transition: filter 1s ease-in-out;
+}
+
+/* Maintain glow even when dimmed */
+body.theme-night .robot-avatar.active .robot-char-sprite,
+body.theme-night .robot-avatar:hover .robot-char-sprite,
+body.theme-night .robot-avatar.active .robot-card-emoji,
+body.theme-night .robot-avatar:hover .robot-card-emoji {
+  filter: brightness(0.9) contrast(1.1) drop-shadow(0 0 15px var(--accent-primary));
 }
 
 /* Removed floor dark overlay */
