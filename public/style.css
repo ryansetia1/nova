@@ -1,5 +1,5 @@
 /* ============================================
-   VAGENTS — Modern Agent Workspace
+   NOVA — Modern Agent Workspace
    Premium Dark Theme with Glassmorphism
    ============================================ */
 
@@ -153,6 +153,36 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.app-title {
+  position: relative;
+  cursor: default;
+}
+
+.app-title::after {
+  content: "Nucleus Orchestrator for Virtual Agents";
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.app-title:hover::after {
+  opacity: 1;
 }
 
 .logo-badge {

@@ -90,7 +90,7 @@ app.post('/api/projects', (req, res) => {
       customPath: customPath ? actualPath : undefined,
       createdAt: new Date().toISOString()
     };
-    fs.writeFileSync(path.join(actualPath, '.vagents_meta.json'), JSON.stringify(meta));
+    fs.writeFileSync(path.join(actualPath, '.nova_meta.json'), JSON.stringify(meta));
     
     console.log(`✅ Created project: ${safeName} (Nickname: ${meta.nickname}) in ${actualPath}`);
     res.json(meta);
@@ -117,7 +117,7 @@ app.get('/api/projects', (req, res) => {
       })
       .map(e => {
         const projectPath = path.join(PROJECTS_DIR, e.name);
-        const metaPath = path.join(projectPath, '.vagents_meta.json');
+        const metaPath = path.join(projectPath, '.nova_meta.json');
         let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud' };
         
         if (fs.existsSync(metaPath)) {
@@ -226,7 +226,7 @@ wss.on('connection', (ws, req) => {
   }
 
   // Resolve model from metadata
-  const metaPath = path.join(projectPath, '.vagents_meta.json');
+  const metaPath = path.join(projectPath, '.nova_meta.json');
   let model = 'qwen3.5:cloud';
   if (fs.existsSync(metaPath)) {
     try {
@@ -267,7 +267,7 @@ wss.on('connection', (ws, req) => {
   terminals.set(projectName, ptyProcess);
 
   // --- Auto-execute Agent Command ---
-  const initMarker = path.join(projectPath, '.vagents_init');
+  const initMarker = path.join(projectPath, '.nova_init');
   const hasBeenInitialized = fs.existsSync(initMarker);
   const agentCommand = hasBeenInitialized 
     ? `ollama launch claude --model ${model} -- --continue`
@@ -335,5 +335,5 @@ wss.on('connection', (ws, req) => {
 
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`\n🤖 Vagents server running at http://localhost:${PORT}\n`);
+  console.log(`\n🤖 NOVA server running at http://localhost:${PORT}\n`);
 });

@@ -1,5 +1,5 @@
 /* ============================================
-   VAGENTS — Application Logic
+   NOVA — Application Logic
    ============================================ */
 
 (() => {
@@ -488,7 +488,7 @@
         return `
             <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
                  data-project="${p.name}" style="${posStyle}"
-                 onclick="window.vagents.openTerminal('${p.name}')">
+                 onclick="window.nova.openTerminal('${p.name}')">
                 <div class="robot-label top">${topLabel}</div>
                 <div class="robot-thought-bubble">💭</div>
                 <div class="robot-check-badge"></div>
@@ -877,7 +877,7 @@
     setTimeout(() => { t.classList.add('toast-out'); setTimeout(() => t.remove(), 300); }, 4000);
   }
 
-  window.vagents = { 
+  window.nova = { 
       openTerminal,
       setHover: (name, isActive) => {
           if (state.walkingRobots[name]) state.walkingRobots[name].isHovered = isActive;
