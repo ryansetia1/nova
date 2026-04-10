@@ -151,16 +151,30 @@
         </div>
 
         <div class="modal-row">
-          <div class="input-group relative">
-            <label>Avatar Emoji</label>
-            <div id="emoji-trigger" class="selected-emoji-container compact">
-              <span id="selected-emoji-preview">🤖</span>
-              <span class="emoji-hint">click to change</span>
+          <div class="input-group relative avatar-selection-group">
+            <label>Avatar Appearance</label>
+            <div class="avatar-type-toggle" id="spawn-avatar-type-toggle">
+              <button type="button" class="type-btn active" data-type="emoji">Emoji</button>
+              <button type="button" class="type-btn" data-type="character">Character</button>
             </div>
             
-            <!-- Emoji Popover with full picker -->
-            <div id="emoji-popover" class="emoji-popover hidden">
-              <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
+            <!-- Emoji Selection -->
+            <div id="spawn-emoji-area">
+              <div id="emoji-trigger" class="selected-emoji-container compact">
+                <span id="selected-emoji-preview">🤖</span>
+                <span class="emoji-hint">click to change</span>
+              </div>
+              <div id="emoji-popover" class="emoji-popover hidden">
+                <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
+              </div>
+            </div>
+
+            <!-- Character Selection -->
+            <div id="spawn-character-area" class="hidden">
+              <select id="spawn-character-select" class="compact-select">
+                <option value="Char1">Character 1</option>
+                <!-- Add more characters here in the future -->
+              </select>
             </div>
           </div>
 
@@ -213,23 +227,54 @@
     <div class="modal" style="max-width: 400px;">
       <div class="modal-header">
         <span class="modal-icon">🎭</span>
-        <h3>Change Agent Emoji</h3>
+        <h3>Change Appearance</h3>
       </div>
       <div class="modal-body">
-        <div class="emoji-picker-wrapper" style="height: 350px;">
-           <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
+        <div class="avatar-type-toggle" id="update-avatar-type-toggle">
+          <button type="button" class="type-btn active" data-type="emoji">Emoji</button>
+          <button type="button" class="type-btn" data-type="character">Character</button>
+        </div>
+
+        <div id="update-emoji-area">
+          <div class="emoji-picker-wrapper" style="height: 350px;">
+             <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
+          </div>
+        </div>
+
+        <div id="update-character-area" class="hidden">
+           <label>Select Character</label>
+           <select id="update-character-select" class="compact-select" style="margin-top: 8px;">
+             <option value="Char1">Character 1</option>
+           </select>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="justify-content: space-between;">
         <button id="emoji-update-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="emoji-update-save-btn" class="btn btn-primary" style="padding: 10px 20px;">Save Changes</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast notifications -->
-  <div id="toast-container"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <!-- Toast notifications -->
+    <div id="toast-container"></div>
+  
+    <!-- Anchor Adjuster UI -->
+    <div id="anchor-adjuster" class="anchor-adjuster">
+      <div class="adjuster-header">⚓ Anchor Alignment</div>
+      <div class="adjuster-body">
+        <div class="adjust-group">
+          <label>X Pivot: <span id="val-anchor-x">50</span>%</label>
+          <input type="range" id="input-anchor-x" min="0" max="100" value="50">
+        </div>
+        <div class="adjust-group">
+          <label>Y Pivot: <span id="val-anchor-y">85</span>%</label>
+          <input type="range" id="input-anchor-y" min="0" max="100" value="85">
+        </div>
+        <div class="adjust-hint">Adjust until circle is at feet</div>
+      </div>
+    </div>
+  
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
   <script src="app.js?v=2"></script>

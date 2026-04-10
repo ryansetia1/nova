@@ -14,10 +14,14 @@
     dragOffset: { x: 0, y: 0 },
     resizingWindow: null,
     resizeStart: { w: 0, h: 0, x: 0, y: 0 },
-    topZIndex: 2000,
     selectedEmoji: '🤖',
-    walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate } }
+    updateSelectedEmoji: '🤖',
+    spawnAppearanceType: 'emoji', // 'emoji' or 'character'
+    updateAppearanceType: 'emoji',
+    walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame } }
     projectForEmojiUpdate: null,
+    charFrames: Array.from({ length: 31 }, (_, i) => `Char1/Walk/Char1Walk_${(i + 1).toString().padStart(5, '0')}.png`),
+    anchor: { x: 50, y: 85 }
   };
 
   // ---- DOM Elements ----
@@ -48,16 +52,35 @@
     settingsBtn: $('#settings-btn'),
     settingsMenu: $('#settings-menu'),
     toggleVisualsBtn: $('#toggle-visuals-btn'),
+    toggleStyleBtn: $('#toggle-style-btn'),
     emojiPicker: $('#emoji-picker'),
     emojiPreview: $('#selected-emoji-preview'),
     emojiUpdateModal: $('#emoji-update-modal'),
     emojiUpdateCancel: $('#emoji-update-cancel-btn'),
+    emojiUpdateSaveBtn: $('#emoji-update-save-btn'),
     updateEmojiPicker: $('#update-emoji-picker'),
     
+    // Per-Agent Style Selectors
+    spawnTypeToggle: $('#spawn-avatar-type-toggle'),
+    spawnEmojiArea: $('#spawn-emoji-area'),
+    spawnCharacterArea: $('#spawn-character-area'),
+    spawnCharacterSelect: $('#spawn-character-select'),
+
+    updateTypeToggle: $('#update-avatar-type-toggle'),
+    updateEmojiArea: $('#update-emoji-area'),
+    updateCharacterArea: $('#update-character-area'),
+    updateCharacterSelect: $('#update-character-select'),
+
     // New Emoji Popover elements
     emojiTrigger: $('#emoji-trigger'),
     emojiPopover: $('#emoji-popover'),
     modalEmojiPicker: $('#modal-emoji-picker'),
+
+    // Anchor Adj
+    inputAnchorX: $('#input-anchor-x'),
+    inputAnchorY: $('#input-anchor-y'),
+    valAnchorX: $('#val-anchor-x'),
+    valAnchorY: $('#val-anchor-y'),
   };
 
   // ---- Initialization ----
@@ -70,6 +93,7 @@
     bindHoverListeners();
     initDevTool(); 
     initEmojiPopover();
+    initAnchorAdjuster();
   }
 
   // ---- Dev Tools ----
@@ -230,19 +254,71 @@
         });
     }
 
+    function setupAppearanceToggles(toggleContainer, typeVarName, onTypeChange) {
+        if (!toggleContainer) return;
+        const btns = toggleContainer.querySelectorAll('.type-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.dataset.type;
+                state[typeVarName] = type;
+                btns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                if (onTypeChange) onTypeChange(type);
+            });
+        });
+    }
+
+    setupAppearanceToggles(dom.spawnTypeToggle, 'spawnAppearanceType', (type) => {
+        if (type === 'emoji') {
+            dom.spawnEmojiArea.classList.remove('hidden');
+            dom.spawnCharacterArea.classList.add('hidden');
+        } else {
+            dom.spawnEmojiArea.classList.add('hidden');
+            dom.spawnCharacterArea.classList.remove('hidden');
+        }
+    });
+
+    setupAppearanceToggles(dom.updateTypeToggle, 'updateAppearanceType', (type) => {
+        if (type === 'emoji') {
+            dom.updateEmojiArea.classList.remove('hidden');
+            dom.updateCharacterArea.classList.add('hidden');
+        } else {
+            dom.updateEmojiArea.classList.add('hidden');
+            dom.updateCharacterArea.classList.remove('hidden');
+        }
+    });
+
+    if (dom.emojiUpdateSaveBtn) {
+        dom.emojiUpdateSaveBtn.addEventListener('click', () => {
+             let finalAppearance = state.updateSelectedEmoji || '🤖';
+             if (state.updateAppearanceType === 'character') {
+                 finalAppearance = 'SPRITE:' + dom.updateCharacterSelect.value;
+             }
+             handleEmojiUpdate(finalAppearance);
+        });
+    }
+
+    if (dom.emojiUpdateCancel) {
+        dom.emojiUpdateCancel.addEventListener('click', closeEmojiUpdateModal);
+    }
+
     document.addEventListener('click', () => {
         if (dom.settingsMenu) dom.settingsMenu.classList.add('hidden');
     });
     
     // Emoji Picker Logic (Robust delegation)
     document.addEventListener('emoji-click', (e) => {
-        if (e.target.id === 'emoji-picker') {
+        if (e.target.id === 'emoji-picker' || e.target.id === 'modal-emoji-picker') {
             const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
             if (emojiChar) {
                 state.selectedEmoji = emojiChar;
                 const preview = document.getElementById('selected-emoji-preview');
                 if (preview) preview.textContent = emojiChar;
             }
+        }
+        if (e.target.id === 'update-emoji-picker') {
+            const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
+            if (emojiChar) state.updateSelectedEmoji = emojiChar;
         }
     });
 
@@ -368,9 +444,9 @@
                 r = state.walkingRobots[name] = {
                     x: start.x, y: start.y,
                     tx: target.x, ty: target.y,
-                    speed: 0.07 + Math.random() * 0.13, // 2/3 of original speed for better pacing
+                    speed: 0.07 + Math.random() * 0.13,
                     isWalking: true, isHovered: false, isThinking: false, hasUpdate: false,
-                    isIllegal: false
+                    isIllegal: false, frame: 0
                 };
             }
 
@@ -431,12 +507,20 @@
                     const canMove1 = r1.isWalking && !r1.isHovered;
                     const canMove2 = r2.isWalking && !r2.isHovered;
 
-                    if (canMove1) { r1.x += Math.cos(angle) * force; r1.y += Math.sin(angle) * force; }
-                    if (canMove2) { r2.x -= Math.cos(angle) * force; r2.y -= Math.sin(angle) * force; }
-                    
-                    // Keep bounds
-                    r1.x = Math.max(0, Math.min(r1.x, 90)); r1.y = Math.max(0, Math.min(r1.y, 90));
-                    r2.x = Math.max(0, Math.min(r2.x, 90)); r2.y = Math.max(0, Math.min(r2.y, 90));
+                    if (canMove1) {
+                        const nx = r1.x + Math.cos(angle) * force;
+                        const ny = r1.y + Math.sin(angle) * force;
+                        if (isPointInPolygon({x: nx, y: ny}, WALKABLE_PATH)) {
+                            r1.x = nx; r1.y = ny;
+                        }
+                    }
+                    if (canMove2) {
+                        const nx = r2.x - Math.cos(angle) * force;
+                        const ny = r2.y - Math.sin(angle) * force;
+                        if (isPointInPolygon({x: nx, y: ny}, WALKABLE_PATH)) {
+                            r2.x = nx; r2.y = ny;
+                        }
+                    }
                 }
             }
         }
@@ -450,6 +534,18 @@
                 el.style.left = r.x + '%';
                 el.style.top = r.y + '%';
                 
+                // Animation Frame
+                if (r.isWalking) {
+                    r.frame = (r.frame + 1) % state.charFrames.length;
+                    const sprite = el.querySelector('.robot-char-sprite');
+                    if (sprite) {
+                        sprite.src = state.charFrames[r.frame];
+                        // Flip based on direction
+                        const isFlipped = r.tx < r.x;
+                        sprite.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+                    }
+                }
+
                 if (r.isThinking) el.classList.add('thinking');
                 else el.classList.remove('thinking');
                 
@@ -457,7 +553,7 @@
                 else el.classList.remove('has-update');
             }
         });
-    }, 80);
+    }, 42); // ~24fps (1000/24 = 41.66)
   }
 
   // ---- Emoji Popover Logic ----
@@ -487,8 +583,17 @@
     dom.modalInput.value = ''; dom.modalInput.disabled = false;
     dom.nicknameInput.value = ''; dom.customPathInput.value = '';
     state.selectedEmoji = '🤖';
+    state.spawnAppearanceType = 'emoji';
     if (dom.emojiPreview) dom.emojiPreview.textContent = '🤖';
     dom.emojiPopover.classList.add('hidden');
+    
+    // Reset toggle UI
+    if (dom.spawnTypeToggle) {
+        const btns = dom.spawnTypeToggle.querySelectorAll('.type-btn');
+        btns.forEach(b => b.classList.toggle('active', b.dataset.type === 'emoji'));
+        dom.spawnEmojiArea.classList.remove('hidden');
+        dom.spawnCharacterArea.classList.add('hidden');
+    }
     
     // Check for orphaned projects to show selector
     const orphaned = state.projects.filter(p => !p.active);
@@ -512,6 +617,27 @@
   
   function openEmojiUpdateModal(pName) {
     state.projectForEmojiUpdate = pName;
+    const p = state.projects.find(x => x.name === pName);
+    
+    if (p && p.emoji && p.emoji.startsWith('SPRITE:')) {
+        state.updateAppearanceType = 'character';
+        if (dom.updateCharacterSelect) dom.updateCharacterSelect.value = p.emoji.split(':')[1];
+    } else {
+        state.updateAppearanceType = 'emoji';
+        state.updateSelectedEmoji = p ? p.emoji : '🤖'; 
+    }
+    
+    if (dom.updateTypeToggle) {
+        const btns = dom.updateTypeToggle.querySelectorAll('.type-btn');
+        btns.forEach(b => b.classList.toggle('active', b.dataset.type === state.updateAppearanceType));
+        if (state.updateAppearanceType === 'emoji') {
+            dom.updateEmojiArea.classList.remove('hidden');
+            dom.updateCharacterArea.classList.add('hidden');
+        } else {
+            dom.updateEmojiArea.classList.add('hidden');
+            dom.updateCharacterArea.classList.remove('hidden');
+        }
+    }
     dom.emojiUpdateModal.classList.remove('hidden');
   }
   function closeEmojiUpdateModal() {
@@ -594,7 +720,10 @@
     const nickname = dom.nicknameInput.value.trim();
     const customPath = dom.customPathInput.value.trim();
     const model = dom.modelSelect.value;
-    const emoji = state.selectedEmoji || '🤖';
+    let emoji = state.selectedEmoji || '🤖';
+    if (state.spawnAppearanceType === 'character') {
+         emoji = 'SPRITE:' + dom.spawnCharacterSelect.value;
+    }
     if (!name) return showToast('error', '❌', 'Name required');
     dom.modalConfirm.disabled = true;
     try {
@@ -648,7 +777,10 @@
     const fallbackEmojis = ['🤖', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
     dom.robotCards.innerHTML = state.projects.map((p, i) => {
         // Explicitly prioritize the saved emoji character
-        const emoji = p.emoji || fallbackEmojis[i % fallbackEmojis.length];
+        const rawAppearance = p.emoji || fallbackEmojis[i % fallbackEmojis.length];
+        const isSprite = rawAppearance.startsWith('SPRITE:');
+        const entityLabel = isSprite ? '' : rawAppearance;
+
         const t = state.terminals[p.name];
         const isReady = t && t.ready;
         const isVisible = t && t.panel && !t.panel.classList.contains('hidden');
@@ -663,6 +795,14 @@
             return '';
         }
 
+        const spriteHtml = isSprite ? `
+                <div class="robot-sprite-container">
+                    <img class="robot-char-sprite" src="${state.charFrames[r?.frame || 0]}" alt="Agent">
+                </div>
+        ` : `
+                <span class="robot-card-emoji">${entityLabel}</span>
+        `;
+
         return `
             <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''}" 
                  data-project="${p.name}" style="${posStyle}"
@@ -670,7 +810,7 @@
                 <div class="robot-label top">${topLabel}</div>
                 <div class="robot-thought-bubble">💭</div>
                 <div class="robot-check-badge"></div>
-                <span class="robot-card-emoji">${emoji}</span>
+                ${spriteHtml}
                 <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
                 <div class="robot-anchor-dot ${isIllegal ? 'illegal' : ''}"></div>
             </div>`;
@@ -1085,4 +1225,26 @@
       }
   };
   document.addEventListener('DOMContentLoaded', init);
+  function initAnchorAdjuster() {
+    if (!dom.inputAnchorX || !dom.inputAnchorY) return;
+
+    const updateAnchor = () => {
+        const x = dom.inputAnchorX.value;
+        const y = dom.inputAnchorY.value;
+        state.anchor.x = x;
+        state.anchor.y = y;
+        
+        dom.valAnchorX.textContent = x;
+        dom.valAnchorY.textContent = y;
+        
+        document.documentElement.style.setProperty('--anchor-x', `${x}%`);
+        document.documentElement.style.setProperty('--anchor-y', `${y}%`);
+    };
+
+    dom.inputAnchorX.addEventListener('input', updateAnchor);
+    dom.inputAnchorY.addEventListener('input', updateAnchor);
+    
+    // Initial sync
+    updateAnchor();
+  }
 })();
