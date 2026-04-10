@@ -17,6 +17,7 @@
     topZIndex: 2000,
     selectedEmoji: '🤖',
     walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate } }
+    projectForEmojiUpdate: null,
   };
 
   // ---- DOM Elements ----
@@ -46,6 +47,9 @@
     toggleVisualsBtn: $('#toggle-visuals-btn'),
     emojiPicker: $('#emoji-picker'),
     emojiPreview: $('#selected-emoji-preview'),
+    emojiUpdateModal: $('#emoji-update-modal'),
+    emojiUpdateCancel: $('#emoji-update-cancel-btn'),
+    updateEmojiPicker: $('#update-emoji-picker'),
   };
 
   // ---- Initialization ----
@@ -264,6 +268,23 @@
             }
         });
     });
+
+    // Emoji Update Listeners
+    if (dom.emojiUpdateCancel) {
+        dom.emojiUpdateCancel.addEventListener('click', closeEmojiUpdateModal);
+    }
+    if (dom.emojiUpdateModal) {
+        dom.emojiUpdateModal.addEventListener('click', (e) => { 
+            if (e.target === dom.emojiUpdateModal) closeEmojiUpdateModal(); 
+        });
+    }
+
+    document.addEventListener('emoji-click', (e) => {
+        if (e.target.id === 'update-emoji-picker') {
+            const emojiChar = e.detail.unicode || (e.detail.emoji && e.detail.emoji.unicode);
+            if (emojiChar) handleEmojiUpdate(emojiChar);
+        }
+    });
   }
 
   function bindHoverListeners() {
@@ -407,6 +428,53 @@
   }
   function closeModal() { dom.modal.classList.add('hidden'); }
   
+  function openEmojiUpdateModal(pName) {
+    state.projectForEmojiUpdate = pName;
+    dom.emojiUpdateModal.classList.remove('hidden');
+  }
+  function closeEmojiUpdateModal() {
+    dom.emojiUpdateModal.classList.add('hidden');
+    state.projectForEmojiUpdate = null;
+  }
+  async function handleEmojiUpdate(emoji) {
+    const pName = state.projectForEmojiUpdate;
+    if (!pName) return;
+    try {
+        const res = await fetch('/api/update-emoji', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: pName, emoji })
+        });
+        if (!res.ok) {
+            let errorMsg = 'Failed to update';
+            try {
+                const data = await res.json();
+                errorMsg = data.error || errorMsg;
+            } catch (jsonErr) {
+                errorMsg = `Error ${res.status}: ${res.statusText}`;
+            }
+            return showToast('error', '❌', errorMsg);
+        }
+        
+        // Update local state
+        const project = state.projects.find(p => p.name === pName);
+        if (project) project.emoji = emoji;
+        
+        // Update Terminal Header
+        const t = state.terminals[pName];
+        if (t && t.panel) {
+            const emojiEl = t.panel.querySelector('.terminal-header-emoji');
+            if (emojiEl) emojiEl.textContent = emoji;
+        }
+        
+        closeEmojiUpdateModal();
+        renderRobots(); // Refresh floor avatars
+        showToast('success', '✨', 'Emoji updated!');
+    } catch (err) {
+        showToast('error', '❌', 'Failed to update emoji');
+    }
+  }
+
   function openDeleteModal(project) {
     state.projectToDelete = project;
     dom.deleteRobotName.textContent = project.nickname || project.name;
@@ -585,6 +653,14 @@
         if (p) openDeleteModal(p);
     });
 
+    const headerEmoji = panel.querySelector('.terminal-header-emoji');
+    if (headerEmoji) {
+        headerEmoji.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEmojiUpdateModal(pName);
+        });
+    }
+
     // Draggable
     header.addEventListener('mousedown', (e) => {
         if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container')) return;
@@ -707,8 +783,12 @@
             panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
             panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
             panel.querySelector('.terminal-project-badge').textContent = meta.model || '';
+            const emojiEl = panel.querySelector('.terminal-header-emoji');
+            if (emojiEl) emojiEl.textContent = meta.emoji || '🤖';
         } else {
             panel.querySelector('.terminal-title').textContent = pName;
+            const emojiEl = panel.querySelector('.terminal-header-emoji');
+            if (emojiEl) emojiEl.textContent = '🤖';
         }
         
         dom.mainContent.appendChild(panel);

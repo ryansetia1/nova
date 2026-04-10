@@ -91,6 +91,7 @@
         <div class="terminal-panel hidden">
           <div class="terminal-header">
             <div class="terminal-header-left">
+              <span class="terminal-header-emoji" title="Click to change emoji"></span>
               <div class="terminal-dot red terminal-close-dot" title="Close"></div>
               <div class="terminal-dot green terminal-maximize-dot" title="Maximize"></div>
               <span class="terminal-title">Terminal</span>
@@ -189,12 +190,30 @@
     </div>
   </div>
 
+  <!-- Emoji Picker Modal (for updating existing agents) -->
+  <div id="emoji-update-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <span class="modal-icon">🎭</span>
+        <h3>Change Agent Emoji</h3>
+      </div>
+      <div class="modal-body">
+        <div class="emoji-picker-wrapper" style="height: 350px;">
+           <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="emoji-update-cancel-btn" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notifications -->
   <div id="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

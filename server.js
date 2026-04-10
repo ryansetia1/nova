@@ -18,11 +18,14 @@ if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
 }
 
-// Serve static files
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
-
 
 // API: List available models from Ollama
 app.get('/api/models', (req, res) => {
@@ -133,6 +136,37 @@ app.get('/api/projects', (req, res) => {
     res.json([]);
   }
 });
+
+// API: Update a project's metadata
+app.post('/api/update-emoji', (req, res) => {
+  const { name, emoji, nickname, model } = req.body;
+  
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  const metaPath = path.join(projectPath, '.nova_meta.json');
+  try {
+    let meta = {};
+    if (fs.existsSync(metaPath)) {
+      meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    }
+    
+    if (emoji) meta.emoji = emoji;
+    if (nickname) meta.nickname = nickname;
+    if (model) meta.model = model;
+    
+    fs.writeFileSync(metaPath, JSON.stringify(meta));
+    console.log(`✨ Updated metadata for ${name}:`, meta);
+    res.json(meta);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update metadata' });
+  }
+});
+
+// API: Ping to check server status
+app.get('/api/ping', (req, res) => res.json({ status: 'alive', time: new Date() }));
 
 // API: Delete a project
 app.delete('/api/projects/:name', (req, res) => {
