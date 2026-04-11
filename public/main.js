@@ -111,7 +111,14 @@ async function loadProjects() {
         const res = await fetch('/api/projects');
         state.projects = await res.json();
         renderRobots();
-        state.projects.forEach(project => setupTerminal(project.name, false));
+        
+        state.projects.forEach(project => {
+            // Restore visibility (setupTerminal reads isDocked from meta natively)
+            setupTerminal(project.name, !!project.isOpen);
+        });
+        
+        // Finalize layout
+        import('./terminal.js').then(m => m.updateDockedLayout());
     } catch (err) {}
 }
 

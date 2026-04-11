@@ -25,6 +25,7 @@ export function hideTerminal(pName) {
             t.panel.classList.remove('docked-right');
             updateDockedLayout();
         }
+        saveTerminalState(pName, false, false);
     }
     
     if (state.walkingRobots[pName]) {
@@ -124,6 +125,7 @@ export function setupTerminal(pName, showUI = false) {
         
         const meta = state.projects.find(x => x.name === pName);
         if (meta) {
+            if (meta.isDocked) panel.classList.add('docked-right');
             panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
             panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
             const badge = panel.querySelector('.terminal-project-badge');
@@ -425,6 +427,10 @@ export function setupTerminal(pName, showUI = false) {
         t.panel.classList.remove('hidden');
         bringToFront(t.panel);
         renderRobots(); 
+
+        // Persist
+        const isDocked = t.panel.classList.contains('docked-right');
+        saveTerminalState(pName, isDocked, true);
         
         // Initial fit attempts
         refit(t);
@@ -436,6 +442,21 @@ export function setupTerminal(pName, showUI = false) {
             }, 50);
         }, 350);
     }
+}
+
+async function saveTerminalState(pName, isDocked, isOpen) {
+    const proj = state.projects.find(x => x.name === pName);
+    if (proj) {
+        proj.isDocked = isDocked;
+        proj.isOpen = isOpen;
+    }
+    try {
+        await fetch('/api/update-emoji', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: pName, isDocked, isOpen })
+        });
+    } catch(e) {}
 }
 
 function bindWindowEvents(pName, panel, tState) {
@@ -478,6 +499,7 @@ function bindWindowEvents(pName, panel, tState) {
             panel.classList.toggle('docked-right');
             bringToFront(panel);
             updateDockedLayout();
+            saveTerminalState(pName, panel.classList.contains('docked-right'), true);
             setTimeout(() => refit(tState), 300);
         });
     }

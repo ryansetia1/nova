@@ -278,6 +278,8 @@ app.post('/api/update-emoji', (req, res) => {
     if (service) meta.service = service;
     if (apiKey !== undefined) meta.apiKey = apiKey;
     if (baseUrl !== undefined) meta.baseUrl = baseUrl;
+    if (req.body.isDocked !== undefined) meta.isDocked = !!req.body.isDocked;
+    if (req.body.isOpen !== undefined) meta.isOpen = !!req.body.isOpen;
     
     // Always save as new format for consistency
     fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
