@@ -100,16 +100,20 @@ export function startWalkingLoop() {
           if (!r) return;
           const el = dom.robotCards.querySelector(`[data-project="${name}"]`);
           if (el) {
+              const t = state.terminals[name];
+              const isWindowVisible = t && t.panel && !t.panel.classList.contains('hidden');
+              
               el.style.left = r.x + '%';
               el.style.top = r.y + '%';
               el.style.zIndex = Math.floor(r.y * 100);
               
-              const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0;
+              const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0 || isWindowVisible;
               if (r.isWalking || isPlayingIdle) {
                   const p = state.projects.find(x => x.name === name);
                   const appearance = p?.emoji || 'SPRITE:Char1';
                   const charId = appearance.startsWith('SPRITE:') ? appearance.split(':')[1] : 'Char1';
                   const charFrames = state.characterFrames[charId] || state.characterFrames['Char1'];
+                  // Use idle frames if hovered, resting, OR if the terminal is open
                   const frames = isPlayingIdle ? charFrames.idle : charFrames.walk;
                   
                   r.frame = (r.frame + 1) % frames.length;

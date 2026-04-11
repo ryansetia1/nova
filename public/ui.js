@@ -131,7 +131,7 @@ export function renderRobots() {
         if (isSprite) {
             const charId = rawAppearance.split(':')[1];
             const charFrames = (state.characterFrames[charId] || state.characterFrames['Char1']);
-            const frames = (r?.isHovered || r?.naturalIdleTimer > 0 ? charFrames.idle : charFrames.walk);
+            const frames = (r?.isHovered || r?.naturalIdleTimer > 0 || isVisible ? charFrames.idle : charFrames.walk);
             const frameIndex = r?.frame || 0;
             const safeFrameIdx = frameIndex % frames.length;
             
