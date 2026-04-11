@@ -52,6 +52,10 @@ export function disposeTerminal(pName) {
     updateDockedLayout();
 }
 
+// Load saved docked width from storage
+const savedDockWidth = localStorage.getItem('nova-docked-width') || '400';
+document.documentElement.style.setProperty('--docked-width', savedDockWidth + 'px');
+
 export function updateDockedLayout() {
     const dockedPanels = Array.from(document.querySelectorAll('.terminal-panel.docked-right:not(.hidden)'));
     const dockCount = dockedPanels.length;
@@ -632,6 +636,40 @@ function bindWindowEvents(pName, panel, tState) {
         document.addEventListener('mousemove', onResizing);
         document.addEventListener('mouseup', stopResizing);
     });
+
+    const leftResizer = panel.querySelector('.terminal-left-resizer');
+    if (leftResizer) {
+        leftResizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!panel.classList.contains('docked-right')) return;
+
+            state.resizingDock = true;
+            document.addEventListener('mousemove', onDockResizing);
+            document.addEventListener('mouseup', stopDockResizing);
+        });
+    }
+
+    function onDockResizing(e) {
+        if (!state.resizingDock) return;
+        let newWidth = window.innerWidth - e.clientX;
+        const maxWidth = window.innerWidth * 0.4;
+        newWidth = Math.max(400, Math.min(newWidth, maxWidth));
+        document.documentElement.style.setProperty('--docked-width', newWidth + 'px');
+        localStorage.setItem('nova-docked-width', newWidth);
+        
+        // Refit all docked terminals to match new width
+        document.querySelectorAll('.terminal-panel.docked-right:not(.hidden)').forEach(p => {
+             const t = state.terminals[p.dataset.project];
+             if (t) refit(t);
+        });
+    }
+
+    function stopDockResizing() {
+        state.resizingDock = false;
+        document.removeEventListener('mousemove', onDockResizing);
+        document.removeEventListener('mouseup', stopDockResizing);
+    }
 
     function onResizing(e) {
         if (!state.resizingWindow) return;

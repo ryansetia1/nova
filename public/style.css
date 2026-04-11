@@ -1792,7 +1792,7 @@ emoji-picker.dark {
   right: 0 !important;
   left: auto !important;
   bottom: 0 !important;
-  width: 400px !important;
+  width: var(--docked-width, 400px) !important;
   height: calc(100vh - 73px) !important;
   border-radius: 0 !important;
   transform: none !important;
@@ -1802,6 +1802,25 @@ emoji-picker.dark {
   border-left: 1px solid var(--border-subtle) !important;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5) !important;
   z-index: 90 !important;
+}
+
+.terminal-left-resizer {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 100;
+}
+
+.terminal-panel.docked-right .terminal-left-resizer {
+  display: block;
+}
+
+.terminal-panel.docked-right .terminal-left-resizer:hover {
+  background: rgba(59, 130, 246, 0.2);
 }
 
 /* Accessibility for Docked Scrollbar - Massive Hitbox */
