@@ -13,7 +13,8 @@ import {
     renderRobots,
     showToast,
     bringToFront,
-    getAppearanceHtml
+    getAppearanceHtml,
+    initNotificationSettings
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -71,10 +72,36 @@ async function init() {
     initThemeControl();
     initServiceSelector();
     initClaudeMdModal();
+    initNotificationSettings();
     
     setTimeout(() => {
         if (dom.loader) dom.loader.classList.add('hidden');
     }, 500);
+
+    // Request notification permission on first load
+    if ('Notification' in window && Notification.permission === 'default') {
+        // Delay slightly to not interrupt initial page load
+        setTimeout(() => {
+            Notification.requestPermission();
+        }, 3000);
+    }
+
+    // After 3.5 second delay, update button label if permission was denied
+    setTimeout(() => {
+        const notifBtn = document.getElementById('toggle-notifications-btn');
+        if (!notifBtn) return;
+        
+        if (!('Notification' in window)) {
+            notifBtn.textContent = 'Notifications: Not Supported';
+            notifBtn.disabled = true;
+            notifBtn.style.opacity = '0.4';
+        } else if (Notification.permission === 'denied') {
+            notifBtn.textContent = 'Notifications: Blocked';
+            notifBtn.disabled = true;
+            notifBtn.style.opacity = '0.4';
+            notifBtn.title = 'Enable notifications in your browser settings';
+        }
+    }, 3500);
 }
 
 async function loadProjects() {

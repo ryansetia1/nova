@@ -3,6 +3,7 @@
    ============================================ */
 
 import { state, dom, CHARACTERS } from './state.js';
+import { openTerminal } from './terminal.js';
 
 export function getAppearanceHtml(appearance, className = "") {
     if (appearance && appearance.startsWith('SPRITE:')) {
@@ -280,5 +281,86 @@ export function initYouTubePlayer() {
 
     dom.youtubeUrlInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') dom.youtubeLoadBtn.click();
+    });
+}
+
+export function fireAgentNotification(pName, nickname) {
+    // Check feature support
+    if (!('Notification' in window)) return;
+    
+    // Only fire if user is NOT looking at NOVA tab
+    if (!document.hidden) return;
+    
+    // Check if notifications are enabled in settings
+    if (localStorage.getItem('nova_notifications_enabled') === 'false') return;
+    
+    // Check permission
+    if (Notification.permission !== 'granted') return;
+
+    const displayName = nickname || pName;
+
+    const notification = new Notification('🪐 NOVA — Agent Ready', {
+        body: `${displayName} has finished working`,
+        tag: `nova-agent-${pName}`,  // prevents duplicate notifs for same agent
+        renotify: false               // don't re-notify if same tag already shown
+    });
+
+    notification.onclick = () => {
+        // Focus the NOVA browser tab
+        window.focus();
+        // Open the agent's terminal
+        if (window.nova && window.nova.openTerminal) {
+            window.nova.openTerminal(pName);
+        } else {
+            openTerminal(pName);
+        }
+        notification.close();
+    };
+
+    // Auto-close after 8 seconds if user doesn't interact
+    setTimeout(() => notification.close(), 8000);
+}
+
+export function initNotificationSettings() {
+    const notifBtn = document.getElementById('toggle-notifications-btn');
+    if (!notifBtn) return;
+
+    // Set initial label from localStorage
+    const isEnabled = localStorage.getItem('nova_notifications_enabled') !== 'false';
+    notifBtn.textContent = `Agent Notifications: ${isEnabled ? 'ON' : 'OFF'}`;
+
+    notifBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const currentlyEnabled = localStorage.getItem('nova_notifications_enabled') !== 'false';
+        
+        if (!currentlyEnabled) {
+            // Turning ON — re-request permission if needed
+            if (!('Notification' in window)) {
+                showToast('error', '❌', 'Your browser does not support notifications');
+                return;
+            }
+            
+            if (Notification.permission === 'denied') {
+                showToast('error', '🔔', 'Notifications blocked — enable in browser settings');
+                return;
+            }
+            
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    showToast('info', '🔔', 'Notification permission denied');
+                    return;
+                }
+            }
+            
+            localStorage.setItem('nova_notifications_enabled', 'true');
+            notifBtn.textContent = 'Agent Notifications: ON';
+            showToast('success', '🔔', 'Agent notifications enabled');
+        } else {
+            // Turning OFF
+            localStorage.setItem('nova_notifications_enabled', 'false');
+            notifBtn.textContent = 'Agent Notifications: OFF';
+            showToast('info', '🔔', 'Agent notifications disabled');
+        }
     });
 }

@@ -3,7 +3,7 @@
    ============================================ */
 
 import { state, dom } from './state.js';
-import { showToast, bringToFront, getAppearanceHtml, renderRobots } from './ui.js';
+import { showToast, bringToFront, getAppearanceHtml, renderRobots, fireAgentNotification } from './ui.js';
 import { openDeleteAgentModal, openEmojiUpdateModal, getModelsForService, openClaudeMdModal } from './modals.js';
 
 export function openTerminal(pName) {
@@ -332,22 +332,33 @@ export function setupTerminal(pName, showUI = false) {
                             robot.isThinking = true;
                             if (t.thinkingTimer) clearTimeout(t.thinkingTimer);
                             t.thinkingTimer = setTimeout(() => {
-                                const isHidden = t.panel.classList.contains('hidden');
-                                if (robot.isThinking && isHidden) {
+                                if (robot.isThinking) {
                                     const m = state.projects.find(x => x.name === pName);
-                                    showToast('success', '✅', `${m ? m.nickname : pName} is ready!`);
-                                    robot.hasUpdate = true;
-                                    renderRobots();
+                                    const displayName = m ? m.nickname : pName;
+                                    const isPanelHidden = t.panel.classList.contains('hidden');
+                                    
+                                    if (isPanelHidden) {
+                                        showToast('success', '✅', `${displayName} is ready!`);
+                                        robot.hasUpdate = true;
+                                        renderRobots();
+                                    }
+                                    fireAgentNotification(pName, displayName);
                                 }
                                 robot.isThinking = false;
                             }, 3000);
                         } else if (raw.length > 20 && !raw.includes('\u001b')) {
-                            const isHidden = t.panel.classList.contains('hidden');
-                            if (robot.isThinking && isHidden) {
+                            // Non-ANSI output longer than 20 chars often means thinking finished
+                            if (robot.isThinking) {
                                 const m = state.projects.find(x => x.nickname === pName || x.name === pName);
-                                showToast('success', '✅', `${m ? m.nickname : pName} has finished thinking.`);
-                                robot.hasUpdate = true;
-                                renderRobots();
+                                const displayName = m ? m.nickname : pName;
+                                const isPanelHidden = t.panel.classList.contains('hidden');
+
+                                if (isPanelHidden) {
+                                    showToast('success', '✅', `${displayName} has finished thinking.`);
+                                    robot.hasUpdate = true;
+                                    renderRobots();
+                                }
+                                fireAgentNotification(pName, displayName);
                             }
                             robot.isThinking = false;
                             if (robot.hasError) {
