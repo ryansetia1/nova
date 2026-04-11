@@ -71,7 +71,21 @@ export function renderSidebar() {
 
     // Render Active Agents
     if (dom.activeAgentList) {
-      dom.activeAgentList.innerHTML = activeAgents.map(p => {
+      // Reorder agents so children follow parents
+      const roots = activeAgents.filter(p => !p.parentAgent);
+      const sortedAgents = [];
+      roots.forEach(root => {
+        sortedAgents.push(root);
+        const children = activeAgents.filter(p => p.parentAgent === root.name);
+        sortedAgents.push(...children);
+      });
+      
+      // If there are agents with parents that weren't found in roots (shouldn't happen, but for safety)
+      activeAgents.forEach(p => {
+          if (!sortedAgents.includes(p)) sortedAgents.push(p);
+      });
+
+      dom.activeAgentList.innerHTML = sortedAgents.map(p => {
         const isNested = !!p.parentAgent;
         const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
         
