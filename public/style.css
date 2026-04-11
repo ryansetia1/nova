@@ -534,6 +534,9 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+.avatar-icon.char-icon-Char1 {
+  transform: scale(1.1);
+}
 .avatar-icon.char-icon-Char2 {
   transform: scale(0.75);
 }
@@ -927,6 +930,9 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   color: var(--text-primary);
   margin-bottom: 4px;
 }
+.char-parent-Char1 .robot-label.top {
+  transform: translateY(-10px);
+}
 .char-parent-Char2 .robot-label.top {
   transform: translateY(35px);
 }
@@ -955,6 +961,9 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   position: relative;
   z-index: 2;
   transition: transform var(--transition-base);
+}
+.robot-sprite-container.char-Char1 {
+  transform: scale(1.1);
 }
 .robot-sprite-container.char-Char2 {
   transform: scale(0.7);
