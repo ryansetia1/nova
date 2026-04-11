@@ -483,6 +483,41 @@ app.post('/api/projects/:name/upload', (req, res) => {
   }
 });
 
+app.delete('/api/projects/:name/uploads/:filename', (req, res) => {
+  const { name, filename } = req.params;
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  try {
+    const resolvedProjectPath = fs.realpathSync(projectPath);
+    const uploadsDir = path.join(resolvedProjectPath, '_uploads');
+    
+    // Sanitize filename to prevent path traversal
+    const safeFilename = path.basename(filename);
+    const targetPath = path.join(uploadsDir, safeFilename);
+
+    // Ensure the file is actually inside _uploads/
+    if (!targetPath.startsWith(uploadsDir)) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    fs.unlinkSync(targetPath);
+    console.log(`🗑️  Deleted upload: ${safeFilename} from ${name}`);
+    res.json({ success: true, filename: safeFilename });
+  } catch (err) {
+    console.error('Delete upload error:', err);
+    res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
+
 
 // WebSocket: Terminal sessions
 const terminals = new Map();

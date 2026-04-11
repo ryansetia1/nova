@@ -35,6 +35,13 @@ export function disposeTerminal(pName) {
     if (!t) return;
     try { t.ws.close(); } catch(e) {}
     try { t.term.dispose(); } catch(e) {}
+
+    // Clear uploads panel if exists
+    if (t.panel) {
+        const uploadsPanel = t.panel.querySelector('.uploads-panel');
+        if (uploadsPanel) uploadsPanel.remove();
+    }
+
     try { t.panel.remove(); } catch(e) {}
     delete state.terminals[pName];
 }
@@ -115,7 +122,8 @@ export function setupTerminal(pName, showUI = false) {
         
         t = { 
             term, fitAddon: fit, ws, panel, container, ready: false, 
-            thinkingTimer: null, isMaximized: false, prevRect: null 
+            thinkingTimer: null, isMaximized: false, prevRect: null,
+            uploads: []  // { filename, absolutePath }
         };
         state.terminals[pName] = t;
         
@@ -267,6 +275,12 @@ export function setupTerminal(pName, showUI = false) {
               if (terminalInput) terminalInput += '\n';
               terminalInput += binaryFiles.map(f => `"${f.absolutePath}"`).join(' ') + ' ';
             }
+
+            // Track uploads
+            binaryFiles.forEach(f => {
+              t.uploads.push({ filename: f.filename, absolutePath: f.absolutePath });
+            });
+            updateUploadsPanel(pName);
 
             // Send to terminal
             if (ws.readyState === WebSocket.OPEN && terminalInput) {
@@ -584,4 +598,61 @@ function bindWindowEvents(pName, panel, tState) {
         const t = state.terminals[panel.dataset.project];
         if (t) refit(t);
     }
+}
+
+function updateUploadsPanel(pName) {
+  const t = state.terminals[pName];
+  if (!t || !t.panel) return;
+
+  let panel = t.panel.querySelector('.uploads-panel');
+  
+  // If no uploads, hide/remove panel and return
+  if (!t.uploads || t.uploads.length === 0) {
+    if (panel) panel.remove();
+    return;
+  }
+
+  // Create panel if it doesn't exist
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'uploads-panel';
+    // Insert between header and terminal container
+    const header = t.panel.querySelector('.terminal-header');
+    header.insertAdjacentElement('afterend', panel);
+  }
+
+  panel.innerHTML = t.uploads.map((u, index) => `
+    <div class="upload-item" data-index="${index}">
+      <span class="upload-icon">📎</span>
+      <span class="upload-name" title="${u.absolutePath}">${u.filename}</span>
+      <button class="upload-delete-btn" data-filename="${u.filename}" title="Delete file">✕</button>
+    </div>
+  `).join('');
+
+  // Bind delete buttons
+  panel.querySelectorAll('.upload-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const filename = btn.dataset.filename;
+      
+      try {
+        const res = await fetch(
+          `/api/projects/${encodeURIComponent(pName)}/uploads/${encodeURIComponent(filename)}`,
+          { method: 'DELETE' }
+        );
+        const data = await res.json();
+        
+        if (data.success) {
+          // Remove from local uploads array
+          t.uploads = t.uploads.filter(u => u.filename !== filename);
+          updateUploadsPanel(pName);
+          showToast('success', '🗑️', `Deleted: ${filename}`);
+        } else {
+          showToast('error', '❌', `Failed to delete: ${filename}`);
+        }
+      } catch (err) {
+        showToast('error', '❌', `Failed to delete: ${filename}`);
+      }
+    });
+  });
 }

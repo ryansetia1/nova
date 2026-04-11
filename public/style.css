@@ -2727,3 +2727,56 @@ emoji-picker.dark {
 #custom-model-input.hidden {
   display: none;
 }
+
+/* ============================================
+   TERMINAL UPLOADS PANEL
+   ============================================ */
+.uploads-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+}
+
+.upload-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  max-width: 200px;
+}
+
+.upload-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.upload-name {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.upload-delete-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.upload-delete-btn:hover {
+  color: var(--accent-rose);
+}
