@@ -1402,7 +1402,7 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 .terminal-container {
   flex: 1;
   background: #0d1117;
-  padding: 12px 4px 12px 12px; /* Allow scrollbar on the right */
+  padding: 12px 0 12px 12px; /* Scrollbar sits flush on the right */
   overflow: hidden;
   position: relative;
 }
@@ -1414,8 +1414,38 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 }
 
 .terminal-container .xterm-viewport {
-  background: #0d1117 !important;
+  background: transparent !important;
   overflow-y: auto !important;
+  /* Simple scrollbar for non-webkit browsers */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Premium Custom Scrollbar for Terminal */
+.terminal-container .xterm-viewport::-webkit-scrollbar {
+  width: 10px; /* Bit wider for better interactivity */
+}
+
+.terminal-container .xterm-viewport::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  margin: 4px 0;
+}
+
+.terminal-container .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 10px;
+  min-height: 30px;
+}
+
+.terminal-container .xterm-viewport:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.terminal-container .xterm-viewport::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent-primary) !important;
 }
 
 .terminal-container.drag-over::after {
