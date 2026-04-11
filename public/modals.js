@@ -657,9 +657,13 @@ export function initSwitchServiceModal() {
             if (newApiKey) project.apiKey = newApiKey;
             if (newBaseUrl) project.baseUrl = newBaseUrl;
 
-            // Update badge text
+            // Update badge text & custom tooltip
             const badge = tState.panel.querySelector('.terminal-project-badge');
-            if (badge) badge.childNodes[0].textContent = newModel;
+            if (badge) {
+                badge.childNodes[0].textContent = newModel;
+                badge.dataset.service = `Service: ${activeSwitchService.toUpperCase()}`;
+                badge.removeAttribute('title');
+            }
 
             closeSwitchServiceModal();
             

@@ -90,7 +90,10 @@ export function setupTerminal(pName, showUI = false) {
         if (meta) {
             panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
             panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
-            panel.querySelector('.terminal-project-badge').textContent = meta.model || '';
+            const badge = panel.querySelector('.terminal-project-badge');
+            badge.textContent = meta.model || '';
+            badge.dataset.service = `Service: ${meta.service ? meta.service.toUpperCase() : 'OLLAMA'}`;
+            badge.removeAttribute('title');
             const emojiEl = panel.querySelector('.terminal-header-emoji');
             if (emojiEl) emojiEl.innerHTML = getAppearanceHtml(meta.emoji);
         } else {
