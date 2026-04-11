@@ -110,4 +110,11 @@ export const dom = {
   get youtubeLoadBtn() { return $('#youtube-load-btn'); },
   get youtubePlayer() { return $('#sidebar-youtube-player'); },
   get headerPlayBtn() { return $('#header-play-btn'); },
+  
+  // CLAUDE.md Modal
+  get claudeMdModal() { return $('#claude-md-modal'); },
+  get claudeMdTextarea() { return $('#claude-md-textarea'); },
+  get claudeMdLabel() { return $('#claude-md-project-label'); },
+  get claudeMdCancelBtn() { return $('#claude-md-cancel-btn'); },
+  get claudeMdSaveBtn() { return $('#claude-md-save-btn'); },
 };

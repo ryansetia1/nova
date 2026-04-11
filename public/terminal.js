@@ -4,7 +4,7 @@
 
 import { state, dom } from './state.js';
 import { showToast, bringToFront, getAppearanceHtml, renderRobots } from './ui.js';
-import { openDeleteAgentModal, openEmojiUpdateModal, getModelsForService } from './modals.js';
+import { openDeleteAgentModal, openEmojiUpdateModal, getModelsForService, openClaudeMdModal } from './modals.js';
 
 export function openTerminal(pName) {
     if (!state.terminals[pName] || !state.terminals[pName].ready) return showToast('info', '⏳', 'Warming up...');
@@ -98,6 +98,18 @@ export function setupTerminal(pName, showUI = false) {
             const emojiEl = panel.querySelector('.terminal-header-emoji');
             if (emojiEl) emojiEl.innerHTML = getAppearanceHtml('🪐');
         }
+
+        // Check if CLAUDE.md exists and update button state
+        const claudeMdBtn = panel.querySelector('.terminal-claude-md-btn');
+        fetch(`/api/projects/${encodeURIComponent(pName)}/claude-md`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.exists) {
+              claudeMdBtn.classList.remove('dim');
+              claudeMdBtn.classList.add('active');
+            }
+          })
+          .catch(() => {});
         
         dom.mainContent.appendChild(panel);
 
@@ -427,6 +439,15 @@ function bindWindowEvents(pName, panel, tState) {
             openDeleteAgentModal(p);
         }
     });
+    
+    // Bind CLAUDE.md button
+    const claudeMdBtn = panel.querySelector('.terminal-claude-md-btn');
+    if (claudeMdBtn) {
+        claudeMdBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openClaudeMdModal(pName);
+        });
+    }
 
     const headerEmoji = panel.querySelector('.terminal-header-emoji');
     if (headerEmoji) {

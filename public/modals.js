@@ -401,3 +401,80 @@ export function initEmojiPopover() {
         }
     });
 }
+
+export async function openClaudeMdModal(pName) {
+  const modal = dom.claudeMdModal;
+  const textarea = dom.claudeMdTextarea;
+  const label = dom.claudeMdLabel;
+  
+  // Set project label
+  const project = state.projects.find(p => p.name === pName);
+  label.textContent = project ? (project.nickname || pName) : pName;
+  
+  // Load existing content
+  textarea.value = '';
+  
+  try {
+    const res = await fetch(`/api/projects/${encodeURIComponent(pName)}/claude-md`);
+    const data = await res.json();
+    if (data.exists && data.content) {
+      textarea.value = data.content;
+    }
+  } catch (err) {
+    // proceed with empty textarea
+  }
+
+  // Store current project name on modal for save handler
+  modal.dataset.project = pName;
+  
+  // Show modal
+  modal.classList.remove('hidden');
+  setTimeout(() => textarea.focus(), 100);
+}
+
+export function initClaudeMdModal() {
+  dom.claudeMdCancelBtn.addEventListener('click', () => {
+    dom.claudeMdModal.classList.add('hidden');
+  });
+
+  dom.claudeMdSaveBtn.addEventListener('click', async () => {
+    const modal = dom.claudeMdModal;
+    const pName = modal.dataset.project;
+    const content = dom.claudeMdTextarea.value;
+
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(pName)}/claude-md`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        modal.classList.add('hidden');
+        showToast('success', '📋', 'CLAUDE.md saved — takes effect on next session');
+        
+        // Update button state to active/bright
+        const t = state.terminals[pName];
+        if (t && t.panel) {
+          const btn = t.panel.querySelector('.terminal-claude-md-btn');
+          if (btn) {
+            btn.classList.remove('dim');
+            btn.classList.add('active');
+          }
+        }
+      } else {
+        showToast('error', '❌', 'Failed to save CLAUDE.md');
+      }
+    } catch (err) {
+      showToast('error', '❌', 'Failed to save CLAUDE.md');
+    }
+  });
+
+  // Close on overlay click
+  dom.claudeMdModal.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      e.currentTarget.classList.add('hidden');
+    }
+  });
+}

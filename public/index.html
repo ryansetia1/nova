@@ -170,6 +170,7 @@
             </div>
             <div class="terminal-header-right">
               <span class="terminal-project-badge"></span>
+              <button class="terminal-claude-md-btn dim" title="Edit CLAUDE.md">📋</button>
               <div class="terminal-menu-container">
                 <button class="terminal-menu-btn" title="More Options">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
@@ -383,6 +384,49 @@
       <div class="modal-footer" style="justify-content: space-between;">
         <button id="emoji-update-cancel-btn" class="btn btn-ghost">Cancel</button>
         <button id="emoji-update-save-btn" class="btn btn-primary" style="padding: 10px 20px;">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLAUDE.md Modal -->
+  <div id="claude-md-modal" class="modal-overlay hidden">
+    <div class="modal claude-md-modal-box">
+      <div class="claude-md-modal-header">
+        <div class="claude-md-modal-title">
+          <span>📋</span>
+          <span>CLAUDE.md</span>
+          <span class="claude-md-project-name" id="claude-md-project-label"></span>
+        </div>
+        <p class="claude-md-hint">
+          Instructions in this file are automatically read by Claude Code at the 
+          start of every session. Use it to set agent personality, coding standards, 
+          project context, or any persistent rules.
+        </p>
+      </div>
+      <textarea 
+        id="claude-md-textarea"
+        class="claude-md-textarea"
+        placeholder="# Agent Instructions
+
+## Role
+You are a [describe role here].
+
+## Project Context
+This project is [describe project].
+
+## Rules
+- Always [rule 1]
+- Never [rule 2]
+
+## Output Format
+[Describe preferred output format]"
+      ></textarea>
+      <div class="claude-md-footer">
+        <span class="claude-md-footer-hint">Takes effect on next session start</span>
+        <div class="claude-md-actions">
+          <button id="claude-md-cancel-btn" class="btn btn-ghost">Cancel</button>
+          <button id="claude-md-save-btn" class="btn btn-primary">💾 Save</button>
+        </div>
       </div>
     </div>
   </div>

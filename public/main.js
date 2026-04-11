@@ -37,7 +37,8 @@ import {
     closeEmojiUpdateModal,
     handleEmojiUpdate,
     setupAppearanceToggles,
-    initServiceSelector
+    initServiceSelector,
+    initClaudeMdModal
 } from './modals.js';
 import { 
     setupTerminal, 
@@ -69,6 +70,7 @@ async function init() {
     initAnchorAdjuster();
     initThemeControl();
     initServiceSelector();
+    initClaudeMdModal();
     
     setTimeout(() => {
         if (dom.loader) dom.loader.classList.add('hidden');

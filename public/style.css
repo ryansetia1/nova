@@ -2780,3 +2780,146 @@ emoji-picker.dark {
 .upload-delete-btn:hover {
   color: var(--accent-rose);
 }
+
+/* ============================================
+   CLAUDE.md EDITOR
+   ============================================ */
+.terminal-claude-md-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: opacity 150ms ease, background 150ms ease;
+}
+
+.terminal-claude-md-btn.dim {
+  opacity: 0.25;
+}
+
+.terminal-claude-md-btn.dim:hover {
+  opacity: 0.6;
+}
+
+.terminal-claude-md-btn.active {
+  opacity: 1;
+}
+
+.terminal-claude-md-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* CLAUDE.md modal */
+.claude-md-modal-box {
+  width: 720px;
+  max-width: 90vw;
+  height: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 !important; /* override modal padding */
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.4), var(--shadow-lg);
+}
+
+.claude-md-modal-header {
+  padding: 24px 32px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.claude-md-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.claude-md-project-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.claude-md-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+  opacity: 0.8;
+}
+
+.claude-md-textarea {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  background: #0d1117;
+  border: none;
+  border-radius: 0;
+  padding: 24px 32px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e6edf3;
+  outline: none;
+  transition: background 200ms ease;
+}
+
+.claude-md-textarea:focus {
+  background: #090c10;
+}
+
+.claude-md-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* Textarea scrollbar */
+.claude-md-textarea::-webkit-scrollbar {
+  width: 12px;
+}
+.claude-md-textarea::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+.claude-md-textarea::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  border: 3px solid #0d1117;
+}
+.claude-md-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.claude-md-footer {
+  padding: 16px 32px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+}
+
+.claude-md-footer-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.claude-md-actions {
+  display: flex;
+  gap: 12px;
+}

@@ -517,7 +517,57 @@ app.delete('/api/projects/:name/uploads/:filename', (req, res) => {
   }
 });
 
+// API: Get CLAUDE.md content
+app.get('/api/projects/:name/claude-md', (req, res) => {
+  const { name } = req.params;
+  const projectPath = path.join(PROJECTS_DIR, name);
 
+  if (!fs.existsSync(projectPath)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  try {
+    const resolvedPath = fs.realpathSync(projectPath);
+    const claudeMdPath = path.join(resolvedPath, 'CLAUDE.md');
+
+    if (!fs.existsSync(claudeMdPath)) {
+      return res.json({ exists: false, content: '' });
+    }
+
+    const content = fs.readFileSync(claudeMdPath, 'utf8');
+    res.json({ exists: true, content });
+  } catch (err) {
+    console.error('CLAUDE.md read error:', err);
+    res.status(500).json({ error: 'Failed to read CLAUDE.md' });
+  }
+});
+
+// API: Save CLAUDE.md content
+app.post('/api/projects/:name/claude-md', (req, res) => {
+  const { name } = req.params;
+  const { content } = req.body;
+
+  if (content === undefined || content === null) {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  try {
+    const resolvedPath = fs.realpathSync(projectPath);
+    const claudeMdPath = path.join(resolvedPath, 'CLAUDE.md');
+
+    fs.writeFileSync(claudeMdPath, content, 'utf8');
+    console.log(`📋 CLAUDE.md saved for project: ${name}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('CLAUDE.md write error:', err);
+    res.status(500).json({ error: 'Failed to save CLAUDE.md' });
+  }
+});
 
 // WebSocket: Terminal sessions
 const terminals = new Map();
