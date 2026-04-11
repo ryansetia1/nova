@@ -2552,3 +2552,60 @@ emoji-picker.dark {
   background: #111827;
   color: var(--text-primary);
 }
+
+.agent-status-badge {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: badge-fadein 0.2s ease;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes badge-fadein {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.badge-icon { font-size: 10px; line-height: 1; }
+.badge-text { letter-spacing: 0.03em; }
+
+.badge-editing {
+  background: rgba(59, 130, 246, 0.15);
+  border: 0.5px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.badge-running {
+  background: rgba(245, 158, 11, 0.15);
+  border: 0.5px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.badge-waiting {
+  background: rgba(139, 92, 246, 0.15);
+  border: 0.5px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+
+.badge-done {
+  background: rgba(16, 185, 129, 0.15);
+  border: 0.5px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.badge-error {
+  background: rgba(244, 63, 94, 0.15);
+  border: 0.5px solid rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+}

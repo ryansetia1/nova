@@ -419,9 +419,9 @@ app.delete('/api/projects/:name', (req, res) => {
 // API: Upload file to a project (drag and drop support)
 app.post('/api/projects/:name/upload', (req, res) => {
   const { name } = req.params;
-  const { filename, filedata } = req.body; // filedata should be base64 data URL
+  const { filename, filedata, isText, textContent } = req.body;
 
-  if (!filename || !filedata) {
+  if (!filename || (!isText && !filedata)) {
     return res.status(400).json({ error: 'Filename and filedata are required' });
   }
 
@@ -430,23 +430,40 @@ app.post('/api/projects/:name/upload', (req, res) => {
     return res.status(404).json({ error: 'Project not found' });
   }
 
-  const uploadsDir = path.join(projectPath, '_uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  // For text files, no need to save — just return success
+  // The frontend already has the text content
+  if (isText) {
+    return res.json({ 
+      success: true, 
+      type: 'text',
+      filename: filename,
+      textContent: textContent 
+    });
   }
 
+  // For binary files, save directly to project root
   try {
-    // extract base64 data from dataURL (e.g. data:image/png;base64,iVBOR...)
     const base64Data = filedata.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
-    const safeFilename = filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_'); // sanitize
-    const targetPath = path.join(uploadsDir, safeFilename);
-
-    fs.writeFileSync(targetPath, base64Data, 'base64');
+    const safeFilename = filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
     
-    res.json({ success: true, absolutePath: targetPath, filename: safeFilename });
+    // Save directly to project root, not _uploads/
+    const targetPath = path.join(projectPath, safeFilename);
+    
+    // Resolve symlink to get actual path
+    const resolvedProjectPath = fs.realpathSync(projectPath);
+    const resolvedTargetPath = path.join(resolvedProjectPath, safeFilename);
+    
+    fs.writeFileSync(resolvedTargetPath, base64Data, 'base64');
+    
+    res.json({ 
+      success: true, 
+      type: 'binary',
+      absolutePath: resolvedTargetPath, 
+      filename: safeFilename 
+    });
   } catch (err) {
     console.error('File Upload Error:', err);
-    res.status(500).json({ error: 'Failed to process file upload' });
+    res.status(500).json({ error: 'Failed to save file' });
   }
 });
 

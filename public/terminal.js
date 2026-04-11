@@ -146,36 +146,141 @@ export function setupTerminal(pName, showUI = false) {
             e.preventDefault();
             e.stopPropagation();
             container.classList.remove('drag-over');
-            
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
+
+            const files = Array.from(e.dataTransfer.files);
+            if (!files.length) return;
+
+            // Text file extensions
+            const TEXT_EXTENSIONS = new Set([
+              'txt','md','json','jsonl','csv','js','jsx','ts','tsx','py','rb',
+              'go','rs','java','cpp','c','h','css','html','xml','yaml','yml',
+              'toml','env','sh','bash','zsh','sql','graphql','vue','svelte','log'
+            ]);
+
+            const isTextFile = (filename) => {
+              const ext = filename.split('.').pop().toLowerCase();
+              return TEXT_EXTENSIONS.has(ext);
+            };
+
+            showToast('info', '⏳', `Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`);
+
+            // Process all files in parallel
+            const results = await Promise.all(files.map(file => {
+              return new Promise((resolve) => {
                 const reader = new FileReader();
                 
-                reader.onload = async (event) => {
+                if (isTextFile(file.name)) {
+                  // Read as text for text files
+                  reader.onload = async (event) => {
+                    const textContent = event.target.result;
+                    try {
+                      const res = await fetch(
+                        `/api/projects/${encodeURIComponent(pName)}/upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          filename: file.name, 
+                          filedata: '', // not needed for text
+                          isText: true,
+                          textContent: textContent
+                        })
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        resolve({ 
+                          type: 'text', 
+                          filename: file.name, 
+                          textContent: textContent,
+                          success: true 
+                        });
+                      } else {
+                        resolve({ success: false, filename: file.name });
+                      }
+                    } catch {
+                      resolve({ success: false, filename: file.name });
+                    }
+                  };
+                  reader.readAsText(file);
+                } else {
+                  // Read as base64 for binary files
+                  reader.onload = async (event) => {
                     const base64Data = event.target.result;
                     try {
-                        showToast('info', '⏳', `Uploading ${file.name}...`);
-                        const res = await fetch(`/api/projects/${encodeURIComponent(pName)}/upload`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ filename: file.name, filedata: base64Data })
+                      const res = await fetch(
+                        `/api/projects/${encodeURIComponent(pName)}/upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          filename: file.name, 
+                          filedata: base64Data,
+                          isText: false
+                        })
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        resolve({ 
+                          type: 'binary', 
+                          filename: file.name, 
+                          absolutePath: data.absolutePath,
+                          success: true 
                         });
-                        const data = await res.json();
-                        if (data.success) {
-                            showToast('success', '✅', `Uploaded: ${file.name}`);
-                            if (ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify({ type: 'input', data: `"${data.absolutePath}" ` }));
-                                term.focus();
-                            }
-                        } else {
-                            showToast('error', '❌', data.error || 'Upload failed');
-                        }
-                    } catch (err) {
-                        showToast('error', '❌', 'Failed to upload file');
+                      } else {
+                        resolve({ success: false, filename: file.name });
+                      }
+                    } catch {
+                      resolve({ success: false, filename: file.name });
                     }
-                };
-                reader.readAsDataURL(file);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              });
+            }));
+
+            // Separate successes and failures
+            const succeeded = results.filter(r => r.success);
+            const failed = results.filter(r => !r.success);
+
+            if (failed.length > 0) {
+              failed.forEach(f => showToast('error', '❌', `Failed: ${f.filename}`));
             }
+
+            if (!succeeded.length) return;
+
+            // Build terminal input string
+            // Text files: inject as inline content blocks
+            // Binary files: inject as space-separated quoted absolute paths
+            
+            const textFiles = succeeded.filter(r => r.type === 'text');
+            const binaryFiles = succeeded.filter(r => r.type === 'binary');
+
+            let terminalInput = '';
+
+            // Text file content injected as readable blocks
+            if (textFiles.length > 0) {
+              terminalInput += textFiles.map(f => 
+                `\n[File: ${f.filename}]\n${f.textContent}\n[End of ${f.filename}]`
+              ).join('\n');
+            }
+
+            // Binary file paths as space-separated quoted strings
+            if (binaryFiles.length > 0) {
+              if (terminalInput) terminalInput += '\n';
+              terminalInput += binaryFiles.map(f => `"${f.absolutePath}"`).join(' ') + ' ';
+            }
+
+            // Send to terminal
+            if (ws.readyState === WebSocket.OPEN && terminalInput) {
+              ws.send(JSON.stringify({ type: 'input', data: terminalInput }));
+              term.focus();
+            }
+
+            // Success toast
+            const textCount = textFiles.length;
+            const binaryCount = binaryFiles.length;
+            const parts = [];
+            if (textCount) parts.push(`${textCount} text file${textCount > 1 ? 's' : ''} injected`);
+            if (binaryCount) parts.push(`${binaryCount} binary file${binaryCount > 1 ? 's' : ''} saved`);
+            showToast('success', '✅', parts.join(', '));
         });
 
         ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { refit(t); t.ready = true; renderRobots(); } }, 1000); };
