@@ -404,6 +404,7 @@ export function setupTerminal(pName, showUI = false) {
 
 function bindWindowEvents(pName, panel, tState) {
     const closeDot = panel.querySelector('.terminal-close-dot');
+    const dockDot = panel.querySelector('.terminal-dock-dot');
     const maxDot = panel.querySelector('.terminal-maximize-dot');
     const menuBtn = panel.querySelector('.terminal-menu-btn');
     const dropdown = panel.querySelector('.terminal-dropdown');
@@ -414,11 +415,23 @@ function bindWindowEvents(pName, panel, tState) {
 
     closeDot.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (panel.classList.contains('docked-right')) return; // Disabled when docked
         hideTerminal(pName);
     });
 
+    if (dockDot) {
+        dockDot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('docked-right');
+            bringToFront(panel);
+            setTimeout(() => refit(tState), 50);
+            setTimeout(() => refit(tState), 300);
+        });
+    }
+
     maxDot.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (panel.classList.contains('docked-right')) return; // Disabled when docked
         bringToFront(panel);
         if (tState.isMaximized) {
             const r = tState.prevRect || {width: 500, height: 500, left: window.innerWidth/2 - 250, top: 100};
@@ -481,7 +494,7 @@ function bindWindowEvents(pName, panel, tState) {
 
     header.addEventListener('mousedown', (e) => {
         if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-header-emoji')) return;
-        if (tState.isMaximized) return;
+        if (tState.isMaximized || panel.classList.contains('docked-right')) return;
         
         bringToFront(panel);
         state.draggingWindow = panel;
@@ -503,6 +516,7 @@ function bindWindowEvents(pName, panel, tState) {
     function onDragging(e) {
         if (!state.draggingWindow) return;
         const panel = state.draggingWindow;
+        if (panel.classList.contains('docked-right')) return;
         let x = e.clientX - state.dragOffset.x;
         let y = e.clientY - state.dragOffset.y;
         x = Math.max(0, Math.min(x, window.innerWidth - panel.offsetWidth));
@@ -526,6 +540,7 @@ function bindWindowEvents(pName, panel, tState) {
     resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (panel.classList.contains('docked-right')) return; // Disabled when docked
         
         bringToFront(panel);
         state.resizingWindow = panel;

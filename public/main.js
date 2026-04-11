@@ -284,7 +284,7 @@ function bindEvents() {
         if (e.key === 'Escape') {
             closeModal(); closeDeleteAgentModal();
             if (dom.emojiPopover) dom.emojiPopover.classList.add('hidden');
-            const visiblePanels = Object.values(state.terminals).map(t => t.panel).filter(p => p && !p.classList.contains('hidden'));
+            const visiblePanels = Object.values(state.terminals).map(t => t.panel).filter(p => p && !p.classList.contains('hidden') && !p.classList.contains('docked-right'));
             if (visiblePanels.length > 0) {
                 const topPanel = visiblePanels.reduce((prev, curr) => (parseInt(curr.style.zIndex || 0) > parseInt(prev.style.zIndex || 0) ? curr : prev));
                 hideTerminal(topPanel.dataset.project);
@@ -298,12 +298,14 @@ function bindEvents() {
                                 e.target.closest('.robot-avatar') || 
                                 e.target.closest('.modal-overlay') || 
                                 e.target.closest('.settings-container') ||
+                                e.target.closest('.sidebar') ||
                                 e.target.closest('.spawn-btn');
                                 
         if (!isClickingSafeUI) {
             Object.keys(state.terminals).forEach(pName => {
                 const t = state.terminals[pName];
                 if (t && t.panel && !t.panel.classList.contains('hidden')) {
+                    if (t.panel.classList.contains('docked-right')) return;
                     hideTerminal(pName);
                 }
             });

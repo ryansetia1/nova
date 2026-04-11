@@ -1783,7 +1783,38 @@ emoji-picker.dark {
 }
 
 .terminal-dot.red { background: #ff5f57; border: 0.5px solid rgba(0,0,0,0.2); }
+.terminal-dot.yellow { background: #ffbd2e; border: 0.5px solid rgba(0,0,0,0.2); }
 .terminal-dot.green { background: #28c840; border: 0.5px solid rgba(0,0,0,0.2); }
+
+/* Docked Right Styles */
+.terminal-panel.docked-right {
+  top: 73px !important;
+  right: 0 !important;
+  left: auto !important;
+  bottom: 0 !important;
+  width: 400px !important;
+  height: calc(100vh - 73px) !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: 1px solid var(--border-subtle) !important;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5) !important;
+  z-index: 90 !important;
+}
+
+.terminal-panel.docked-right .terminal-resizer {
+  display: none !important;
+}
+
+.terminal-panel.docked-right .terminal-close-dot,
+.terminal-panel.docked-right .terminal-maximize-dot {
+  opacity: 0.3 !important;
+  pointer-events: none !important;
+  background: #555 !important;
+  border-color: transparent !important;
+}
 
 .terminal-title {
   font-size: 13px;
