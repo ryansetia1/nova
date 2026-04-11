@@ -21,6 +21,10 @@ export function hideTerminal(pName) {
     const t = state.terminals[pName];
     if (t && t.panel) {
         t.panel.classList.add('hidden');
+        if (t.panel.classList.contains('docked-right')) {
+            t.panel.classList.remove('docked-right');
+            updateDockedLayout();
+        }
     }
     
     if (state.walkingRobots[pName]) {
@@ -44,6 +48,38 @@ export function disposeTerminal(pName) {
 
     try { t.panel.remove(); } catch(e) {}
     delete state.terminals[pName];
+    updateDockedLayout();
+}
+
+export function updateDockedLayout() {
+    const dockedPanels = Array.from(document.querySelectorAll('.terminal-panel.docked-right:not(.hidden)'));
+    const dockCount = dockedPanels.length;
+    
+    // Update all yellow dots visibility
+    document.querySelectorAll('.terminal-panel').forEach(panel => {
+        const dDot = panel.querySelector('.terminal-dock-dot');
+        if (dDot) {
+            if (!panel.classList.contains('docked-right') && dockCount >= 3) {
+                dDot.style.pointerEvents = 'none';
+                dDot.style.opacity = '0.2';
+            } else {
+                dDot.style.pointerEvents = 'auto';
+                dDot.style.opacity = '1';
+            }
+        }
+    });
+
+    if (dockCount > 0) {
+        dockedPanels.forEach((panel, index) => {
+            panel.style.setProperty('top', `calc(73px + ((100vh - 73px) / ${dockCount}) * ${index})`, 'important');
+            panel.style.setProperty('height', `calc((100vh - 73px) / ${dockCount})`, 'important');
+            
+            const pName = panel.dataset.project;
+            if (pName && state.terminals[pName]) {
+                setTimeout(() => refit(state.terminals[pName]), 50);
+            }
+        });
+    }
 }
 
 function refit(t) {
@@ -422,9 +458,26 @@ function bindWindowEvents(pName, panel, tState) {
     if (dockDot) {
         dockDot.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (!panel.classList.contains('docked-right')) {
+                const currentDocked = document.querySelectorAll('.terminal-panel.docked-right:not(.hidden)').length;
+                if (currentDocked >= 3) return; // Enforce max 3
+            } else {
+                // Return to floating state - clear important overrides
+                panel.style.removeProperty('top');
+                panel.style.removeProperty('height');
+                panel.style.removeProperty('width');
+                panel.style.removeProperty('left');
+                
+                // Set default floating size
+                panel.style.width = '600px';
+                panel.style.height = '500px';
+                panel.style.top = '100px';
+                panel.style.left = 'calc(50% - 300px)';
+                tState.isMaximized = false;
+            }
             panel.classList.toggle('docked-right');
             bringToFront(panel);
-            setTimeout(() => refit(tState), 50);
+            updateDockedLayout();
             setTimeout(() => refit(tState), 300);
         });
     }
