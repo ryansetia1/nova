@@ -2280,11 +2280,16 @@ emoji-picker.dark {
 
 /* Adjust main content when sidebar is present */
 #app {
-  padding-left: 50px; /* Width of collapsed sidebar */
+  padding-left: 0;
   transition: padding var(--transition-base);
 }
 
-#app:has(.sidebar:not(.collapsed)) {
+#main-content {
+  padding-left: 50px;
+  transition: padding var(--transition-base);
+}
+
+#app:has(.sidebar:not(.collapsed)) #main-content {
   padding-left: 250px;
 }
 

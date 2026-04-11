@@ -39,3 +39,16 @@
 ✅ Created project: gaming-news (Nickname: Russ) in /Users/ryan.setiawan/Downloads/nova/projects/Ask-Me-Anything/gaming-news
 🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
 🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest
+[1:16:07 PM] GET /
+🔌 WebSocket closed for Ask-Me-Anything
+🔌 WebSocket closed for gaming-news
+🔚 Terminal exited for Ask-Me-Anything with code 1
+🔚 Terminal exited for gaming-news with code 1
+[1:16:08 PM] GET /api/walkable-path
+[1:16:08 PM] GET /api/anchor
+[1:16:08 PM] GET /api/projects
+[1:16:08 PM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
