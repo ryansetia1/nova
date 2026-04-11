@@ -15,10 +15,13 @@ export async function getModelsForService(service) {
       const res = await fetch('/api/models');
       if (!res.ok) throw new Error(`Ollama fetch failed: ${res.status}`);
       models = await res.json();
-    } else {
+    } else if (service === 'claude') {
       const res = await fetch('/api/claude-models');
       if (!res.ok) throw new Error(`Claude fetch failed: ${res.status}`);
       models = await res.json();
+    } else {
+      // Sumo or Custom
+      models = ['claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219'];
     }
     return models;
   } catch (err) {
@@ -64,18 +67,48 @@ async function loadModelsForService(service) {
 
 export function initServiceSelector() {
     dom.serviceToggleBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          selectedService = btn.dataset.service;
-          
-          // Update active state
-          dom.serviceToggleBtns.forEach(b => 
-            b.classList.remove('active')
-          );
-          btn.classList.add('active');
-          
-          // Reload model list for selected service
-          loadModelsForService(selectedService);
-        });
+    btn.addEventListener('click', () => {
+      selectedService = btn.dataset.service;
+      
+      // Update active state
+      dom.serviceToggleBtns.forEach(b => 
+        b.classList.remove('active')
+      );
+      btn.classList.add('active');
+      
+      // Handle configuration fields visibility
+      if (selectedService === 'sumo') {
+        dom.serviceConfigFields.classList.remove('hidden');
+        dom.apiKeyGroup.classList.remove('hidden');
+        dom.baseUrlGroup.classList.add('hidden');
+        
+        // Auto-load saved API key for Sumo
+        const savedKey = localStorage.getItem('nova_sumo_api_key');
+        if (savedKey) dom.apiKeyInput.value = savedKey;
+        else dom.apiKeyInput.value = '';
+      } 
+      else if (selectedService === 'custom') {
+        dom.serviceConfigFields.classList.remove('hidden');
+        dom.apiKeyGroup.classList.remove('hidden');
+        dom.baseUrlGroup.classList.remove('hidden');
+        
+        // Auto-load saved API key for Custom
+        const savedKey = localStorage.getItem('nova_custom_api_key');
+        if (savedKey) dom.apiKeyInput.value = savedKey;
+        else dom.apiKeyInput.value = '';
+        
+        // Auto-load saved Base URL for Custom
+        const savedUrl = localStorage.getItem('nova_custom_base_url');
+        if (savedUrl) dom.baseUrlInput.value = savedUrl;
+        else dom.baseUrlInput.value = '';
+      }
+      else {
+        dom.serviceConfigFields.classList.add('hidden');
+      }
+
+      // Reload model list for selected service
+      loadModelsForService(selectedService);
+    });
     });
 
     if (dom.modelSelect) {
@@ -147,6 +180,12 @@ export async function openModal() {
     });
     dom.customModelInput.classList.add('hidden');
     dom.customModelInput.value = '';
+    
+    // Reset service config fields
+    dom.serviceConfigFields.classList.add('hidden');
+    dom.apiKeyInput.value = '';
+    dom.baseUrlInput.value = '';
+
     loadModelsForService('ollama');
 
     setTimeout(() => dom.modalInput.focus(), 100);
@@ -262,8 +301,19 @@ export async function handleSpawn() {
     if (state.spawnAppearanceType === 'character') {
          emoji = 'SPRITE:' + dom.spawnCharacterSelect.value;
     }
+    const apiKey = dom.apiKeyInput.value.trim();
+    const baseUrl = dom.baseUrlInput.value.trim();
+
     if (!name) return showToast('error', '❌', 'Name required');
     if (!model) return showToast('error', '❌', 'Please enter a model name');
+
+    // Save secrets to localStorage for auto-loading next time
+    if (selectedService === 'sumo' && apiKey) {
+        localStorage.setItem('nova_sumo_api_key', apiKey);
+    } else if (selectedService === 'custom') {
+        if (apiKey) localStorage.setItem('nova_custom_api_key', apiKey);
+        if (baseUrl) localStorage.setItem('nova_custom_base_url', baseUrl);
+    }
 
     dom.modalConfirm.disabled = true;
     try {
@@ -275,6 +325,8 @@ export async function handleSpawn() {
                 nickname, 
                 model, 
                 service: selectedService,
+                apiKey,
+                baseUrl,
                 customPath, 
                 emoji, 
                 parentAgent 

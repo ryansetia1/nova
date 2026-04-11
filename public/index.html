@@ -216,6 +216,23 @@
             <button type="button" class="service-btn" data-service="claude">
               Claude
             </button>
+            <button type="button" class="service-btn" data-service="sumo">
+              Sumo
+            </button>
+            <button type="button" class="service-btn" data-service="custom">
+              Custom
+            </button>
+          </div>
+        </div>
+
+        <div id="service-config-fields" class="hidden" style="margin-bottom: 20px;">
+          <div class="input-group" id="api-key-group">
+            <label for="api-key-input">API Key</label>
+            <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+          </div>
+          <div class="input-group hidden" id="base-url-group">
+            <label for="base-url-input">Base URL</label>
+            <input type="text" id="base-url-input" placeholder="https://..." autocomplete="off">
           </div>
         </div>
 

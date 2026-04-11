@@ -61,7 +61,7 @@ app.get('/api/claude-models', (req, res) => {
 
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname, customPath, emoji, parentAgent, service } = req.body;
+  const { name, model, nickname, customPath, emoji, parentAgent, service, apiKey, baseUrl } = req.body;
   console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath });
   
   if (!name || !name.trim()) {
@@ -184,6 +184,8 @@ app.post('/api/projects', (req, res) => {
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
       service: service || 'ollama',
+      apiKey: apiKey || undefined,
+      baseUrl: baseUrl || undefined,
       emoji: emoji || '🪐',
       customPath: customPath ? actualPath : (parentAgent ? undefined : undefined),
       parentAgent: parentAgent || undefined,
@@ -253,7 +255,7 @@ app.post('/api/projects', (req, res) => {
 
 // API: Update a project's metadata
 app.post('/api/update-emoji', (req, res) => {
-  const { name, emoji, nickname, model, service } = req.body;
+  const { name, emoji, nickname, model, service, apiKey, baseUrl } = req.body;
   
   const projectPath = path.join(PROJECTS_DIR, name);
   if (!fs.existsSync(projectPath)) {
@@ -274,6 +276,8 @@ app.post('/api/update-emoji', (req, res) => {
     if (nickname) meta.nickname = nickname;
     if (model) meta.model = model;
     if (service) meta.service = service;
+    if (apiKey !== undefined) meta.apiKey = apiKey;
+    if (baseUrl !== undefined) meta.baseUrl = baseUrl;
     
     // Always save as new format for consistency
     fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
@@ -502,11 +506,16 @@ wss.on('connection', (ws, req) => {
 
   let model = 'qwen3.5:cloud';
   let service = 'ollama'; // default
+  let apiKey = '';
+  let baseUrl = '';
+
   if (metaPath) {
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
       model = meta.model || model;
       service = meta.service || 'ollama';
+      apiKey = meta.apiKey || '';
+      baseUrl = meta.baseUrl || '';
     } catch(err) {}
   }
 
@@ -545,6 +554,8 @@ wss.on('connection', (ws, req) => {
         COLORTERM: 'truecolor',
         LANG: 'en_US.UTF-8',
         USER: process.env.USER || os.userInfo().username,
+        ANTHROPIC_API_KEY: (service === 'sumo' || service === 'custom') ? apiKey : (process.env.ANTHROPIC_API_KEY || ''),
+        ANTHROPIC_BASE_URL: service === 'sumo' ? 'https://ai.sumopod.com' : (service === 'custom' ? baseUrl : (process.env.ANTHROPIC_BASE_URL || '')),
       }
     });
   } catch (err) {
@@ -563,7 +574,7 @@ wss.on('connection', (ws, req) => {
   const hasBeenInitialized = fs.existsSync(initMarker);
   
   let agentCommand;
-  if (service === 'claude') {
+  if (service === 'claude' || service === 'sumo' || service === 'custom') {
     agentCommand = hasBeenInitialized
       ? `claude --continue`
       : `claude --model ${model}`;
@@ -589,7 +600,11 @@ wss.on('connection', (ws, req) => {
       // --- Auto-Recovery Logic ---
       // If we see "No conversation found", it means the --continue flag failed.
       // We should instantly fallback to a fresh start.
-      const errorMarkers = ["No conversation found", "no conversation matching"];
+      const errorMarkers = [
+        "No conversation found", 
+        "no conversation matching",
+        "Invalid model name"
+      ];
       const hasError = errorMarkers.some(marker => data.includes(marker));
       
       if (hasError && !ptyProcess._hasRecovered) {
@@ -599,9 +614,7 @@ wss.on('connection', (ws, req) => {
           // Clear the init marker so next cold start is also fresh
           try { if (fs.existsSync(initMarker)) fs.unlinkSync(initMarker); } catch(e) {}
 
-          const fallbackCmd = service === 'claude'
-            ? `claude --model ${model}`
-            : `ollama launch claude --model ${model}`;
+          const fallbackCmd = `/model ${model}`;
           setTimeout(() => {
               ptyProcess.write('\x03'); // Send Ctrl+C to clear any stuck prompt
               setTimeout(() => {
