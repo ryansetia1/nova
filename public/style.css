@@ -1704,8 +1704,8 @@ emoji-picker.dark {
 .terminal-panel {
   position: fixed;
   top: 100px;
-  left: calc(50% - 250px); /* Centered 500px window */
-  width: 500px;
+  left: calc(50% - 300px); /* Centered 600px window */
+  width: 600px;
   height: 500px;
   background: rgba(13, 17, 23, 0.95);
   backdrop-filter: blur(20px);
@@ -2421,6 +2421,38 @@ emoji-picker.dark {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Sidebar Status Chips */
+.sidebar-status-chip {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  margin-left: 8px;
+  display: inline-block;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+
+.sidebar-status-chip.thinking {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.sidebar-status-chip.done {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.sidebar-status-chip.error {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--accent-rose);
+  border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
 .orphaned-item {

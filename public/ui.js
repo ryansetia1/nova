@@ -74,11 +74,20 @@ export function renderSidebar() {
       dom.activeAgentList.innerHTML = activeAgents.map(p => {
         const isNested = !!p.parentAgent;
         const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
+        
+        const r = state.walkingRobots[p.name];
+        let statusChip = '';
+        if (r) {
+          if (r.hasError) statusChip = '<span class="sidebar-status-chip error">Error</span>';
+          else if (r.isThinking) statusChip = '<span class="sidebar-status-chip thinking">Thinking</span>';
+          else if (r.hasUpdate) statusChip = '<span class="sidebar-status-chip done">Done</span>';
+        }
+
         return `
         <div class="sidebar-item ${isNested ? 'nested' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
-            <div class="sidebar-item-name">${prefix}${p.nickname || p.name}</div>
+            <div class="sidebar-item-name">${prefix}${p.nickname || p.name}${statusChip}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
         </div>

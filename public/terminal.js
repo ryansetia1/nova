@@ -82,7 +82,7 @@ export function setupTerminal(pName, showUI = false) {
         panel.dataset.project = pName;
         const offset = Math.floor(Math.random() * 40) - 20; 
         panel.style.top = `${100 + offset}px`;
-        panel.style.left = `calc(50% - 425px + ${offset}px)`;
+        panel.style.left = `calc(50% - 300px + ${offset}px)`;
 
         const container = panel.querySelector('.terminal-container');
         
