@@ -676,32 +676,38 @@ export function initSwitchServiceModal() {
                 
                 setTimeout(() => {
                     if (tState.ws.readyState !== WebSocket.OPEN) return;
-                    
-                    let cmd = '';
-                    // 2. Export environment variables if needed
-                    if (activeSwitchService === 'sumo') {
-                        cmd += `export ANTHROPIC_API_KEY="${newApiKey}" ANTHROPIC_BASE_URL="https://ai.sumopod.com"\r`;
-                    } else if (activeSwitchService === 'custom') {
-                        cmd += `export ANTHROPIC_API_KEY="${newApiKey}" ANTHROPIC_BASE_URL="${newBaseUrl}"\r`;
-                    }
-                    
-                    // 3. Launch Command
-                    if (activeSwitchService === 'claude' || activeSwitchService === 'sumo' || activeSwitchService === 'custom') {
-                        cmd += `claude --continue\r`;
-                    } else {
-                        cmd += `ollama launch claude --model ${newModel} -- --continue\r`;
-                    }
-                    
-                    tState.ws.send(JSON.stringify({ type: 'input', data: cmd }));
-                    
-                    // 4. Force inject model command after it boots just to be absolutely sure
-                    setTimeout(() => {
-                        if (tState.ws.readyState === WebSocket.OPEN) {
-                            tState.ws.send(JSON.stringify({ type: 'input', data: `/model ${newModel}\r` }));
-                        }
-                    }, 3500);
 
-                }, 1500); // give exit 1.5s to close
+                    // 1.5 Send Ctrl+C interrupt to ensure shell is ready/clear any stuck prompt
+                    tState.ws.send(JSON.stringify({ type: 'input', data: '\x03' }));
+
+                    setTimeout(() => {
+                        let cmd = '';
+                        // 2. Export environment variables if needed
+                        // Use single quotes to prevent shell expansion of special characters in keys
+                        if (activeSwitchService === 'sumo') {
+                            cmd += `export ANTHROPIC_API_KEY='${newApiKey}' ANTHROPIC_BASE_URL='https://ai.sumopod.com'\r`;
+                        } else if (activeSwitchService === 'custom') {
+                            cmd += `export ANTHROPIC_API_KEY='${newApiKey}' ANTHROPIC_BASE_URL='${newBaseUrl}'\r`;
+                        }
+                        
+                        // 3. Launch Command
+                        if (activeSwitchService === 'claude' || activeSwitchService === 'sumo' || activeSwitchService === 'custom') {
+                            cmd += `claude --continue\r`;
+                        } else {
+                            cmd += `ollama launch claude --model ${newModel} -- --continue\r`;
+                        }
+                        
+                        tState.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+                        
+                        // 4. Force inject model command after it boots
+                        setTimeout(() => {
+                            if (tState.ws.readyState === WebSocket.OPEN) {
+                                tState.ws.send(JSON.stringify({ type: 'input', data: `/model ${newModel}\r` }));
+                            }
+                        }, 3500);
+                    }, 500); // 500ms after Ctrl+C
+
+                }, 2000); // give exit 2s to close
             }
 
         } catch (err) {
