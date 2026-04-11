@@ -74,7 +74,7 @@ export function renderSidebar() {
         const isNested = !!p.parentAgent;
         const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
         return `
-        <div class="sidebar-item" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
+        <div class="sidebar-item ${isNested ? 'nested' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
             <div class="sidebar-item-name">${prefix}${p.nickname || p.name}</div>

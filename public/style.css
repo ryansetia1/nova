@@ -2131,6 +2131,7 @@ emoji-picker.dark {
   display: flex;
   flex-direction: column;
   transition: transform var(--transition-base), width var(--transition-base);
+  overflow: hidden;
 }
 
 .sidebar.collapsed {
@@ -2141,6 +2142,12 @@ emoji-picker.dark {
 .sidebar.collapsed .sidebar-title {
   opacity: 0;
   pointer-events: none;
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
 }
 
 .sidebar-header {
@@ -2245,6 +2252,20 @@ emoji-picker.dark {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.sidebar-item.nested {
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0 8px 8px 0;
+}
+
+.nested-indicator {
+  color: var(--accent-primary);
+  opacity: 0.8;
+  margin-right: 4px;
+  font-weight: bold;
 }
 
 .sidebar-item-info {

@@ -39,21 +39,30 @@ export function disposeTerminal(pName) {
     delete state.terminals[pName];
 }
 
+function refit(t) {
+    if (!t || !t.fitAddon || !t.term) return;
+    try {
+        t.fitAddon.fit();
+        if (t.ws && t.ws.readyState === WebSocket.OPEN) {
+            t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
+        }
+        t.term.refresh(0, t.term.rows - 1);
+    } catch (e) {}
+}
+
 export function setupTerminal(pName, showUI = false) {
     const existing = state.terminals[pName];
     if (existing && existing.term) {
         if (showUI) {
             existing.panel.classList.remove('hidden');
             bringToFront(existing.panel);
-            try {
-                existing.fitAddon.fit();
-                existing.ws.send(JSON.stringify({ 
-                    type: 'resize', 
-                    cols: existing.term.cols, 
-                    rows: existing.term.rows 
-                }));
+            // Multiple attempts to fit during/after transition
+            refit(existing);
+            setTimeout(() => refit(existing), 50);
+            setTimeout(() => {
+                refit(existing);
                 existing.term.focus();
-            } catch(e) {}
+            }, 300);
         }
         return;
     }
@@ -110,6 +119,14 @@ export function setupTerminal(pName, showUI = false) {
         };
         state.terminals[pName] = t;
         
+        // Auto-fit on dynamic resize using ResizeObserver
+        const ro = new ResizeObserver(() => {
+            if (!panel.classList.contains('hidden')) {
+                refit(t);
+            }
+        });
+        ro.observe(container);
+
         bindWindowEvents(pName, panel, t);
 
         container.addEventListener('dragover', (e) => {
@@ -161,7 +178,7 @@ export function setupTerminal(pName, showUI = false) {
             }
         });
 
-        ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { try { fit.fit(); } catch(e) {} ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); t.ready = true; renderRobots(); } }, 1000); };
+        ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { refit(t); t.ready = true; renderRobots(); } }, 1000); };
         ws.onmessage = (e) => { 
             try { 
                 const msg = JSON.parse(e.data); 
@@ -228,16 +245,14 @@ export function setupTerminal(pName, showUI = false) {
         bringToFront(t.panel);
         renderRobots(); 
         
+        // Initial fit attempts
+        refit(t);
         setTimeout(() => { 
-            try { 
-                t.fitAddon.fit(); 
-                t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows })); 
-                setTimeout(() => {
-                    t.term.scrollToBottom(); 
-                    t.term.focus(); 
-                    t.term.refresh(0, t.term.rows - 1);
-                }, 50);
-            } catch(e) {} 
+            refit(t);
+            setTimeout(() => {
+                t.term.scrollToBottom(); 
+                t.term.focus(); 
+            }, 50);
         }, 350);
     }
 }
@@ -273,12 +288,7 @@ function bindWindowEvents(pName, panel, tState) {
             panel.style.transform = 'none';
             tState.isMaximized = true;
         }
-        setTimeout(() => { 
-            if (tState.fitAddon) { 
-                tState.fitAddon.fit(); 
-                tState.ws.send(JSON.stringify({ type: 'resize', cols: tState.term.cols, rows: tState.term.rows })); 
-            } 
-        }, 300);
+        setTimeout(() => refit(tState), 300);
     });
 
     menuBtn.addEventListener('click', (e) => {
@@ -347,7 +357,7 @@ function bindWindowEvents(pName, panel, tState) {
         document.removeEventListener('mousemove', onDragging);
         document.removeEventListener('mouseup', stopDragging);
         const t = state.terminals[panel.dataset.project];
-        if (t && t.fitAddon) try { t.fitAddon.fit(); } catch(e){}
+        if (t) refit(t);
     }
 
     const resizer = panel.querySelector('.terminal-resizer');
@@ -384,7 +394,7 @@ function bindWindowEvents(pName, panel, tState) {
         panel.style.height = newH + 'px';
         
         const t = state.terminals[panel.dataset.project];
-        if (t && t.fitAddon) try { t.fitAddon.fit(); } catch(e){}
+        if (t) refit(t);
     }
 
     function stopResizing() {
@@ -396,11 +406,6 @@ function bindWindowEvents(pName, panel, tState) {
         document.removeEventListener('mouseup', stopResizing);
         
         const t = state.terminals[panel.dataset.project];
-        if (t && t.fitAddon) {
-            try { 
-                t.fitAddon.fit();
-                t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
-            } catch(e){}
-        }
+        if (t) refit(t);
     }
 }
