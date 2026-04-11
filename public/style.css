@@ -1802,6 +1802,55 @@ emoji-picker.dark {
   padding: 3px 10px;
   border-radius: 20px;
   font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.terminal-project-badge:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent-primary);
+}
+
+.terminal-model-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 5px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  width: 180px;
+  z-index: 3000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-item {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  text-align: left;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.model-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.model-item.active {
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .terminal-close-btn {

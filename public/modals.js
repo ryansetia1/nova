@@ -8,11 +8,7 @@ import { setupTerminal, disposeTerminal } from './terminal.js';
 
 let selectedService = 'ollama';
 
-async function loadModelsForService(service) {
-  const select = dom.modelSelect;
-  if (!select) return;
-  select.innerHTML = '<option value="">Loading...</option>';
-  
+export async function getModelsForService(service) {
   try {
     let models = [];
     if (service === 'ollama') {
@@ -24,6 +20,20 @@ async function loadModelsForService(service) {
       if (!res.ok) throw new Error(`Claude fetch failed: ${res.status}`);
       models = await res.json();
     }
+    return models;
+  } catch (err) {
+    console.error('getModelsForService error:', err);
+    return [];
+  }
+}
+
+async function loadModelsForService(service) {
+  const select = dom.modelSelect;
+  if (!select) return;
+  select.innerHTML = '<option value="">Loading...</option>';
+  
+  try {
+    const models = await getModelsForService(service);
     
     select.innerHTML = '';
     
