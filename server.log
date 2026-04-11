@@ -205,3 +205,57 @@
 🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
 🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
 🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[4:22:19 PM] GET /
+🔌 WebSocket closed for gaming-news
+🔌 WebSocket closed for Ask-Me-Anything
+🔚 Terminal exited for Ask-Me-Anything with code 1
+🔚 Terminal exited for gaming-news with code 1
+[4:22:19 PM] GET /api/walkable-path
+[4:22:19 PM] GET /api/anchor
+[4:22:19 PM] GET /api/projects
+[4:22:19 PM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[4:22:22 PM] GET /api/projects
+[4:22:22 PM] 📊 API: Fetching project list for client
+[4:22:22 PM] GET /api/models
+[4:22:33 PM] GET /api/claude-models
+[4:22:38 PM] GET /api/claude-models
+[4:22:45 PM] GET /api/models
+[4:22:47 PM] GET /api/claude-models
+[4:25:44 PM] GET /
+🔌 WebSocket closed for gaming-news
+🔌 WebSocket closed for Ask-Me-Anything
+🔚 Terminal exited for gaming-news with code 1
+🔚 Terminal exited for Ask-Me-Anything with code 1
+[4:25:47 PM] GET /api/walkable-path
+[4:25:47 PM] GET /api/anchor
+[4:25:47 PM] GET /api/projects
+[4:25:47 PM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[4:25:51 PM] GET /api/projects
+[4:25:51 PM] 📊 API: Fetching project list for client
+[4:25:51 PM] GET /api/models
+[4:25:54 PM] GET /api/claude-models
+[4:26:30 PM] GET /
+🔌 WebSocket closed for gaming-news
+🔌 WebSocket closed for Ask-Me-Anything
+🔚 Terminal exited for Ask-Me-Anything with code 1
+🔚 Terminal exited for gaming-news with code 1
+[4:26:30 PM] GET /api/walkable-path
+[4:26:30 PM] GET /api/anchor
+[4:26:30 PM] GET /api/projects
+[4:26:30 PM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[4:26:32 PM] GET /api/projects
+[4:26:32 PM] 📊 API: Fetching project list for client
+[4:26:32 PM] GET /api/models
+[4:26:33 PM] GET /api/claude-models

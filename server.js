@@ -51,9 +51,17 @@ app.get('/api/models', (req, res) => {
   });
 });
 
+app.get('/api/claude-models', (req, res) => {
+  res.json([
+    'claude-opus-4-6',
+    'claude-sonnet-4-6', 
+    'claude-haiku-4-5-20251001',
+  ]);
+});
+
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname, customPath, emoji, parentAgent } = req.body;
+  const { name, model, nickname, customPath, emoji, parentAgent, service } = req.body;
   console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath });
   
   if (!name || !name.trim()) {
@@ -175,6 +183,7 @@ app.post('/api/projects', (req, res) => {
       name: safeName,
       nickname: nickname || safeName,
       model: model || 'qwen3.5:cloud',
+      service: service || 'ollama',
       emoji: emoji || '🪐',
       customPath: customPath ? actualPath : (parentAgent ? undefined : undefined),
       parentAgent: parentAgent || undefined,
@@ -244,7 +253,7 @@ app.post('/api/projects', (req, res) => {
 
 // API: Update a project's metadata
 app.post('/api/update-emoji', (req, res) => {
-  const { name, emoji, nickname, model } = req.body;
+  const { name, emoji, nickname, model, service } = req.body;
   
   const projectPath = path.join(PROJECTS_DIR, name);
   if (!fs.existsSync(projectPath)) {
@@ -264,6 +273,7 @@ app.post('/api/update-emoji', (req, res) => {
     if (emoji) meta.emoji = emoji;
     if (nickname) meta.nickname = nickname;
     if (model) meta.model = model;
+    if (service) meta.service = service;
     
     // Always save as new format for consistency
     fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
@@ -491,10 +501,12 @@ wss.on('connection', (ws, req) => {
   const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
 
   let model = 'qwen3.5:cloud';
+  let service = 'ollama'; // default
   if (metaPath) {
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
       model = meta.model || model;
+      service = meta.service || 'ollama';
     } catch(err) {}
   }
 
@@ -549,9 +561,18 @@ wss.on('connection', (ws, req) => {
   // --- Auto-execute Agent Command ---
   const initMarker = path.join(projectPath, '.nova_init');
   const hasBeenInitialized = fs.existsSync(initMarker);
-  const agentCommand = hasBeenInitialized 
-    ? `ollama launch claude --model ${model} -- --continue`
-    : `ollama launch claude --model ${model}`;
+  
+  let agentCommand;
+  if (service === 'claude') {
+    agentCommand = hasBeenInitialized
+      ? `claude --continue`
+      : `claude --model ${model}`;
+  } else {
+    // default: ollama
+    agentCommand = hasBeenInitialized
+      ? `ollama launch claude --model ${model} -- --continue`
+      : `ollama launch claude --model ${model}`;
+  }
 
   setTimeout(() => {
     console.log(`🚀 Executing for ${projectName}: ${agentCommand}`);
@@ -578,7 +599,9 @@ wss.on('connection', (ws, req) => {
           // Clear the init marker so next cold start is also fresh
           try { if (fs.existsSync(initMarker)) fs.unlinkSync(initMarker); } catch(e) {}
 
-          const fallbackCmd = `ollama launch claude --model ${model}`;
+          const fallbackCmd = service === 'claude'
+            ? `claude --model ${model}`
+            : `ollama launch claude --model ${model}`;
           setTimeout(() => {
               ptyProcess.write('\x03'); // Send Ctrl+C to clear any stuck prompt
               setTimeout(() => {

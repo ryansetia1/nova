@@ -2639,3 +2639,42 @@ emoji-picker.dark {
   border: 0.5px solid rgba(244, 63, 94, 0.3);
   color: #fb7185;
 }
+
+/* --- Service Selector Styles --- */
+.service-toggle-group {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.service-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 6px);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.service-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.service-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+}
+
+#custom-model-input {
+  margin-top: 8px;
+}
+
+#custom-model-input.hidden {
+  display: none;
+}

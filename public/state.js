@@ -33,6 +33,8 @@ export const dom = {
   get nicknameInput() { return $('#nickname-input'); },
   get customPathInput() { return $('#custom-path-input'); },
   get modelSelect() { return $('#model-select'); },
+  get customModelInput() { return $('#custom-model-input'); },
+  get serviceToggleBtns() { return document.querySelectorAll('.service-btn'); },
   get modalCancel() { return $('#modal-cancel-btn'); },
   get modalConfirm() { return $('#modal-confirm-btn'); },
   get orphanedGroup() { return $('#orphaned-selector-group'); },

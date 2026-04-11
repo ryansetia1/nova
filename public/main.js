@@ -36,7 +36,8 @@ import {
     openEmojiUpdateModal,
     closeEmojiUpdateModal,
     handleEmojiUpdate,
-    setupAppearanceToggles
+    setupAppearanceToggles,
+    initServiceSelector
 } from './modals.js';
 import { 
     setupTerminal, 
@@ -67,6 +68,7 @@ async function init() {
     initEmojiPopover();
     initAnchorAdjuster();
     initThemeControl();
+    initServiceSelector();
     
     setTimeout(() => {
         if (dom.loader) dom.loader.classList.add('hidden');

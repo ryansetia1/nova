@@ -197,7 +197,6 @@
         <h3>Spawn New Agent</h3>
       </div>
       <div class="modal-body">
-        <!-- Resume Selector moved to top with explicit styling -->
         <div id="orphaned-selector-group" class="input-group hidden" style="background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
           <label for="orphaned-select" style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
              <span>📂</span> RESUME EXISTING FOLDER
@@ -206,6 +205,18 @@
             <option value="">-- Choose an orphaned folder --</option>
           </select>
           <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created folder to reactivate its agent.</p>
+        </div>
+
+        <div class="input-group">
+          <label>Agent Service</label>
+          <div class="service-toggle-group">
+            <button type="button" class="service-btn active" data-service="ollama">
+              Ollama
+            </button>
+            <button type="button" class="service-btn" data-service="claude">
+              Claude
+            </button>
+          </div>
         </div>
 
         <div class="modal-row">
@@ -266,8 +277,15 @@
           <div class="input-group">
             <label for="model-select">Agent Model</label>
             <select id="model-select">
-              <option value="qwen3.5:cloud">qwen3.5:cloud</option>
+              <!-- Populated dynamically -->
             </select>
+            <input 
+              type="text" 
+              id="custom-model-input" 
+              class="hidden" 
+              placeholder="Enter model name..."
+              style="margin-top: 8px;"
+            />
           </div>
         </div>
 

@@ -6,6 +6,81 @@ import { state, dom } from './state.js';
 import { showToast, renderRobots, getAppearanceHtml } from './ui.js';
 import { setupTerminal, disposeTerminal } from './terminal.js';
 
+let selectedService = 'ollama';
+
+async function loadModelsForService(service) {
+  const select = dom.modelSelect;
+  if (!select) return;
+  select.innerHTML = '<option value="">Loading...</option>';
+  
+  try {
+    let models = [];
+    if (service === 'ollama') {
+      const res = await fetch('/api/models');
+      if (!res.ok) throw new Error(`Ollama fetch failed: ${res.status}`);
+      models = await res.json();
+    } else {
+      const res = await fetch('/api/claude-models');
+      if (!res.ok) throw new Error(`Claude fetch failed: ${res.status}`);
+      models = await res.json();
+    }
+    
+    select.innerHTML = '';
+    
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+    
+    // Add Custom option at the end
+    const customOpt = document.createElement('option');
+    customOpt.value = '__custom__';
+    customOpt.textContent = 'Custom...';
+    select.appendChild(customOpt);
+
+    // Set default
+    if (service === 'ollama') {
+        select.value = models.includes('qwen3.5:cloud') ? 'qwen3.5:cloud' : (models[0] || '');
+    } else {
+        select.value = models[0] || '';
+    }
+    
+  } catch(err) {
+    select.innerHTML = '<option value="">Failed to load models</option>';
+  }
+}
+
+export function initServiceSelector() {
+    dom.serviceToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedService = btn.dataset.service;
+          
+          // Update active state
+          dom.serviceToggleBtns.forEach(b => 
+            b.classList.remove('active')
+          );
+          btn.classList.add('active');
+          
+          // Reload model list for selected service
+          loadModelsForService(selectedService);
+        });
+    });
+
+    if (dom.modelSelect) {
+        dom.modelSelect.addEventListener('change', () => {
+            if (dom.modelSelect.value === '__custom__') {
+              dom.customModelInput.classList.remove('hidden');
+              dom.customModelInput.focus();
+            } else {
+              dom.customModelInput.classList.add('hidden');
+              dom.customModelInput.value = '';
+            }
+        });
+    }
+}
+
 export async function openModal() {
     try {
         const pRes = await fetch('/api/projects');
@@ -56,12 +131,14 @@ export async function openModal() {
         dom.nestParentSelect.value = '';
     }
 
-    try {
-        const res = await fetch('/api/models');
-        const models = await res.json();
-        dom.modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-        dom.modelSelect.value = models.includes('qwen3.5:cloud') ? 'qwen3.5:cloud' : models[0];
-    } catch (e) { dom.modelSelect.innerHTML = '<option value="qwen3.5:cloud">qwen3.5:cloud</option>'; }
+    selectedService = 'ollama';
+    dom.serviceToggleBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.service === 'ollama');
+    });
+    dom.customModelInput.classList.add('hidden');
+    dom.customModelInput.value = '';
+    loadModelsForService('ollama');
+
     setTimeout(() => dom.modalInput.focus(), 100);
 }
 
@@ -166,18 +243,32 @@ export async function handleSpawn() {
     const nickname = dom.nicknameInput.value.trim();
     const customPath = dom.customPathInput.value.trim();
     const parentAgent = dom.nestParentSelect ? dom.nestParentSelect.value || null : null;
-    const model = dom.modelSelect.value;
+    const rawModel = dom.modelSelect.value;
+    const model = rawModel === '__custom__' 
+      ? dom.customModelInput.value.trim() 
+      : rawModel;
+
     let emoji = state.selectedEmoji || '🪐';
     if (state.spawnAppearanceType === 'character') {
          emoji = 'SPRITE:' + dom.spawnCharacterSelect.value;
     }
     if (!name) return showToast('error', '❌', 'Name required');
+    if (!model) return showToast('error', '❌', 'Please enter a model name');
+
     dom.modalConfirm.disabled = true;
     try {
         const res = await fetch('/api/projects', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ name, nickname, model, customPath, emoji, parentAgent }) 
+            body: JSON.stringify({ 
+                name, 
+                nickname, 
+                model, 
+                service: selectedService,
+                customPath, 
+                emoji, 
+                parentAgent 
+            }) 
         });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
