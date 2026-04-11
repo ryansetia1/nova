@@ -460,13 +460,15 @@ app.post('/api/projects/:name/upload', (req, res) => {
     const base64Data = filedata.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
     const safeFilename = filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
     
-    // Save directly to project root, not _uploads/
-    const targetPath = path.join(projectPath, safeFilename);
-    
-    // Resolve symlink to get actual path
+    // Save to _uploads/ subdirectory to keep project root clean
     const resolvedProjectPath = fs.realpathSync(projectPath);
-    const resolvedTargetPath = path.join(resolvedProjectPath, safeFilename);
+    const uploadsDir = path.join(resolvedProjectPath, '_uploads');
     
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    const resolvedTargetPath = path.join(uploadsDir, safeFilename);
     fs.writeFileSync(resolvedTargetPath, base64Data, 'base64');
     
     res.json({ 
