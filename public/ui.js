@@ -161,24 +161,50 @@ export function renderRobots() {
 }
 
 export function initThemeControl() {
-    const updateTheme = () => {
+    const themeBtn = document.getElementById('toggle-theme-btn');
+    if (!themeBtn) return;
+
+    // Extendable modes: 'auto' follows time, others are fixed classes
+    const modes = ['auto', 'day', 'night']; 
+    let currentMode = localStorage.getItem('nova_theme_mode') || 'auto';
+
+    const applyTheme = () => {
         const now = new Date();
         const hour = now.getHours();
-        const isNight = hour >= 18 || hour < 6;
+        const isNightTime = hour >= 18 || hour < 6;
         
-        if (isNight) {
-            if (!document.body.classList.contains('theme-night')) {
-                document.body.classList.add('theme-night');
-            }
-        } else {
-            if (document.body.classList.contains('theme-night')) {
-                document.body.classList.remove('theme-night');
-            }
+        // Remove all possible theme classes first to be scalable
+        document.body.classList.remove('theme-night');
+        // If you add theme-sunset, theme-matrix, etc., remove them here too
+        
+        let targetTheme = '';
+        if (currentMode === 'auto') {
+            targetTheme = isNightTime ? 'theme-night' : '';
+        } else if (currentMode === 'night') {
+            targetTheme = 'theme-night';
+        } else if (currentMode === 'day') {
+            targetTheme = ''; 
         }
+
+        if (targetTheme) {
+            document.body.classList.add(targetTheme);
+        }
+
+        const label = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
+        themeBtn.textContent = `Theme: ${label}`;
     };
 
-    updateTheme();
-    setInterval(updateTheme, 30000);
+    themeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = modes.indexOf(currentMode);
+        currentMode = modes[(idx + 1) % modes.length];
+        localStorage.setItem('nova_theme_mode', currentMode);
+        applyTheme();
+        showToast('info', '🌗', `Theme set to ${currentMode.toUpperCase()}`);
+    });
+
+    applyTheme();
+    setInterval(applyTheme, 30000); // Check auto-theme every 30s
 }
 
 export async function preloadAllAssets() {

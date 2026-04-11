@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,16 @@
   <title>NOVA — Agent Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪐</text></svg>">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪐</text></svg>">
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
 </head>
+
 <body>
   <!-- Ultra-Modern Loading Overlay -->
   <div id="app-loader" class="loader-overlay">
@@ -59,6 +64,7 @@
           <div id="settings-menu" class="settings-menu hidden">
             <button id="toggle-visuals-btn">Toggle Visualize</button>
             <button id="toggle-notifications-btn">Agent Notifications: ON</button>
+            <button id="toggle-theme-btn">Theme: Auto</button>
           </div>
         </div>
       </div>
@@ -69,10 +75,13 @@
       <div class="sidebar-header">
         <span class="sidebar-title">OPERATIONS</span>
         <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Toggle Sidebar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
         </button>
       </div>
-      
+
       <div class="sidebar-content">
         <!-- Active Agents Section -->
         <div class="sidebar-section">
@@ -95,19 +104,19 @@
           <div class="section-label">AMBIENT MUSIC</div>
           <div class="youtube-player-container">
             <div class="youtube-player-wrapper">
-              <iframe 
-                id="sidebar-youtube-player"
-                src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1" 
-                title="YouTube video player" 
-                frameborder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+              <iframe id="sidebar-youtube-player" src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1"
+                title="YouTube video player" frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowfullscreen>
               </iframe>
             </div>
             <div class="youtube-controls">
               <input type="text" id="youtube-url-input" placeholder="YouTube URL or ID...">
               <button id="youtube-load-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
               </button>
             </div>
           </div>
@@ -121,7 +130,7 @@
       <section id="office-room">
         <div class="room-header">
           <h2>🏙️ NOVA HQ</h2>
-          <p class="room-subtitle">Fleet of autonomous agents executing operations in dedicated sectors</p>
+          <p class="room-subtitle">Where agents clock in and get to work.</p>
         </div>
 
         <!-- Office Floor (Container) -->
@@ -174,7 +183,12 @@
               <button class="terminal-claude-md-btn dim" title="Edit CLAUDE.md">📋</button>
               <div class="terminal-menu-container">
                 <button class="terminal-menu-btn" title="More Options">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
                 </button>
                 <div class="terminal-dropdown hidden">
                   <button class="terminal-delete-btn dropdown-item danger">
@@ -199,14 +213,17 @@
         <h3>Spawn New Agent</h3>
       </div>
       <div class="modal-body">
-        <div id="orphaned-selector-group" class="input-group hidden" style="background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
-          <label for="orphaned-select" style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
-             <span>📂</span> RESUME EXISTING FOLDER
+        <div id="orphaned-selector-group" class="input-group hidden"
+          style="background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
+          <label for="orphaned-select"
+            style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
+            <span>📂</span> RESUME EXISTING FOLDER
           </label>
           <select id="orphaned-select" style="margin-top: 8px;">
             <option value="">-- Choose an orphaned folder --</option>
           </select>
-          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created folder to reactivate its agent.</p>
+          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created
+            folder to reactivate its agent.</p>
         </div>
 
         <div class="input-group">
@@ -255,12 +272,15 @@
         </div>
 
         <div id="nest-agent-group" class="input-group">
-          <label class="form-label" for="nest-parent-select" style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>
+          <label class="form-label" for="nest-parent-select"
+            style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST
+            INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>
           <select id="nest-parent-select">
             <option value="">— None (create standalone agent) —</option>
             <!-- Populated with active agents -->
           </select>
-          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Creates a new folder inside the selected agent's project directory.</p>
+          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Creates a new folder inside the
+            selected agent's project directory.</p>
         </div>
 
         <div class="modal-row">
@@ -270,12 +290,12 @@
               <button type="button" class="type-btn active" data-type="emoji">Emoji</button>
               <button type="button" class="type-btn" data-type="character">Character</button>
             </div>
-            
+
             <div id="spawn-appearance-content" style="margin-bottom: 15px;">
               <!-- Field combining Preview and Selection -->
               <div class="selected-emoji-container compact" style="cursor: default;">
                 <div id="selected-emoji-preview" style="cursor: pointer;">🪐</div>
-                
+
                 <!-- Hint/Popover only for Emoji mode -->
                 <div id="spawn-emoji-trigger-area" style="flex: 1; text-align: left;">
                   <div id="emoji-popover" class="emoji-popover hidden">
@@ -285,7 +305,8 @@
 
                 <!-- Dropdown for Character mode (Close-grouped) -->
                 <div id="spawn-character-area" class="hidden" style="display: flex; align-items: center;">
-                  <select id="spawn-character-select" class="compact-select" style="background: transparent; border: none; padding: 0; outline: none; width: auto; height: 30px; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
+                  <select id="spawn-character-select" class="compact-select"
+                    style="background: transparent; border: none; padding: 0; outline: none; width: auto; height: 30px; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
                     <option value="Char1">Character 1</option>
                     <option value="Char2">Character 2</option>
                   </select>
@@ -299,13 +320,8 @@
             <select id="model-select">
               <!-- Populated dynamically -->
             </select>
-            <input 
-              type="text" 
-              id="custom-model-input" 
-              class="hidden" 
-              placeholder="Enter model name..."
-              style="margin-top: 8px;"
-            />
+            <input type="text" id="custom-model-input" class="hidden" placeholder="Enter model name..."
+              style="margin-top: 8px;" />
           </div>
         </div>
 
@@ -335,9 +351,10 @@
         <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
         <div style="display: flex; gap: 8px;">
           <button id="delete-agent-only-btn" class="btn btn-secondary">
-             Remove Agent Only
+            Remove Agent Only
           </button>
-          <button id="delete-confirm-btn" class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-rose), #be123c);">
+          <button id="delete-confirm-btn" class="btn btn-primary"
+            style="background: linear-gradient(135deg, var(--accent-rose), #be123c);">
             <span>🗑️</span> Delete Everything
           </button>
         </div>
@@ -360,26 +377,30 @@
 
         <div id="update-appearance-content" style="margin-bottom: 20px;">
           <!-- Combined Preview & Dropdown -->
-          <div id="update-preview-container" class="selected-emoji-container compact" style="margin-bottom: 12px; height: 50px; cursor: default;">
-             <div id="update-emoji-preview" style="font-size: 24px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid var(--accent-primary); cursor: pointer;">🪐</div>
-             
-             <!-- Emoji hint label (Empty for cleaner UI) -->
-             <div id="update-emoji-hint-container" style="flex: 1; text-align: left;">
-             </div>
+          <div id="update-preview-container" class="selected-emoji-container compact"
+            style="margin-bottom: 12px; height: 50px; cursor: default;">
+            <div id="update-emoji-preview"
+              style="font-size: 24px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid var(--accent-primary); cursor: pointer;">
+              🪐</div>
 
-             <!-- Character dropdown (Inline - Close-grouped) -->
-             <div id="update-character-area" class="hidden" style="display: flex; align-items: center;">
-               <select id="update-character-select" class="compact-select" style="background: transparent; border: none; padding: 0; outline: none; margin: 0; height: 30px; width: auto; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
-                 <option value="Char1">Character 1</option>
-                 <option value="Char2">Character 2</option>
-               </select>
-             </div>
+            <!-- Emoji hint label (Empty for cleaner UI) -->
+            <div id="update-emoji-hint-container" style="flex: 1; text-align: left;">
+            </div>
+
+            <!-- Character dropdown (Inline - Close-grouped) -->
+            <div id="update-character-area" class="hidden" style="display: flex; align-items: center;">
+              <select id="update-character-select" class="compact-select"
+                style="background: transparent; border: none; padding: 0; outline: none; margin: 0; height: 30px; width: auto; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
+                <option value="Char1">Character 1</option>
+                <option value="Char2">Character 2</option>
+              </select>
+            </div>
           </div>
 
           <!-- Emoji Picker Region -->
           <div id="update-emoji-area">
             <div class="emoji-picker-wrapper" style="height: 300px;">
-               <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
+              <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
             </div>
           </div>
         </div>
@@ -401,15 +422,12 @@
           <span class="claude-md-project-name" id="claude-md-project-label"></span>
         </div>
         <p class="claude-md-hint">
-          Instructions in this file are automatically read by Claude Code at the 
-          start of every session. Use it to set agent personality, coding standards, 
+          Instructions in this file are automatically read by Claude Code at the
+          start of every session. Use it to set agent personality, coding standards,
           project context, or any persistent rules.
         </p>
       </div>
-      <textarea 
-        id="claude-md-textarea"
-        class="claude-md-textarea"
-        placeholder="# Agent Instructions
+      <textarea id="claude-md-textarea" class="claude-md-textarea" placeholder="# Agent Instructions
 
 ## Role
 You are a [describe role here].
@@ -422,8 +440,7 @@ This project is [describe project].
 - Never [rule 2]
 
 ## Output Format
-[Describe preferred output format]"
-      ></textarea>
+[Describe preferred output format]"></textarea>
       <div class="claude-md-footer">
         <span class="claude-md-footer-hint">Takes effect on next session start</span>
         <div class="claude-md-actions">
@@ -434,33 +451,38 @@ This project is [describe project].
     </div>
   </div>
 
-    <!-- Toast notifications -->
-    <div id="toast-container"></div>
-  
-    <!-- Anchor Adjuster UI -->
-    <div id="anchor-adjuster" class="anchor-adjuster">
-      <div class="adjuster-header">⚓ Anchor Alignment</div>
-      <div class="adjuster-body">
-        <div class="adjust-group">
-          <label>X Pivot: <span id="val-anchor-x">50</span>%</label>
-          <input type="range" id="input-anchor-x" min="0" max="100" value="50">
-        </div>
-        <div class="adjust-group">
-          <label>Y Pivot: <span id="val-anchor-y">85</span>%</label>
-          <input type="range" id="input-anchor-y" min="0" max="100" value="85">
-        </div>
-        <div class="adjust-hint">Adjust until circle is at feet</div>
-        <div class="adjust-actions" style="display: flex; gap: 6px; margin-top: 12px;">
-            <button id="btn-anchor-reset" style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Reset</button>
-            <button id="btn-anchor-cancel" style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Cancel</button>
-            <button id="btn-anchor-save" style="flex: 1; padding: 6px; font-size: 10px; background: #10b981; border: 1px solid #10b981; color: #fff; cursor: pointer; border-radius: 4px; font-weight: 700;">Save & Apply</button>
-        </div>
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- Anchor Adjuster UI -->
+  <div id="anchor-adjuster" class="anchor-adjuster">
+    <div class="adjuster-header">⚓ Anchor Alignment</div>
+    <div class="adjuster-body">
+      <div class="adjust-group">
+        <label>X Pivot: <span id="val-anchor-x">50</span>%</label>
+        <input type="range" id="input-anchor-x" min="0" max="100" value="50">
+      </div>
+      <div class="adjust-group">
+        <label>Y Pivot: <span id="val-anchor-y">85</span>%</label>
+        <input type="range" id="input-anchor-y" min="0" max="100" value="85">
+      </div>
+      <div class="adjust-hint">Adjust until circle is at feet</div>
+      <div class="adjust-actions" style="display: flex; gap: 6px; margin-top: 12px;">
+        <button id="btn-anchor-reset"
+          style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Reset</button>
+        <button id="btn-anchor-cancel"
+          style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Cancel</button>
+        <button id="btn-anchor-save"
+          style="flex: 1; padding: 6px; font-size: 10px; background: #10b981; border: 1px solid #10b981; color: #fff; cursor: pointer; border-radius: 4px; font-weight: 700;">Save
+          & Apply</button>
       </div>
     </div>
-  
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
   <script type="module" src="main.js"></script>
 </body>
+
 </html>
