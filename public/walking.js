@@ -106,7 +106,12 @@ export function startWalkingLoop() {
               
               const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0;
               if (r.isWalking || isPlayingIdle) {
-                  const frames = isPlayingIdle ? state.idleFrames : state.charFrames;
+                  const p = state.projects.find(x => x.name === name);
+                  const appearance = p?.emoji || 'SPRITE:Char1';
+                  const charId = appearance.startsWith('SPRITE:') ? appearance.split(':')[1] : 'Char1';
+                  const charFrames = state.characterFrames[charId] || state.characterFrames['Char1'];
+                  const frames = isPlayingIdle ? charFrames.idle : charFrames.walk;
+                  
                   r.frame = (r.frame + 1) % frames.length;
                   const sprite = el.querySelector('.robot-char-sprite');
                   if (sprite) {

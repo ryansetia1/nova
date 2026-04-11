@@ -93,12 +93,21 @@ function bindEvents() {
     dom.deleteCancelBtn.addEventListener('click', closeDeleteAgentModal);
     
     if (dom.spawnCharacterSelect) {
-        dom.spawnCharacterSelect.onchange = () => {
+        dom.spawnCharacterSelect.addEventListener('change', () => {
             if (state.spawnAppearanceType === 'character') {
-                const preview = document.getElementById('selected-emoji-preview');
+                const preview = dom.emojiPreview;
                 if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + dom.spawnCharacterSelect.value);
             }
-        };
+        });
+    }
+
+    if (dom.updateCharacterSelect) {
+        dom.updateCharacterSelect.addEventListener('change', () => {
+            if (state.updateAppearanceType === 'character') {
+                const preview = dom.updateEmojiPreview;
+                if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + dom.updateCharacterSelect.value);
+            }
+        });
     }
 
     if (dom.orphanedSelect) {
@@ -118,7 +127,7 @@ function bindEvents() {
                     dom.customPathInput.value = p.customPath || '';
                     if (p.emoji) {
                         state.selectedEmoji = p.emoji;
-                        dom.emojiPreview.textContent = p.emoji;
+                        dom.emojiPreview.innerHTML = getAppearanceHtml(p.emoji);
                     }
                 }
             }

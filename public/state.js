@@ -2,6 +2,19 @@
    NOVA — State & DOM
    ============================================ */
 
+export const CHARACTERS = {
+  Char1: {
+    name: 'Character 1',
+    walk: { count: 31, path: (i) => `assets/characters/Char1/Walk/Char1Walk_${(i + 1).toString().padStart(5, '0')}.png` },
+    idle: { count: 86, path: (i) => `assets/characters/Char1/Idle/Char1Idle_${(i + 1).toString().padStart(5, '0')}.png` }
+  },
+  Char2: {
+    name: 'Character 2',
+    walk: { count: 34, path: (i) => `assets/characters/Char2/Walk/frame_${(i + 1).toString().padStart(3, '0')}.png` },
+    idle: { count: 240, path: (i) => `assets/characters/Char2/Idle/frame_${(i + 1).toString().padStart(3, '0')}.png` }
+  }
+};
+
 export const state = {
   projects: [],
   agentToDelete: null,
@@ -17,8 +30,20 @@ export const state = {
   updateAppearanceType: 'emoji',
   walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame } }
   projectForEmojiUpdate: null,
-  charFrames: Array.from({ length: 31 }, (_, i) => `assets/characters/Char1/Walk/Char1Walk_${(i + 1).toString().padStart(5, '0')}.png`),
-  idleFrames: Array.from({ length: 86 }, (_, i) => `assets/characters/Char1/Idle/Char1Idle_${(i + 1).toString().padStart(5, '0')}.png`),
+  
+  // Pre-calculated frames for all characters
+  characterFrames: Object.keys(CHARACTERS).reduce((acc, id) => {
+    acc[id] = {
+      walk: Array.from({ length: CHARACTERS[id].walk.count }, (_, i) => CHARACTERS[id].walk.path(i)),
+      idle: Array.from({ length: CHARACTERS[id].idle.count }, (_, i) => CHARACTERS[id].idle.path(i))
+    };
+    return acc;
+  }, {}),
+  
+  // Legacy support for parts of code that still use state.charFrames/idleFrames
+  get charFrames() { return this.characterFrames['Char1'].walk; },
+  get idleFrames() { return this.characterFrames['Char1'].idle; },
+  
   anchor: { x: 50, y: 85 },
   originalAnchor: { x: 50, y: 85 }
 };

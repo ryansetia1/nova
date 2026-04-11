@@ -138,6 +138,7 @@ export async function openModal() {
     state.selectedEmoji = '🪐';
     state.spawnAppearanceType = 'emoji';
     if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml('🪐');
+    if (dom.spawnCharacterSelect) dom.spawnCharacterSelect.value = 'Char1';
     dom.emojiPopover.classList.add('hidden');
     
     if (dom.spawnTypeToggle) {

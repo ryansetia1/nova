@@ -534,6 +534,9 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+.avatar-icon.char-icon-Char2 {
+  transform: scale(0.75);
+}
 
 .robot-card-emoji-container {
   display: flex;
@@ -924,6 +927,12 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   color: var(--text-primary);
   margin-bottom: 4px;
 }
+.char-parent-Char2 .robot-label.top {
+  transform: translateY(35px);
+}
+.char-parent-Char2 .robot-thought-bubble {
+  top: 50px !important;
+}
 
 .robot-label.bottom {
   font-weight: 500;
@@ -946,6 +955,9 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   position: relative;
   z-index: 2;
   transition: transform var(--transition-base);
+}
+.robot-sprite-container.char-Char2 {
+  transform: scale(0.7);
 }
 
 .robot-char-sprite {

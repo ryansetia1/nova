@@ -2,12 +2,12 @@
    NOVA — UI Helpers & Rendering
    ============================================ */
 
-import { state, dom } from './state.js';
+import { state, dom, CHARACTERS } from './state.js';
 
 export function getAppearanceHtml(appearance, className = "") {
     if (appearance && appearance.startsWith('SPRITE:')) {
         const charName = appearance.split(':')[1];
-        return `<img src="assets/characters/${charName}/avatar/${charName}Avatar.png" class="avatar-icon ${className}" alt="${charName}" onerror="this.style.display='none'">`;
+        return `<img src="assets/characters/${charName}/avatar/${charName}Avatar.png" class="avatar-icon ${className} char-icon-${charName}" alt="${charName}" onerror="this.style.display='none'">`;
     }
     return `<span class="${className}">${appearance || '🪐'}</span>`;
 }
@@ -117,21 +117,34 @@ export function renderRobots() {
             return '';
         }
 
-        const spriteHtml = isSprite ? `
-                <div class="robot-sprite-container">
-                    <img class="robot-char-sprite" src="${(r?.isHovered || r?.naturalIdleTimer > 0 ? state.idleFrames : state.charFrames)[r?.frame || 0]}" alt="Agent">
+        let spriteHtml = '';
+        if (isSprite) {
+            const charId = rawAppearance.split(':')[1];
+            const charFrames = (state.characterFrames[charId] || state.characterFrames['Char1']);
+            const frames = (r?.isHovered || r?.naturalIdleTimer > 0 ? charFrames.idle : charFrames.walk);
+            const frameIndex = r?.frame || 0;
+            const safeFrameIdx = frameIndex % frames.length;
+            
+            spriteHtml = `
+                <div class="robot-sprite-container char-${charId}">
+                    <img class="robot-char-sprite" src="${frames[safeFrameIdx]}" alt="Agent">
                 </div>
-        ` : `
+            `;
+        } else {
+            spriteHtml = `
                 <div class="robot-card-emoji-container">
                     ${getAppearanceHtml(rawAppearance, 'robot-card-emoji')}
                 </div>
-        `;
+            `;
+        }
 
         const isNested = !!p.parentAgent;
         const topLabel = (isNested ? '↳ ' : '') + (p.nickname || p.name);
 
+        const charId = isSprite ? rawAppearance.split(':')[1] : 'emoji';
+
         return `
-            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''} char-parent-${charId}" 
                  data-project="${p.name}" style="${posStyle}"
                  onclick="window.nova.openTerminal('${p.name}')">
                 <div class="robot-label top">${topLabel}</div>
@@ -174,8 +187,7 @@ export async function preloadAllAssets() {
         'assets/office/night/office_bg_night.png',
         'assets/office/night/office_fg_night.png',
         'assets/office/night/office_fx_night.png',
-        ...state.charFrames,
-        ...state.idleFrames
+        ...Object.values(state.characterFrames).flatMap(cf => [...cf.walk, ...cf.idle])
     ];
 
     let loaded = 0;
