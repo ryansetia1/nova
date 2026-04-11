@@ -39,7 +39,8 @@ import {
     handleEmojiUpdate,
     setupAppearanceToggles,
     initServiceSelector,
-    initClaudeMdModal
+    initClaudeMdModal,
+    initSwitchServiceModal
 } from './modals.js';
 import { 
     setupTerminal, 
@@ -72,6 +73,7 @@ async function init() {
     initThemeControl();
     initServiceSelector();
     initClaudeMdModal();
+    initSwitchServiceModal();
     initNotificationSettings();
     
     setTimeout(() => {

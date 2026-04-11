@@ -4,7 +4,7 @@
 
 import { state, dom } from './state.js';
 import { showToast, bringToFront, getAppearanceHtml, renderRobots, fireAgentNotification } from './ui.js';
-import { openDeleteAgentModal, openEmojiUpdateModal, getModelsForService, openClaudeMdModal } from './modals.js';
+import { openDeleteAgentModal, openEmojiUpdateModal, openClaudeMdModal, openSwitchServiceModal } from './modals.js';
 
 export function openTerminal(pName) {
     if (!state.terminals[pName] || !state.terminals[pName].ready) return showToast('info', '⏳', 'Warming up...');
@@ -470,72 +470,9 @@ function bindWindowEvents(pName, panel, tState) {
 
     const modelBadge = panel.querySelector('.terminal-project-badge');
     if (modelBadge) {
-        modelBadge.addEventListener('click', async (e) => {
+        modelBadge.addEventListener('click', (e) => {
             e.stopPropagation();
-            
-            // Remove any existing dropdowns
-            document.querySelectorAll('.terminal-model-dropdown').forEach(d => d.remove());
-            
-            const project = state.projects.find(p => p.name === pName);
-            if (!project) return;
-            
-            const dropdown = document.createElement('div');
-            dropdown.className = 'terminal-model-dropdown';
-            dropdown.innerHTML = '<div style="padding: 8px; font-size: 11px; color: var(--text-muted);">Switch Model...</div>';
-            
-            modelBadge.appendChild(dropdown);
-            
-            const models = await getModelsForService(project.service || 'ollama');
-            dropdown.innerHTML = '';
-            
-            models.forEach(m => {
-                const item = document.createElement('button');
-                item.className = `model-item ${m === project.model ? 'active' : ''}`;
-                item.textContent = m;
-                item.addEventListener('click', async (evt) => {
-                    evt.stopPropagation();
-                    dropdown.remove();
-                    
-                    if (m === project.model) return;
-                    
-                    showToast('info', '🔄', `Switching to ${m}...`);
-                    
-                    try {
-                        const res = await fetch('/api/update-emoji', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name: pName, model: m })
-                        });
-                        
-                        if (res.ok) {
-                            project.model = m;
-                            modelBadge.childNodes[0].textContent = m; // Update text node before dropdown
-                            
-                            // Send command to terminal
-                            if (tState.ws && tState.ws.readyState === WebSocket.OPEN) {
-                                tState.ws.send(JSON.stringify({ 
-                                    type: 'input', 
-                                    data: `/model ${m}\r` 
-                                }));
-                            }
-                            showToast('success', '🤖', `Model changed to ${m}`);
-                        }
-                    } catch (err) {
-                        showToast('error', '❌', 'Failed to update model');
-                    }
-                });
-                dropdown.appendChild(item);
-            });
-            
-            // Prevent dropdown from closing when clicking inside
-            dropdown.addEventListener('click', (evt) => evt.stopPropagation());
-            
-            // Close on outside click
-            const closeDropdown = () => {
-                dropdown.remove();
-                document.removeEventListener('click', closeDropdown);
-            };
-            setTimeout(() => document.addEventListener('click', closeDropdown), 10);
+            openSwitchServiceModal(pName);
         });
     }
 

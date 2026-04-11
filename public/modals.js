@@ -479,3 +479,236 @@ export function initClaudeMdModal() {
     }
   });
 }
+
+// ============================================
+// Switch Service & Model Modal
+// ============================================
+let activeSwitchService = 'ollama';
+
+async function loadModelsForSwitchService(service, defaultModel) {
+    const select = dom.switchModelSelect;
+    if (!select) return;
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    try {
+        const models = await getModelsForService(service);
+        select.innerHTML = '';
+        
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            select.appendChild(opt);
+        });
+        
+        // Add Custom option at the end
+        const customOpt = document.createElement('option');
+        customOpt.value = '__custom__';
+        customOpt.textContent = 'Custom...';
+        select.appendChild(customOpt);
+
+        if (defaultModel && models.includes(defaultModel)) {
+            select.value = defaultModel;
+            dom.switchCustomModelInput.classList.add('hidden');
+        } else if (defaultModel && !models.includes(defaultModel) && defaultModel !== '') {
+            select.value = '__custom__';
+            dom.switchCustomModelInput.classList.remove('hidden');
+            dom.switchCustomModelInput.value = defaultModel;
+        } else if (service === 'ollama') {
+            select.value = models.includes('qwen3.5:cloud') ? 'qwen3.5:cloud' : (models[0] || '');
+            dom.switchCustomModelInput.classList.add('hidden');
+        } else {
+            select.value = models[0] || '';
+            dom.switchCustomModelInput.classList.add('hidden');
+        }
+    } catch(err) {
+        select.innerHTML = '<option value="">Failed to load models</option>';
+    }
+}
+
+export function openSwitchServiceModal(pName) {
+    const project = state.projects.find(p => p.name === pName);
+    if (!project) return;
+    
+    dom.switchServiceProjectName.textContent = project.nickname || project.name;
+    dom.switchServiceModal.dataset.project = pName;
+    
+    activeSwitchService = project.service || 'ollama';
+    
+    dom.switchServiceToggleBtns.forEach(b => {
+        b.classList.toggle('active', b.dataset.service === activeSwitchService);
+    });
+    
+    // Setup fields visibility
+    if (activeSwitchService === 'sumo') {
+        dom.switchServiceConfigFields.classList.remove('hidden');
+        dom.switchApiKeyGroup.classList.remove('hidden');
+        dom.switchBaseUrlGroup.classList.add('hidden');
+        dom.switchApiKeyInput.value = project.apiKey || localStorage.getItem('nova_sumo_api_key') || '';
+    } else if (activeSwitchService === 'custom') {
+        dom.switchServiceConfigFields.classList.remove('hidden');
+        dom.switchApiKeyGroup.classList.remove('hidden');
+        dom.switchBaseUrlGroup.classList.remove('hidden');
+        dom.switchApiKeyInput.value = project.apiKey || localStorage.getItem('nova_custom_api_key') || '';
+        dom.switchBaseUrlInput.value = project.baseUrl || localStorage.getItem('nova_custom_base_url') || '';
+    } else {
+        dom.switchServiceConfigFields.classList.add('hidden');
+        dom.switchApiKeyInput.value = '';
+        dom.switchBaseUrlInput.value = '';
+    }
+    
+    dom.switchCustomModelInput.classList.add('hidden');
+    loadModelsForSwitchService(activeSwitchService, project.model);
+    
+    dom.switchServiceModal.classList.remove('hidden');
+}
+
+export function closeSwitchServiceModal() {
+    dom.switchServiceModal.classList.add('hidden');
+}
+
+export function initSwitchServiceModal() {
+    dom.switchServiceToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeSwitchService = btn.dataset.service;
+            dom.switchServiceToggleBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            if (activeSwitchService === 'sumo') {
+                dom.switchServiceConfigFields.classList.remove('hidden');
+                dom.switchApiKeyGroup.classList.remove('hidden');
+                dom.switchBaseUrlGroup.classList.add('hidden');
+                const savedKey = localStorage.getItem('nova_sumo_api_key');
+                if (savedKey) dom.switchApiKeyInput.value = savedKey;
+                else dom.switchApiKeyInput.value = '';
+            } else if (activeSwitchService === 'custom') {
+                dom.switchServiceConfigFields.classList.remove('hidden');
+                dom.switchApiKeyGroup.classList.remove('hidden');
+                dom.switchBaseUrlGroup.classList.remove('hidden');
+                const savedKey = localStorage.getItem('nova_custom_api_key');
+                if (savedKey) dom.switchApiKeyInput.value = savedKey;
+                else dom.switchApiKeyInput.value = '';
+                const savedUrl = localStorage.getItem('nova_custom_base_url');
+                if (savedUrl) dom.switchBaseUrlInput.value = savedUrl;
+                else dom.switchBaseUrlInput.value = '';
+            } else {
+                dom.switchServiceConfigFields.classList.add('hidden');
+            }
+            loadModelsForSwitchService(activeSwitchService);
+        });
+    });
+
+    if (dom.switchModelSelect) {
+        dom.switchModelSelect.addEventListener('change', () => {
+            if (dom.switchModelSelect.value === '__custom__') {
+                dom.switchCustomModelInput.classList.remove('hidden');
+                dom.switchCustomModelInput.focus();
+            } else {
+                dom.switchCustomModelInput.classList.add('hidden');
+                dom.switchCustomModelInput.value = '';
+            }
+        });
+    }
+
+    dom.switchServiceCancelBtn.addEventListener('click', closeSwitchServiceModal);
+
+    dom.switchServiceSaveBtn.addEventListener('click', async () => {
+        const pName = dom.switchServiceModal.dataset.project;
+        const project = state.projects.find(p => p.name === pName);
+        if (!project) return;
+        
+        const tState = state.terminals[pName];
+        if (!tState) return;
+
+        const rawModel = dom.switchModelSelect.value;
+        const newModel = rawModel === '__custom__' ? dom.switchCustomModelInput.value.trim() : rawModel;
+        const newApiKey = dom.switchApiKeyInput.value.trim();
+        const newBaseUrl = dom.switchBaseUrlInput.value.trim();
+
+        if (!newModel) return showToast('error', '❌', 'Please enter a model name');
+
+        // Save secrets locally
+        if (activeSwitchService === 'sumo' && newApiKey) {
+            localStorage.setItem('nova_sumo_api_key', newApiKey);
+        } else if (activeSwitchService === 'custom') {
+            if (newApiKey) localStorage.setItem('nova_custom_api_key', newApiKey);
+            if (newBaseUrl) localStorage.setItem('nova_custom_base_url', newBaseUrl);
+        }
+
+        dom.switchServiceSaveBtn.disabled = true;
+        try {
+            const res = await fetch('/api/update-emoji', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: pName, 
+                    service: activeSwitchService,
+                    model: newModel,
+                    apiKey: newApiKey || undefined,
+                    baseUrl: newBaseUrl || undefined
+                })
+            });
+            
+            if (!res.ok) throw new Error('Failed to update project meta');
+            
+            // Meta updated. Let's restart the terminal!
+            project.service = activeSwitchService;
+            project.model = newModel;
+            if (newApiKey) project.apiKey = newApiKey;
+            if (newBaseUrl) project.baseUrl = newBaseUrl;
+
+            // Update badge text
+            const badge = tState.panel.querySelector('.terminal-project-badge');
+            if (badge) badge.childNodes[0].textContent = newModel;
+
+            closeSwitchServiceModal();
+            
+            // Execute restart
+            if (tState.ws && tState.ws.readyState === WebSocket.OPEN) {
+                showToast('info', '🔄', 'Restarting Agent Process...');
+                
+                // 1. Send exit to currently running process
+                tState.ws.send(JSON.stringify({ type: 'input', data: '/exit\r' }));
+                
+                setTimeout(() => {
+                    if (tState.ws.readyState !== WebSocket.OPEN) return;
+                    
+                    let cmd = '';
+                    // 2. Export environment variables if needed
+                    if (activeSwitchService === 'sumo') {
+                        cmd += `export ANTHROPIC_API_KEY="${newApiKey}" ANTHROPIC_BASE_URL="https://ai.sumopod.com"\r`;
+                    } else if (activeSwitchService === 'custom') {
+                        cmd += `export ANTHROPIC_API_KEY="${newApiKey}" ANTHROPIC_BASE_URL="${newBaseUrl}"\r`;
+                    }
+                    
+                    // 3. Launch Command
+                    if (activeSwitchService === 'claude' || activeSwitchService === 'sumo' || activeSwitchService === 'custom') {
+                        cmd += `claude --continue\r`;
+                    } else {
+                        cmd += `ollama launch claude --model ${newModel} -- --continue\r`;
+                    }
+                    
+                    tState.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+                    
+                    // 4. Force inject model command after it boots just to be absolutely sure
+                    setTimeout(() => {
+                        if (tState.ws.readyState === WebSocket.OPEN) {
+                            tState.ws.send(JSON.stringify({ type: 'input', data: `/model ${newModel}\r` }));
+                        }
+                    }, 3500);
+
+                }, 1500); // give exit 1.5s to close
+            }
+
+        } catch (err) {
+            showToast('error', '❌', 'Failed to update service settings');
+        } finally {
+            dom.switchServiceSaveBtn.disabled = false;
+        }
+    });
+
+    // Close on overlay click
+    dom.switchServiceModal.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
+    });
+}

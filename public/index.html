@@ -336,6 +336,54 @@
     </div>
   </div>
 
+  <!-- Switch Service Modal -->
+  <div id="switch-service-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-icon">🔄</span>
+        <h3>Switch Service & Model</h3>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 20px; font-size: 13px; color: var(--text-secondary);">
+          Project: <strong id="switch-service-project-name" style="color: var(--accent-primary);"></strong>
+        </p>
+        <div class="input-group">
+          <label>Agent Service</label>
+          <div class="service-toggle-group">
+            <button type="button" class="service-btn switch-service-btn active" data-service="ollama">Ollama</button>
+            <button type="button" class="service-btn switch-service-btn" data-service="claude">Claude</button>
+            <button type="button" class="service-btn switch-service-btn" data-service="sumo">Sumo</button>
+            <button type="button" class="service-btn switch-service-btn" data-service="custom">Custom</button>
+          </div>
+        </div>
+
+        <div id="switch-service-config-fields" class="hidden" style="margin-bottom: 20px;">
+          <div class="input-group" id="switch-api-key-group">
+            <label for="switch-api-key-input">API Key</label>
+            <input type="password" id="switch-api-key-input" placeholder="sk-..." autocomplete="off">
+          </div>
+          <div class="input-group hidden" id="switch-base-url-group">
+            <label for="switch-base-url-input">Base URL</label>
+            <input type="text" id="switch-base-url-input" placeholder="https://..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="switch-model-select">Agent Model</label>
+          <select id="switch-model-select">
+            <!-- Populated dynamically -->
+          </select>
+          <input type="text" id="switch-custom-model-input" class="hidden" placeholder="Enter model name..." style="margin-top: 8px;" />
+        </div>
+        <p class="modal-hint" style="color: var(--accent-rose);">Terminal will automatically restart to apply changes.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="switch-service-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="switch-service-save-btn" class="btn btn-primary">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete Confirmation Modal -->
   <div id="delete-modal" class="modal-overlay hidden">
     <div class="modal">

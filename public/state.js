@@ -142,4 +142,17 @@ export const dom = {
   get claudeMdLabel() { return $('#claude-md-project-label'); },
   get claudeMdCancelBtn() { return $('#claude-md-cancel-btn'); },
   get claudeMdSaveBtn() { return $('#claude-md-save-btn'); },
+  // Switch Service Modal
+  get switchServiceModal() { return $('#switch-service-modal'); },
+  get switchServiceProjectName() { return $('#switch-service-project-name'); },
+  get switchServiceToggleBtns() { return document.querySelectorAll('.switch-service-btn'); },
+  get switchServiceConfigFields() { return $('#switch-service-config-fields'); },
+  get switchApiKeyGroup() { return $('#switch-api-key-group'); },
+  get switchApiKeyInput() { return $('#switch-api-key-input'); },
+  get switchBaseUrlGroup() { return $('#switch-base-url-group'); },
+  get switchBaseUrlInput() { return $('#switch-base-url-input'); },
+  get switchModelSelect() { return $('#switch-model-select'); },
+  get switchCustomModelInput() { return $('#switch-custom-model-input'); },
+  get switchServiceCancelBtn() { return $('#switch-service-cancel-btn'); },
+  get switchServiceSaveBtn() { return $('#switch-service-save-btn'); }
 };
