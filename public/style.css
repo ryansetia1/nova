@@ -225,7 +225,38 @@ body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+}
+
+.spawn-btn.header-spawn {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  margin-right: 4px;
+}
+
+.spawn-btn.header-spawn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
+  filter: brightness(1.1);
+}
+
+.spawn-btn.header-spawn .spawn-btn-icon {
+  font-size: 14px;
+}
+
+.spawn-btn.header-spawn .spawn-btn-glow {
+  display: none;
 }
 
 .status-indicator {

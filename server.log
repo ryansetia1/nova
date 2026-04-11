@@ -91,3 +91,19 @@
 🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
 🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
 🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[3:07:22 PM] GET /
+🔌 WebSocket closed for gaming-news
+🔌 WebSocket closed for Ask-Me-Anything
+🔚 Terminal exited for gaming-news with code 1
+🔚 Terminal exited for Ask-Me-Anything with code 1
+[3:07:25 PM] GET /api/walkable-path
+[3:07:25 PM] GET /api/anchor
+[3:07:25 PM] GET /api/projects
+[3:07:25 PM] 📊 API: Fetching project list for client
+🖥️  Terminal opened for project: Ask-Me-Anything using model: qwen3.5:cloud
+🖥️  Terminal opened for project: gaming-news using model: qwen3.5-arch:latest
+🚀 Executing for Ask-Me-Anything: ollama launch claude --model qwen3.5:cloud -- --continue
+🚀 Executing for gaming-news: ollama launch claude --model qwen3.5-arch:latest -- --continue
+[3:07:39 PM] GET /api/projects
+[3:07:39 PM] 📊 API: Fetching project list for client
+[3:07:40 PM] GET /api/models
