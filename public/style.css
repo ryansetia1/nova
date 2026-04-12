@@ -1030,12 +1030,18 @@ body:not(.show-visuals) .anchor-adjuster {
   margin-top: 8px;
 }
 
-body.show-visuals svg polygon,
-body.drawing-mode svg polygon {
-  display: block !important;
+/* Hide distracting elements in Draw/Tweak mode */
+body.dev-mode-draw .workspace-object,
+body.dev-mode-tweak .workspace-object,
+body.dev-mode-draw .anchor-adjuster,
+body.dev-mode-tweak .anchor-adjuster,
+body.dev-mode-draw .layout-delete-btn,
+body.dev-mode-tweak .layout-delete-btn {
+  display: none !important;
+  pointer-events: none !important;
 }
 
-/* Ensure SVG is visible in both modes and stays above foreground (z-index 50) */
+/* Ensure SVG is visible in all dev modes and stays above foreground (z-index 50) */
 body.show-visuals #floor-wrapper svg,
 body.drawing-mode #floor-wrapper svg {
   display: block !important;

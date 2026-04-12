@@ -11,6 +11,8 @@ export const dev = {
     mode: 'draw', 
     polygon: [], 
     originalPolygon: [], 
+    originalPositions: [], 
+    originalObjects: [],
     svg: null, 
     toolbar: null, 
     draggingIndex: null,
@@ -121,7 +123,10 @@ function onPositionUp() {
 }
 
 function enterDevMode() {
-    dev.originalPolygon = [...WALKABLE_PATH];
+    dev.originalPolygon = JSON.parse(JSON.stringify(WALKABLE_PATH));
+    dev.originalPositions = JSON.parse(JSON.stringify(state.breakPositions));
+    dev.originalObjects = JSON.parse(JSON.stringify(state.foregroundObjects));
+    
     dev.polygon = [...WALKABLE_PATH];
     document.body.classList.add('drawing-mode');
     
@@ -152,6 +157,12 @@ function exitDevMode(save = true) {
         });
     } else if (!save) {
         dev.polygon = [...dev.originalPolygon];
+        state.breakPositions = JSON.parse(JSON.stringify(dev.originalPositions));
+        state.foregroundObjects = JSON.parse(JSON.stringify(dev.originalObjects));
+        
+        // Re-render UI to remove discarded objects
+        import('./ui.js').then(m => m.renderForegroundObjects());
+        
         showToast('info', '📂', 'Changes discarded.');
     }
     renderActivePath();
@@ -368,8 +379,15 @@ function showLayoutConfig(index) {
 
     const assetOptions = state.objectAssets.map(a => `<option value="${a}" ${obj.asset === a ? 'selected' : ''}>${a}</option>`).join('');
 
+    const isNight = document.body.classList.contains('theme-night');
+    const suffix = isNight ? '_night' : '_day';
+    const previewUrl = `assets/office/${isNight ? 'night' : 'day'}/objects/${obj.asset}${suffix}.png`;
+
     panel.innerHTML = `
         <div style="font-weight:700; color:#10b981; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Object</div>
+        <div id="obj-preview-box" style="width:100%; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; margin-bottom:8px; overflow:hidden;">
+            <img src="${previewUrl}" style="max-width:90%; max-height:90%; object-fit:contain; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));">
+        </div>
         <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Asset Type</label>
             <select id="obj-asset" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
@@ -397,7 +415,11 @@ function showLayoutConfig(index) {
         </div>
     `;
 
-    panel.querySelector('#obj-asset').onchange = (e) => { obj.asset = e.target.value; import('./ui.js').then(m => m.renderForegroundObjects()); };
+    panel.querySelector('#obj-asset').onchange = (e) => { 
+        obj.asset = e.target.value; 
+        showLayoutConfig(index); // Re-render to update preview
+        import('./ui.js').then(m => m.renderForegroundObjects()); 
+    };
     panel.querySelector('#obj-layer').onchange = (e) => { obj.layer = e.target.value; import('./ui.js').then(m => m.renderForegroundObjects()); };
     
     const rotLabel = panel.querySelectorAll('label')[2];
@@ -432,14 +454,22 @@ function hideLayoutConfig() {
 
 function setDevMode(mode) {
     dev.mode = mode;
-    document.body.classList.remove('layout-mode');
-    if (mode === 'draw') {
-        dev.polygon = []; 
-    } else if (mode === 'tweak' && dev.polygon.length === 0) {
-        dev.polygon = [...WALKABLE_PATH]; 
-    } else if (mode === 'layout') {
+    
+    // Update body classes for CSS targeting
+    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout');
+    document.body.classList.add(`dev-mode-${mode}`);
+    
+    if (mode === 'layout') {
         document.body.classList.add('layout-mode');
+    } else {
+        document.body.classList.remove('layout-mode');
     }
+
+    // DON'T clear dev.polygon here anymore, let the user use the Clear button
+    if (mode === 'tweak' && dev.polygon.length === 0) {
+        dev.polygon = [...WALKABLE_PATH]; 
+    }
+    
     showDevToolbar();
     renderActivePath();
     showToast('info', '⚙️', `Switched to ${mode.toUpperCase()} mode`);
@@ -482,7 +512,11 @@ export function renderActivePath() {
         const points = targetPolygon.map(p => `${p.x},${p.y}`).join(' ');
         const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         poly.setAttribute('points', points);
-        poly.setAttribute('fill', 'rgba(59, 130, 246, 0.2)');
+        
+        // Muted zone in positions mode
+        const opacity = dev.mode === 'positions' ? '0.08' : '0.2';
+        poly.setAttribute('fill', `rgba(59, 130, 246, ${opacity})`);
+        
         poly.setAttribute('stroke', '#3b82f6');
         poly.setAttribute('stroke-width', '0.4');
         poly.setAttribute('stroke-dasharray', '1,1');
@@ -498,49 +532,54 @@ export function renderActivePath() {
     }
 
     if (dev.isActive) {
-        targetPolygon.forEach((p, i) => {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y);
-            circle.setAttribute('r', dev.mode === 'tweak' ? '1.2' : '0.8');
-            circle.setAttribute('fill', dev.mode === 'tweak' ? '#fbbf24' : '#f43f5e');
-            circle.setAttribute('stroke', '#fff');
-            circle.setAttribute('stroke-width', '0.2');
-            if (dev.mode === 'tweak') circle.setAttribute('style', 'cursor:move; pointer-events:auto;');
-            dev.svg.appendChild(circle);
-        });
+        // Show polygon vertices only in Draw/Tweak modes
+        if (dev.mode === 'draw' || dev.mode === 'tweak') {
+            targetPolygon.forEach((p, i) => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y);
+                circle.setAttribute('r', dev.mode === 'tweak' ? '1.2' : '0.8');
+                circle.setAttribute('fill', dev.mode === 'tweak' ? '#fbbf24' : '#f43f5e');
+                circle.setAttribute('stroke', '#fff');
+                circle.setAttribute('stroke-width', '0.2');
+                if (dev.mode === 'tweak') circle.setAttribute('style', 'cursor:move; pointer-events:auto;');
+                dev.svg.appendChild(circle);
+            });
+        }
 
-        // Render Break Positions
-        state.breakPositions.forEach((pos, i) => {
-            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.setAttribute('style', 'cursor:pointer; pointer-events:auto;');
-            group.onclick = (e) => { 
-                e.stopPropagation(); 
-                dev.mode = 'positions';
-                dev.editingPosition = i;
-                showPositionConfig(i); 
-                showDevToolbar();
-            };
+        // Render Break Positions - only in Positions/Layout mode
+        if (dev.mode === 'positions' || dev.mode === 'layout') {
+            state.breakPositions.forEach((pos, i) => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('style', 'cursor:pointer; pointer-events:auto;');
+                group.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    dev.mode = 'positions';
+                    dev.editingPosition = i;
+                    showPositionConfig(i); 
+                    showDevToolbar();
+                };
 
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y);
-            circle.setAttribute('r', '2');
-            circle.setAttribute('fill', 'rgba(99, 102, 241, 0.2)');
-            circle.setAttribute('stroke', '#6366f1');
-            circle.setAttribute('stroke-width', '0.2');
-            if (dev.editingPosition === i) {
-                circle.setAttribute('stroke-width', '0.5');
-                circle.setAttribute('stroke-dasharray', '0.5,0.5');
-            }
-            group.appendChild(circle);
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y);
+                circle.setAttribute('r', '2');
+                circle.setAttribute('fill', 'rgba(99, 102, 241, 0.2)');
+                circle.setAttribute('stroke', '#6366f1');
+                circle.setAttribute('stroke-width', '0.2');
+                if (dev.editingPosition === i) {
+                    circle.setAttribute('stroke-width', '0.5');
+                    circle.setAttribute('stroke-dasharray', '0.5,0.5');
+                }
+                group.appendChild(circle);
 
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 0.6);
-            text.setAttribute('font-size', '1.5');
-            text.setAttribute('text-anchor', 'middle');
-            text.textContent = pos.emoji || '📍';
-            group.appendChild(text);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 0.6);
+                text.setAttribute('font-size', '1.5');
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = pos.emoji || '📍';
+                group.appendChild(text);
 
-            dev.svg.appendChild(group);
-        });
+                dev.svg.appendChild(group);
+            });
+        }
     }
 }
