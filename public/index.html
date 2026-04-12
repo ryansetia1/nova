@@ -133,6 +133,13 @@
               <input type="range" id="music-volume-slider" min="0" max="100" value="50">
               <i data-lucide="volume-2" class="volume-icon"></i>
             </div>
+            <div class="popover-player-wrapper">
+              <iframe id="sidebar-youtube-player" src=""
+                title="YouTube video player" frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen>
+              </iframe>
+            </div>
           </div>
         </div>
         <div class="settings-container">
@@ -185,28 +192,7 @@
           </div>
         </div>
 
-        <!-- Ambient Player Section -->
-        <div class="sidebar-section">
-          <div class="section-label">AMBIENT MUSIC</div>
-          <div class="youtube-player-container">
-            <div class="youtube-player-wrapper">
-              <iframe id="sidebar-youtube-player" src=""
-                title="YouTube video player" frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowfullscreen>
-              </iframe>
-            </div>
-            <div class="youtube-controls">
-              <input type="text" id="youtube-url-input" placeholder="YouTube URL or ID...">
-              <button id="youtube-load-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+
       </div>
     </aside>
 

@@ -376,13 +376,17 @@ let isYouTubePlaying = false;
 let currentPlaylistIndex = 0;
 
 export function initYouTubePlayer() {
-    if (!dom.youtubeLoadBtn || !dom.youtubeUrlInput || !dom.youtubePlayer) return;
+    if (!dom.youtubePlayer) return;
 
     const popover = document.getElementById('music-popover');
+    const loadBtn = dom.youtubeLoadBtn;
+    const urlInput = dom.youtubeUrlInput;
     const musicContainer = document.querySelector('.header-music-container');
     const volumeSlider = document.getElementById('music-volume-slider');
     const nextBtn = document.getElementById('music-next-btn');
     const prevBtn = document.getElementById('music-prev-btn');
+
+    if (!popover || !musicContainer || !volumeSlider || !nextBtn || !prevBtn) return;
 
     const playlist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
 
@@ -438,8 +442,37 @@ export function initYouTubePlayer() {
     };
 
     if (dom.headerPlayBtn) {
-        dom.headerPlayBtn.addEventListener('click', togglePlay);
+        dom.headerPlayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePlay();
+        });
     }
+
+    // Hover logic: only show if music is playing
+    let hoverTimeout;
+    musicContainer.addEventListener('mouseenter', () => {
+        if (!isYouTubePlaying) return; 
+        clearTimeout(hoverTimeout);
+        popover.classList.remove('hidden');
+    });
+
+    musicContainer.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+            popover.classList.add('hidden');
+        }, 500);
+    });
+
+    // Also keep open while hovering popover itself
+    popover.addEventListener('mouseenter', () => {
+        clearTimeout(hoverTimeout);
+        popover.classList.remove('hidden');
+    });
+
+    popover.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+            popover.classList.add('hidden');
+        }, 300);
+    });
 
     if (window.lucide) window.lucide.createIcons();
 
@@ -461,21 +494,11 @@ export function initYouTubePlayer() {
         sendCommand('setVolume', Number(volumeSlider.value));
     });
 
-    // Hover logic
-    let hoverTimeout;
-    musicContainer.addEventListener('mouseenter', () => {
-        clearTimeout(hoverTimeout);
-        popover.classList.remove('hidden');
-    });
 
-    musicContainer.addEventListener('mouseleave', () => {
-        hoverTimeout = setTimeout(() => {
-            popover.classList.add('hidden');
-        }, 500);
-    });
 
-    dom.youtubeLoadBtn.addEventListener('click', () => {
-        let input = dom.youtubeUrlInput.value.trim();
+    if (dom.youtubeLoadBtn) {
+        dom.youtubeLoadBtn.addEventListener('click', () => {
+            let input = dom.youtubeUrlInput.value.trim();
         if (!input) return;
 
         let videoId = '';
@@ -495,11 +518,14 @@ export function initYouTubePlayer() {
         } else {
             showToast('error', '⚠️', 'Invalid YouTube URL or ID');
         }
-    });
-
-    dom.youtubeUrlInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') dom.youtubeLoadBtn.click();
-    });
+        });
+        
+        if (dom.youtubeUrlInput) {
+            dom.youtubeUrlInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') dom.youtubeLoadBtn.click();
+            });
+        }
+    }
 }
 
 export function fireAgentNotification(pName, nickname) {
