@@ -217,29 +217,22 @@ export function renderForegroundObjects() {
         const transform = `translate(-50%, -50%) rotate(${obj.rotation || 0}deg) scale(${obj.scale || 1})`;
         const zIndex = obj.layer === 'front' ? '20005' : '50';
         
+        const name = obj.name || obj.asset;
         return `
             <div class="workspace-object ${isLinked ? 'linked' : ''}" 
                  data-index="${i}" 
                  data-id="${obj.id}"
                  style="left: ${obj.x}%; top: ${obj.y}%; transform: ${transform}; z-index: ${zIndex};"
+                 onmousemove="if(document.body.classList.contains('dev-mode-layout')) window.nova.showTooltip('${name}', event)"
+                 onmouseleave="window.nova.hideTooltip()"
                  onclick="window.handleObjectClick('${obj.id}', event)">
-                <div class="layout-delete-btn" onclick="window.removeObject('${obj.id}', event)">❌</div>
                 <img src="assets/office/${isNight ? 'night' : 'day'}/objects/${obj.asset}${suffix}.png" alt="${obj.asset}" draggable="false">
             </div>
         `;
     }).join('');
 }
 
-window.removeObject = (objectId, event) => {
-    event.stopPropagation();
-    const index = state.foregroundObjects.findIndex(obj => obj.id === objectId);
-    if (index !== -1) {
-        state.foregroundObjects.splice(index, 1);
-        const panel = document.querySelector('#dev-layout-config');
-        if (panel) panel.classList.add('hidden');
-        renderForegroundObjects();
-    }
-};
+
 
 window.handleObjectClick = async (objectId, event) => {
     // If in dev mode, don't trigger actions
@@ -750,4 +743,28 @@ export function initSystemStatus() {
     });
 
     if (window.lucide) window.lucide.createIcons();
+}
+
+export function showTooltip(text, eventOrX, y) {
+    const tooltip = dom.globalTooltip;
+    if (!tooltip) return;
+    
+    let x = eventOrX;
+    let targetY = y;
+    
+    if (typeof eventOrX === 'object' && eventOrX.clientX !== undefined) {
+        x = eventOrX.clientX;
+        targetY = eventOrX.clientY - 40;
+    }
+
+    tooltip.textContent = text;
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${targetY}px`;
+    tooltip.classList.add('visible');
+}
+
+export function hideTooltip() {
+    const tooltip = dom.globalTooltip;
+    if (!tooltip) return;
+    tooltip.classList.remove('visible');
 }

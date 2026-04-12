@@ -17,7 +17,9 @@ import {
     initNotificationSettings,
     initDefaultFolderSettings,
     initMusicManager,
-    initSystemStatus
+    initSystemStatus,
+    showTooltip,
+    hideTooltip
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -418,7 +420,9 @@ window.nova = {
             dom.modalInput.value = p.name;
             dom.nicknameInput.value = p.nickname || p.name;
         }
-    }
+    },
+    showTooltip,
+    hideTooltip
 };
 
 window.focusAgentTerminal = (name) => {

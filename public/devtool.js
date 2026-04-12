@@ -3,7 +3,7 @@
    ============================================ */
 
 import { state, dom } from './state.js';
-import { showToast } from './ui.js';
+import { showToast, showTooltip, hideTooltip } from './ui.js';
 import { WALKABLE_PATH, saveWalkablePath } from './walking.js';
 
 export const dev = { 
@@ -20,8 +20,20 @@ export const dev = {
     draggingObjectIndex: null,
     editingPosition: null, // index of break position being edited
     editingObject: null, // index of foreground object being edited
-    availableAnimationsMap: {} // { charId: [animations] }
+    availableAnimationsMap: {}, // { charId: [animations] }
+    resizeStart: { w:0, h:0, x:0, y:0 }
 };
+
+function getNextDefaultName(type, asset = null) {
+    if (type === 'object') {
+        const base = (asset || 'Object').charAt(0).toUpperCase() + (asset || 'Object').slice(1);
+        const existingCount = state.foregroundObjects.filter(o => o.name && o.name.startsWith(base)).length;
+        return `${base} ${existingCount + 1}`;
+    } else {
+        const existingCount = state.breakPositions.filter(p => p.name && p.name.startsWith('Position')).length;
+        return `Position ${existingCount + 1}`;
+    }
+}
 
 export function initDevTool() {
     renderActivePath();
@@ -179,6 +191,8 @@ function initDevSvg() {
     }
 }
 
+
+
 function showDevToolbar() {
     if (dev.toolbar) dev.toolbar.remove();
     dev.toolbar = document.createElement('div');
@@ -212,7 +226,8 @@ function showDevToolbar() {
         addObjBtn.onclick = () => {
             const id = 'obj_' + Date.now();
             const asset = state.objectAssets[0] || 'dispenser';
-            state.foregroundObjects.push({ id, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
+            const name = getNextDefaultName('object', asset);
+            state.foregroundObjects.push({ id, name, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
             dev.editingObject = state.foregroundObjects.length - 1;
             showLayoutConfig(state.foregroundObjects.length - 1);
             import('./ui.js').then(m => m.renderForegroundObjects());
@@ -224,7 +239,8 @@ function showDevToolbar() {
     if (addPosBtn) {
         addPosBtn.onclick = () => {
             const id = 'pos_' + Date.now();
-            state.breakPositions.push({ id, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
+            const name = getNextDefaultName('position');
+            state.breakPositions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
             dev.editingPosition = state.breakPositions.length - 1;
             showPositionConfig(state.breakPositions.length - 1);
             renderActivePath();
@@ -294,6 +310,10 @@ function showPositionConfig(index) {
     panel.innerHTML = `
         <div style="font-weight:700; color:#6366f1; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Position</div>
         <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Name</label>
+            <input type="text" id="pos-name" value="${pos.name || ''}" placeholder="e.g. Position 1" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; margin-bottom:8px;">
+        </div>
+        <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:6px;">Icon / Emoji</label>
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; background:rgba(255,255,255,0.03); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
                 ${emojiButtons}
@@ -313,14 +333,10 @@ function showPositionConfig(index) {
             </select>
         </div>
         <div>
-            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Command (Terminal)</label>
-            <input type="text" id="pos-cmd" value="${pos.command || ''}" placeholder="/coffee" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
-        </div>
-        <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Link to Object</label>
             <select id="pos-object-id" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
                 <option value="">— No Object —</option>
-                ${state.foregroundObjects.map(obj => `<option value="${obj.id}" ${pos.objectId === obj.id ? 'selected' : ''}>${obj.asset} (${obj.id.slice(-4)})</option>`).join('')}
+                ${state.foregroundObjects.map(obj => `<option value="${obj.id}" ${pos.objectId === obj.id ? 'selected' : ''}>${obj.name || obj.asset}</option>`).join('')}
             </select>
         </div>
         <div style="display:flex; gap:8px;">
@@ -337,13 +353,13 @@ function showPositionConfig(index) {
         };
     });
 
+    panel.querySelector('#pos-name').oninput = (e) => { pos.name = e.target.value; };
     panel.querySelector('#pos-emoji').oninput = (e) => { pos.emoji = e.target.value; renderActivePath(); };
     panel.querySelector('#pos-assignee').onchange = (e) => { 
         pos.assignee = e.target.value; 
         showPositionConfig(index); // Re-render to update animations dropdown
     };
     panel.querySelector('#pos-anim').onchange = (e) => { pos.animation = e.target.value; };
-    panel.querySelector('#pos-cmd').oninput = (e) => { pos.command = e.target.value; };
     panel.querySelector('#pos-object-id').onchange = (e) => { pos.objectId = e.target.value || null; import('./ui.js').then(m => m.renderForegroundObjects()); };
     panel.querySelector('#pos-delete').onclick = () => {
         state.breakPositions.splice(index, 1);
@@ -385,6 +401,10 @@ function showLayoutConfig(index) {
 
     panel.innerHTML = `
         <div style="font-weight:700; color:#10b981; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Object</div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Name</label>
+            <input type="text" id="obj-name" value="${obj.name || ''}" placeholder="e.g. Dispenser 1" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; margin-bottom:8px;">
+        </div>
         <div id="obj-preview-box" style="width:100%; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; margin-bottom:8px; overflow:hidden;">
             <img src="${previewUrl}" style="max-width:90%; max-height:90%; object-fit:contain; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));">
         </div>
@@ -415,6 +435,7 @@ function showLayoutConfig(index) {
         </div>
     `;
 
+    panel.querySelector('#obj-name').oninput = (e) => { obj.name = e.target.value; };
     panel.querySelector('#obj-asset').onchange = (e) => { 
         obj.asset = e.target.value; 
         showLayoutConfig(index); // Re-render to update preview
@@ -459,6 +480,10 @@ function setDevMode(mode) {
     document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout');
     document.body.classList.add(`dev-mode-${mode}`);
     
+    // Close any open config panels when switching modes to prevent stale data
+    hidePositionConfig();
+    hideLayoutConfig();
+
     if (mode === 'layout') {
         document.body.classList.add('layout-mode');
     } else {
@@ -550,10 +575,20 @@ export function renderActivePath() {
         if (dev.mode === 'positions' || dev.mode === 'layout') {
             state.breakPositions.forEach((pos, i) => {
                 const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                group.setAttribute('style', 'cursor:pointer; pointer-events:auto;');
+                const isPositionsMode = dev.mode === 'positions';
+                group.setAttribute('style', `cursor:${isPositionsMode ? 'pointer' : 'default'}; pointer-events:${isPositionsMode ? 'auto' : 'none'};`);
+                
+                group.onmousemove = (e) => {
+                    if (!isPositionsMode) return;
+                    const name = pos.name || `Position ${i + 1}`;
+                    showTooltip(name, e.clientX, e.clientY - 40);
+                };
+                group.onmouseleave = () => {
+                    hideTooltip();
+                };
                 group.onclick = (e) => { 
+                    if (!isPositionsMode) return;
                     e.stopPropagation(); 
-                    dev.mode = 'positions';
                     dev.editingPosition = i;
                     showPositionConfig(i); 
                     showDevToolbar();

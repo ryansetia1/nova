@@ -163,5 +163,6 @@ export const dom = {
   get switchCustomModelInput() { return $('#switch-custom-model-input'); },
   get switchServiceCancelBtn() { return $('#switch-service-cancel-btn'); },
   get switchServiceSaveBtn() { return $('#switch-service-save-btn'); },
-  get browseBtn() { return $('#browse-folder-btn'); }
+  get browseBtn() { return $('#browse-folder-btn'); },
+  get globalTooltip() { return $('#global-tooltip'); }
 };
