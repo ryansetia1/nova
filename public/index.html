@@ -71,11 +71,39 @@
         </div>
         <div class="clock" id="clock"></div>
 
-        <button id="spawn-btn" class="spawn-btn header-spawn">
-          <span class="spawn-btn-icon">⚡</span>
-          <span class="spawn-btn-text">Spawn Agent</span>
-          <span class="spawn-btn-glow"></span>
-        </button>
+        <div class="spawn-dropdown-container">
+          <button id="spawn-btn" class="spawn-btn header-spawn" title="Deploy a new agent with its own project folder">
+            <span class="spawn-btn-icon">⚡</span>
+            <span class="spawn-btn-text">Spawn Agent</span>
+            <span class="spawn-btn-glow"></span>
+          </button>
+          <button id="spawn-dropdown-toggle" class="spawn-dropdown-arrow" title="More spawn options">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div id="spawn-menu" class="spawn-menu hidden">
+            <div class="spawn-menu-item" data-type="agent">
+              <span class="menu-item-icon">⚡</span>
+              <div class="menu-item-content">
+                <div class="menu-item-title">Spawn Agent</div>
+                <div class="menu-item-desc">Regular agent in its own folder</div>
+              </div>
+            </div>
+            <div class="spawn-menu-item" data-type="captain" id="spawn-menu-captain">
+              <span class="menu-item-icon">👑</span>
+              <div class="menu-item-content">
+                <div class="menu-item-title">Spawn Captain</div>
+                <div class="menu-item-desc">System-wide agent in Home (~)</div>
+              </div>
+            </div>
+            <div class="spawn-menu-item" data-type="pet">
+              <span class="menu-item-icon">🐾</span>
+              <div class="menu-item-content">
+                <div class="menu-item-title">Spawn Pet</div>
+                <div class="menu-item-desc">Decorative character (non-interactive)</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <button id="header-play-btn" class="header-action-btn" title="Toggle Ambient Music">🎵</button>
         <div class="settings-container">
@@ -238,53 +266,57 @@
   <div id="spawn-modal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-icon">🪐</span>
-        <h3>Spawn New Agent</h3>
+        <span class="modal-icon" id="spawn-modal-icon">🪐</span>
+        <h3 id="spawn-modal-title">Spawn New Agent</h3>
       </div>
       <div class="modal-body">
-        <div id="orphaned-selector-group" class="input-group hidden"
+        <!-- Orphaned (Agent Only) -->
+        <div id="orphaned-selector-group" class="input-group hidden spawn-group-agent"
           style="background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
-          <label for="orphaned-select"
-            style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
+          <label for="orphaned-select" style="color: var(--accent-primary); font-weight: 800; display: flex; align-items: center; gap: 6px;">
             <span>📂</span> RESUME EXISTING FOLDER
           </label>
           <select id="orphaned-select" style="margin-top: 8px;">
             <option value="">-- Choose an orphaned folder --</option>
           </select>
-          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created
-            folder to reactivate its agent.</p>
+          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Select a previously created folder to reactivate its agent.</p>
         </div>
 
-        <div class="input-group">
-          <label>Agent Service</label>
-          <div class="service-toggle-group">
-            <button type="button" class="service-btn active" data-service="ollama">
-              Ollama
-            </button>
-            <button type="button" class="service-btn" data-service="claude">
-              Claude
-            </button>
-            <button type="button" class="service-btn" data-service="sumo">
-              Sumo
-            </button>
-            <button type="button" class="service-btn" data-service="custom">
-              Custom
-            </button>
+        <!-- 1. Agent Service & Model (Top Priority) -->
+        <div class="spawn-group-agent spawn-group-captain">
+          <div class="input-group">
+            <label>Agent Service</label>
+            <div class="service-toggle-group">
+              <button type="button" class="service-btn active" data-service="ollama">Ollama</button>
+              <button type="button" class="service-btn" data-service="claude">Claude</button>
+              <button type="button" class="service-btn" data-service="sumo">Sumo</button>
+              <button type="button" class="service-btn" data-service="custom">Custom</button>
+            </div>
+            
+            <div id="service-config-fields" class="hidden" style="margin-top: 15px;">
+              <div class="input-group" id="api-key-group">
+                <label for="api-key-input">API Key</label>
+                <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+              </div>
+              <div class="input-group hidden" id="base-url-group">
+                <label for="base-url-input">Base URL</label>
+                <input type="text" id="base-url-input" placeholder="https://..." autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top: 20px; margin-bottom: 20px;">
+            <label for="model-select">Agent Model</label>
+            <select id="model-select" style="width: 100%;">
+              <!-- Populated dynamically -->
+            </select>
+            <input type="text" id="custom-model-input" class="hidden" placeholder="Enter model name..." style="margin-top: 8px;" />
           </div>
         </div>
 
-        <div id="service-config-fields" class="hidden" style="margin-bottom: 20px;">
-          <div class="input-group" id="api-key-group">
-            <label for="api-key-input">API Key</label>
-            <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
-          </div>
-          <div class="input-group hidden" id="base-url-group">
-            <label for="base-url-input">Base URL</label>
-            <input type="text" id="base-url-input" placeholder="https://..." autocomplete="off">
-          </div>
-        </div>
-
-        <div class="modal-row">
+        <!-- 2. Conditional Name Row -->
+        <!-- Row for Agent: [Project Name | Nickname] -->
+        <div class="modal-row spawn-group-agent">
           <div class="input-group">
             <label for="project-name-input">Project Name</label>
             <input type="text" id="project-name-input" placeholder="folder-name" autocomplete="off">
@@ -295,74 +327,69 @@
           </div>
         </div>
 
-        <div class="input-group">
-          <label for="custom-path-input">Custom Folder Path <span class="label-hint">optional</span></label>
-          <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
+        <!-- Row for Captain/Pet: [Nickname (Full Width)] -->
+        <div class="input-group spawn-group-captain spawn-group-pet hidden full-width" style="margin-bottom: 20px;">
+          <label for="nickname-input-special">Display Nickname <span class="label-hint">optional</span></label>
+          <input type="text" id="nickname-input-special" placeholder="e.g. My Captain" autocomplete="off">
         </div>
 
-        <div id="nest-agent-group" class="input-group">
-          <label class="form-label" for="nest-parent-select"
-            style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST
-            INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>
-          <select id="nest-parent-select">
-            <option value="">— None (create standalone agent) —</option>
-            <!-- Populated with active agents -->
-          </select>
-          <p class="modal-hint" style="margin-top: 6px; font-size: 10px; opacity: 0.8;">Creates a new folder inside the
-            selected agent's project directory.</p>
-        </div>
-
-        <div class="modal-row">
-          <div class="input-group relative avatar-selection-group">
-            <label>Avatar Appearance</label>
-            <div class="avatar-type-toggle" id="spawn-avatar-type-toggle">
-              <button type="button" class="type-btn active" data-type="emoji">Emoji</button>
-              <button type="button" class="type-btn" data-type="character">Character</button>
-            </div>
-
-            <div id="spawn-appearance-content" style="margin-bottom: 15px;">
-              <!-- Emoji Selection -->
-              <div id="spawn-emoji-zone" class="selected-emoji-container compact">
-                <div id="selected-emoji-preview" style="cursor: pointer;">🪐</div>
-                <div id="spawn-emoji-trigger-area" style="flex: 1; text-align: left;">
-                  <div id="emoji-popover" class="emoji-popover hidden">
-                    <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Character Selection Grid (Separate from Emoji container) -->
-              <div id="spawn-character-area" class="character-grid hidden">
-                <div class="character-card active" data-value="Char1" title="Character 1 (Cat)">
-                  <div class="character-preview-box">
-                    <img src="assets/characters/Char1/avatar/Char1Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 1">
-                  </div>
-                </div>
-                <div class="character-card" data-value="Char2" title="Character 2 (Agent)">
-                  <div class="character-preview-box">
-                    <img src="assets/characters/Char2/avatar/Char2Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 2">
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <!-- 3. Agent Only: Path & Nesting -->
+        <div class="spawn-group-agent">
           <div class="input-group">
-            <label for="model-select">Agent Model</label>
-            <select id="model-select">
-              <!-- Populated dynamically -->
+            <label for="custom-path-input">Custom Folder Path <span class="label-hint">optional</span></label>
+            <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
+          </div>
+          <div id="nest-agent-group" class="input-group" style="margin-top: 15px;">
+            <label class="form-label" for="nest-parent-select" style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>
+            <select id="nest-parent-select">
+              <option value="">— None (create standalone agent) —</option>
             </select>
-            <input type="text" id="custom-model-input" class="hidden" placeholder="Enter model name..."
-              style="margin-top: 8px;" />
           </div>
         </div>
 
-        <p class="modal-hint">Folder: <code>./projects/[Name]</code></p>
+        <!-- 4. Avatar Appearance (Full Width) -->
+        <div class="input-group relative avatar-selection-group" style="margin-top: 20px;">
+          <label>Avatar Appearance</label>
+          <div class="avatar-type-toggle" id="spawn-avatar-type-toggle">
+            <button type="button" class="type-btn active" data-type="emoji">Emoji</button>
+            <button type="button" class="type-btn" data-type="character">Character</button>
+          </div>
+
+          <div id="spawn-appearance-content" style="margin-top: 15px; margin-bottom: 10px;">
+            <!-- Emoji Selection -->
+            <div id="spawn-emoji-zone" class="selected-emoji-container compact">
+              <div id="selected-emoji-preview" style="cursor: pointer;">🪐</div>
+              <div id="spawn-emoji-trigger-area" style="flex: 1; text-align: left;">
+                <div id="emoji-popover" class="emoji-popover hidden">
+                  <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
+                </div>
+              </div>
+            </div>
+
+            <!-- Character Selection Grid -->
+            <div id="spawn-character-area" class="character-grid hidden">
+              <div class="character-card active" data-value="Char1" title="Character 1 (Cat)">
+                <div class="character-preview-box">
+                  <img src="assets/characters/Char1/avatar/Char1Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 1">
+                </div>
+              </div>
+              <div class="character-card" data-value="Char2" title="Character 2 (Agent)">
+                <div class="character-preview-box">
+                  <img src="assets/characters/Char2/avatar/Char2Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 2">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="modal-hint spawn-group-agent" id="spawn-folder-hint">Folder: <code>./projects/[Name]</code></p>
+        <p class="modal-hint spawn-group-captain hidden">Folder: <code>Home Directory (~)</code></p>
+        <p class="modal-hint spawn-group-pet hidden">Pets are decorative and do not use a project folder.</p>
       </div>
       <div class="modal-footer">
         <button id="modal-cancel-btn" class="btn btn-ghost">Cancel</button>
         <button id="modal-confirm-btn" class="btn btn-primary">
-          <span>🚀</span> Deploy Agent
+          <span>🚀</span> <span id="spawn-modal-confirm-text">Deploy Agent</span>
         </button>
       </div>
     </div>

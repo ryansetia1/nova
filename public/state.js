@@ -25,6 +25,7 @@ export const state = {
   resizeStart: { w: 0, h: 0, x: 0, y: 0 },
   topZIndex: 100000,
   selectedEmoji: '🪐',
+  spawnType: 'agent', // 'agent', 'captain', 'pet'
   updateSelectedEmoji: '🪐',
   spawnAppearanceType: 'emoji', // 'emoji' or 'character'
   updateAppearanceType: 'emoji',
@@ -53,6 +54,7 @@ export const dom = {
   get modal() { return $('#spawn-modal'); },
   get modalInput() { return $('#project-name-input'); },
   get nicknameInput() { return $('#nickname-input'); },
+  get nicknameInputSpecial() { return $('#nickname-input-special'); },
   get customPathInput() { return $('#custom-path-input'); },
   get modelSelect() { return $('#model-select'); },
   get customModelInput() { return $('#custom-model-input'); },
@@ -89,6 +91,7 @@ export const dom = {
   get emojiUpdateCancel() { return $('#emoji-update-cancel-btn'); },
   get emojiUpdateSaveBtn() { return $('#emoji-update-save-btn'); },
   get updateEmojiPicker() { return $('#update-emoji-picker'); },
+  get emojiPopover() { return $('#emoji-popover'); },
   
   // Per-Agent Style Selectors
   get spawnTypeToggle() { return $('#spawn-avatar-type-toggle'); },
@@ -104,10 +107,17 @@ export const dom = {
   get updateEmojiPreview() { return $('#update-emoji-preview'); },
   get updateEmojiHint() { return $('#update-emoji-hint-container'); },
 
-  // New Emoji Popover elements
-  get emojiTrigger() { return $('#emoji-trigger'); },
-  get emojiPopover() { return $('#emoji-popover'); },
-  get modalEmojiPicker() { return $('#modal-emoji-picker'); },
+  // New Dropdown elements
+  get spawnDropdownToggle() { return $('#spawn-dropdown-toggle'); },
+  get spawnMenu() { return $('#spawn-menu'); },
+  get spawnMenuItems() { return document.querySelectorAll('.spawn-menu-item'); },
+  get spawnMenuCaptain() { return $('#spawn-menu-captain'); },
+
+  // Dynamic Modal elements
+  get spawnModalIcon() { return $('#spawn-modal-icon'); },
+  get spawnModalTitle() { return $('#spawn-modal-title'); },
+  get spawnModalConfirmText() { return $('#spawn-modal-confirm-text'); },
+  get spawnFolderHint() { return $('#spawn-folder-hint'); },
 
   // Loader
   get loader() { return $('#app-loader'); },

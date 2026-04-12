@@ -36,6 +36,7 @@ import {
     handleSpawn, 
     closeDeleteAgentModal, 
     handleDeleteAgent,
+    handleDeleteAgentByName,
     openDeleteAgentModal,
     openEmojiUpdateModal,
     closeEmojiUpdateModal,
@@ -177,7 +178,37 @@ async function loadProjects() {
 }
 
 function bindEvents() {
-    dom.spawnBtn.addEventListener('click', openModal);
+    dom.spawnBtn.addEventListener('click', () => openModal('agent'));
+    
+    if (dom.spawnDropdownToggle) {
+        dom.spawnDropdownToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dom.spawnMenu.classList.toggle('hidden');
+            
+            // Constraint: Hide Captain if already exists
+            const captainExists = state.projects.some(p => p.type === 'captain' || p.name === 'Captain');
+            if (dom.spawnMenuCaptain) {
+                dom.spawnMenuCaptain.classList.toggle('hidden', captainExists);
+            }
+        });
+    }
+
+    if (dom.spawnMenuItems) {
+        dom.spawnMenuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                const type = item.dataset.type;
+                openModal(type);
+                dom.spawnMenu.classList.add('hidden');
+            });
+        });
+    }
+
+    // Close menu when clicking elsewhere
+    document.addEventListener('click', () => {
+        if (dom.spawnMenu) dom.spawnMenu.classList.add('hidden');
+        if (dom.settingsMenu) dom.settingsMenu.classList.add('hidden');
+    });
+
     dom.modalCancel.addEventListener('click', closeModal);
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.deleteCancelBtn.addEventListener('click', closeDeleteAgentModal);
@@ -361,6 +392,7 @@ function bindEvents() {
 window.nova = { 
     openTerminal,
     moveToPosition,
+    handleDeleteAgentByName,
     setHover: (name, isActive) => {
         if (state.walkingRobots[name]) {
             if (state.walkingRobots[name].isHovered !== isActive) {

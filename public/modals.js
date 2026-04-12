@@ -124,7 +124,9 @@ export function initServiceSelector() {
     }
 }
 
-export async function openModal() {
+export async function openModal(type = 'agent') {
+    state.spawnType = type;
+    
     try {
         const pRes = await fetch('/api/projects');
         state.projects = await pRes.json();
@@ -132,9 +134,38 @@ export async function openModal() {
         console.warn('Failed to sync projects for modal', e);
     }
 
+    // Toggle Visibility based on type
+    const allGroups = document.querySelectorAll('[class*="spawn-group-"]');
+    allGroups.forEach(el => {
+        const isMatch = el.classList.contains(`spawn-group-${type}`);
+        el.classList.toggle('hidden', !isMatch);
+    });
+
+    // Update Modal UI
+    if (type === 'agent') {
+        dom.spawnModalIcon.textContent = '🪐';
+        dom.spawnModalTitle.textContent = 'Spawn New Agent';
+        dom.spawnModalConfirmText.textContent = 'Deploy Agent';
+    } else if (type === 'captain') {
+        dom.spawnModalIcon.textContent = '👑';
+        dom.spawnModalTitle.textContent = 'Spawn Captain';
+        dom.spawnModalConfirmText.textContent = 'Deploy Captain';
+        dom.modalInput.value = 'Captain'; // Fixed name for captain
+    } else if (type === 'pet') {
+        dom.spawnModalIcon.textContent = '🐾';
+        dom.spawnModalTitle.textContent = 'Spawn Pet';
+        dom.spawnModalConfirmText.textContent = 'Spawn Pet';
+    }
+
     dom.modal.classList.remove('hidden'); 
-    dom.modalInput.value = ''; dom.modalInput.disabled = false;
-    dom.nicknameInput.value = ''; dom.customPathInput.value = '';
+    
+    // Reset fields
+    if (type !== 'captain') dom.modalInput.value = ''; 
+    dom.modalInput.disabled = (type === 'captain');
+    dom.nicknameInput.value = ''; 
+    dom.nicknameInputSpecial.value = '';
+    dom.customPathInput.value = '';
+    
     if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml('🪐');
     
     // Reset Character selection
@@ -150,12 +181,13 @@ export async function openModal() {
         btns.forEach(b => b.classList.toggle('active', b.dataset.type === 'emoji'));
         dom.spawnEmojiZone.classList.remove('hidden');
         dom.spawnCharacterArea.classList.add('hidden');
+        
+        // For pets, character is often preferred, but we'll stick to emoji default for consistency
     }
     
-    const orphaned = state.projects.filter(p => p.active === false || p.active === "false" || !p.active);
-    console.log(`[NOVA] Found ${orphaned.length} orphaned folders among ${state.projects.length} total projects.`);
-
-    if (orphaned.length > 0) {
+    // Handle Orphaned (Agent Only)
+    const orphaned = state.projects.filter(p => !p.active);
+    if (type === 'agent' && orphaned.length > 0) {
         dom.orphanedGroup.classList.remove('hidden');
         dom.orphanedGroup.style.display = 'block'; 
         dom.orphanedSelect.innerHTML = '<option value="">-- Choose an orphaned folder --</option>' + 
@@ -168,8 +200,8 @@ export async function openModal() {
         dom.orphanedGroup.style.display = 'none';
     }
 
-    // Populate Parent Agent dropdown for nesting
-    const activeAgents = state.projects.filter(p => p.active === true || p.active === "true");
+    // Populate Parent Agent (Agent Only)
+    const activeAgents = state.projects.filter(p => p.active && p.type !== 'pet');
     if (dom.nestParentSelect) {
         dom.nestParentSelect.innerHTML = '<option value="">— None (create standalone agent) —</option>' +
             activeAgents.map(p => {
@@ -186,14 +218,18 @@ export async function openModal() {
     dom.customModelInput.classList.add('hidden');
     dom.customModelInput.value = '';
     
-    // Reset service config fields
     dom.serviceConfigFields.classList.add('hidden');
     dom.apiKeyInput.value = '';
     dom.baseUrlInput.value = '';
 
-    loadModelsForService('ollama');
+    if (type !== 'pet') {
+        loadModelsForService('ollama');
+    }
 
-    setTimeout(() => dom.modalInput.focus(), 100);
+    setTimeout(() => {
+        if (type === 'agent') dom.modalInput.focus();
+        else dom.nicknameInput.focus();
+    }, 100);
 }
 
 export function closeModal() { 
@@ -297,11 +333,14 @@ export function openDeleteAgentModal(project) {
 export function closeDeleteAgentModal() { dom.deleteModal.classList.add('hidden'); }
 
 export async function handleSpawn() {
-    const name = dom.modalInput.value.trim();
-    const nickname = dom.nicknameInput.value.trim();
-    const customPath = dom.customPathInput.value.trim();
+    const type = state.spawnType;
+    const name = type === 'captain' ? 'Captain' : dom.modalInput.value.trim();
+    const nickname = (type === 'agent' ? dom.nicknameInput.value : dom.nicknameInputSpecial.value).trim();
+    const customPath = type === 'captain' ? '~' : dom.customPathInput.value.trim();
     const parentAgent = dom.nestParentSelect ? dom.nestParentSelect.value || null : null;
-    const rawModel = dom.modelSelect.value;
+    
+    // For pets, no service/model
+    const rawModel = type === 'pet' ? null : dom.modelSelect.value;
     const model = rawModel === '__custom__' 
       ? dom.customModelInput.value.trim() 
       : rawModel;
@@ -313,10 +352,10 @@ export async function handleSpawn() {
     const apiKey = dom.apiKeyInput.value.trim();
     const baseUrl = dom.baseUrlInput.value.trim();
 
-    if (!name) return showToast('error', '❌', 'Name required');
-    if (!model) return showToast('error', '❌', 'Please enter a model name');
+    if (!name && type !== 'pet') return showToast('error', '❌', 'Name required');
+    if (!model && type !== 'pet') return showToast('error', '❌', 'Please enter a model name');
 
-    // Save secrets to localStorage for auto-loading next time
+    // Save secrets to localStorage
     if (selectedService === 'sumo' && apiKey) {
         localStorage.setItem('nova_sumo_api_key', apiKey);
     } else if (selectedService === 'custom') {
@@ -326,26 +365,37 @@ export async function handleSpawn() {
 
     dom.modalConfirm.disabled = true;
     try {
+        const payload = { 
+            name, 
+            nickname, 
+            model, 
+            service: type === 'pet' ? null : selectedService,
+            apiKey,
+            baseUrl,
+            customPath, 
+            emoji, 
+            parentAgent,
+            type // 'agent', 'captain', 'pet'
+        };
+
         const res = await fetch('/api/projects', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                name, 
-                nickname, 
-                model, 
-                service: selectedService,
-                apiKey,
-                baseUrl,
-                customPath, 
-                emoji, 
-                parentAgent 
-            }) 
+            body: JSON.stringify(payload) 
         });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
+        
         state.projects.push(data);
-        closeModal(); renderRobots();
-        setupTerminal(data.name, true);
+        closeModal(); 
+        renderRobots();
+        
+        // Only setup terminal if not a pet
+        if (type !== 'pet') {
+            setupTerminal(data.name, true);
+        } else {
+            showToast('success', '🐾', `Spawned ${nickname || 'a pet'}!`);
+        }
     } catch (err) {} finally { dom.modalConfirm.disabled = false; }
 }
 
@@ -356,9 +406,10 @@ export async function handleDeleteAgent(deleteFiles = false) {
         const res = await fetch(`/api/projects/${encodeURIComponent(project.name)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
         const data = await res.json();
         
-        disposeTerminal(pName);
+        const terminalModule = await import('./terminal.js');
+        terminalModule.disposeTerminal(pName);
 
-        if (data.type === 'symlink' || deleteFiles) {
+        if (data.type === 'symlink' || deleteFiles || project.type === 'pet') {
             state.projects = state.projects.filter(p => p.name !== project.name);
         } else if (data.type === 'orphaned') {
             const p = state.projects.find(x => x.name === project.name);
@@ -371,6 +422,31 @@ export async function handleDeleteAgent(deleteFiles = false) {
         showToast('success', '🗑️', data.message || 'Agent removed');
     } catch (err) {
         showToast('error', '❌', 'Failed to remove agent');
+    }
+}
+
+export async function handleDeleteAgentByName(pName, deleteFiles = false) {
+    const project = state.projects.find(p => p.name === pName);
+    if (!project) return;
+    
+    try {
+        const res = await fetch(`/api/projects/${encodeURIComponent(pName)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        const terminalModule = await import('./terminal.js');
+        terminalModule.disposeTerminal(pName);
+
+        if (data.type === 'symlink' || deleteFiles || project.type === 'pet') {
+            state.projects = state.projects.filter(p => p.name !== pName);
+        } else if (data.type === 'orphaned') {
+            const p = state.projects.find(x => x.name === pName);
+            if (p) p.active = false;
+        }
+        
+        renderRobots(); 
+        showToast('success', '🗑️', data.message || 'Removed from workspace');
+    } catch (err) {
+        showToast('error', '❌', 'Failed to remove');
     }
 }
 

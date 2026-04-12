@@ -101,6 +101,9 @@ export function renderSidebar() {
           else if (r.hasUpdate) statusChip = '<span class="sidebar-status-chip done">Done</span>';
         }
 
+        const dismissBtn = (p.type === 'pet' || !p.active) ? 
+          `<span class="sidebar-item-dismiss" title="Dismiss" onclick="event.stopPropagation(); window.nova.handleDeleteAgentByName('${p.name}', false)">✕</span>` : '';
+
         return `
         <div class="sidebar-item ${isNested ? 'nested' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
@@ -108,6 +111,7 @@ export function renderSidebar() {
             <div class="sidebar-item-name">${prefix}${p.nickname || p.name}${statusChip}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
+          ${dismissBtn}
         </div>
       `;}).join('');
     }
@@ -171,15 +175,18 @@ export function renderRobots() {
 
         const charId = isSprite ? rawAppearance.split(':')[1] : 'emoji';
 
+        const isPet = p.type === 'pet';
+        const clickHandler = isPet ? '' : `onclick="window.nova.openTerminal('${p.name}')"`;
+
         return `
-            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''} char-parent-${charId}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady && !isPet ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''} ${isPet ? 'is-pet' : ''} char-parent-${charId}" 
                  data-project="${p.name}" style="${posStyle}"
-                 onclick="window.nova.openTerminal('${p.name}')">
+                 ${clickHandler}>
                 <div class="robot-label top">${topLabel}</div>
                 <div class="robot-thought-bubble">${r?.hasError ? '⚠️' : '💭'}</div>
                 <div class="robot-check-badge"></div>
                 ${spriteHtml}
-                <div class="robot-card-status">${isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...'}</div>
+                <div class="robot-card-status">${isPet ? '' : (isReady ? '<span class="dot ready"></span>Ready' : 'Warming up...')}</div>
                 <div class="robot-anchor-dot ${isIllegal ? 'illegal' : ''}"></div>
             </div>`;
     }).join('');

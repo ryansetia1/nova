@@ -114,18 +114,21 @@ app.get('/api/object-assets', (req, res) => {
 
 // API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
-  const { name, model, nickname, customPath, emoji, parentAgent, service, apiKey, baseUrl } = req.body;
-  console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath });
+  const { name, model, nickname, customPath, emoji, parentAgent, service, apiKey, baseUrl, type } = req.body;
+  console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath, type });
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Project name is required' });
   }
 
+  const isCaptain = type === 'captain' || name === 'Captain';
+  const isPet = type === 'pet';
+
   // Sanitize folder name
-  const safeName = name.trim().replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '-');
+  const safeName = isCaptain ? 'Captain' : (isPet ? `pet-${Date.now()}` : name.trim().replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '-'));
   const projectPath = path.join(PROJECTS_DIR, safeName);
 
-  if (fs.existsSync(projectPath)) {
+  if (fs.existsSync(projectPath) && !isPet) {
     // Check if it is an orphaned NOVA project
     const metaPathNew = path.join(projectPath, '.nova-meta.json');
     const metaPathOld = path.join(projectPath, '.nova_meta.json');
@@ -138,122 +141,107 @@ app.post('/api/projects', (req, res) => {
           return res.status(409).json({ error: 'Agent already active for this folder' });
         }
         console.log(`♻️  Re-activating orphaned project: ${safeName}`);
-      } catch (e) {
-        // invalid meta? just overwrite later
-      }
-    } else {
-      console.log(`📂 Using existing folder without meta: ${safeName}`);
+      } catch (e) {}
     }
   }
 
   try {
+    const os = require('os');
     let actualPath = projectPath;
+    let metaStoragePath = projectPath; // Where .nova-meta.json lives
     
-    if (parentAgent && parentAgent.trim()) {
+    if (isCaptain) {
+      actualPath = os.homedir();
+      if (!fs.existsSync(projectPath)) {
+        fs.mkdirSync(projectPath, { recursive: true });
+      }
+      metaStoragePath = projectPath; // Write meta to the project folder, not home!
+    } else if (isPet) {
+      if (!fs.existsSync(projectPath)) {
+        fs.mkdirSync(projectPath, { recursive: true });
+      }
+      actualPath = projectPath;
+      metaStoragePath = projectPath;
+    } else if (parentAgent && parentAgent.trim()) {
       // Logic for nesting inside an existing agent
       const parentName = parentAgent.trim();
       const parentProjectPath = path.join(PROJECTS_DIR, parentName);
       
-      // Safety check: ensure it's actually within PROJECTS_DIR and not the directory itself
       if (!fs.existsSync(parentProjectPath) || parentName === '.' || parentName === '..') {
         return res.status(404).json({ error: `Parent agent "${parentName}" not found` });
       }
-      // Resolve symlink to get the real path
       const resolvedParentPath = fs.realpathSync(parentProjectPath);
-      
       const nestedFolderPath = path.join(resolvedParentPath, safeName);
       
-      // If a real directory already exists in /projects/[name], we should MOVE it to the nested location
       if (fs.existsSync(projectPath) && !fs.lstatSync(projectPath).isSymbolicLink()) {
         if (!fs.existsSync(nestedFolderPath)) {
-          console.log(`📦 Moving existing standalone folder to nested location: ${projectPath} -> ${nestedFolderPath}`);
           fs.renameSync(projectPath, nestedFolderPath);
-        } else if (projectPath !== nestedFolderPath) {
-          // Conflict. Note: if they are the same path (unlikely given logic), we skip.
-          console.warn(`⚠️  Conflict: Both standalone and nested folders exist for ${safeName}. Using nested.`);
         }
       }
 
-      if (fs.existsSync(nestedFolderPath)) {
-        // allow resumption
-        const nestedMetaPath = path.join(nestedFolderPath, '.nova-meta.json');
-        if (fs.existsSync(nestedMetaPath)) {
-            try {
-                const nestedMeta = JSON.parse(fs.readFileSync(nestedMetaPath, 'utf8'));
-                if (nestedMeta.active === true || nestedMeta.active === "true") {
-                    return res.status(409).json({ error: 'Agent already active for this folder' });
-                }
-                console.log(`♻️  Re-activating nested orphaned folder: ${safeName}`);
-            } catch(e) {}
-        }
-      } else {
+      if (!fs.existsSync(nestedFolderPath)) {
         fs.mkdirSync(nestedFolderPath, { recursive: true });
       }
       
       actualPath = nestedFolderPath;
+      metaStoragePath = nestedFolderPath;
 
-      // Create a symlink in /projects pointing to the nested folder (if not exists or if it was a directory we just moved)
       if (!fs.existsSync(projectPath)) {
         fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
-        console.log(`🔗 Created symlink for nested agent: ${projectPath} -> ${nestedFolderPath}`);
-      } else if (!fs.lstatSync(projectPath).isSymbolicLink()) {
-        // If it's still a directory here (which shouldn't happen if we moved it, but safety first)
-        // We'll rename it as a backup and then symlink
-        const backupPath = `${projectPath}_backup_${Date.now()}`;
-        fs.renameSync(projectPath, backupPath);
-        fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
-        console.log(`🔗 Safety-linked nested agent after backup: ${projectPath} -> ${nestedFolderPath}`);
       }
-
     } else if (customPath && customPath.trim()) {
-      actualPath = customPath.trim();
+      let resolvedCustom = customPath.trim();
+      if (resolvedCustom === '~') resolvedCustom = os.homedir();
+
+      actualPath = resolvedCustom;
       if (!path.isAbsolute(actualPath)) {
-         return res.status(400).json({ error: 'Custom path must be exactly an absolute path (e.g. /Users/name/Desktop/folder)' });
+         return res.status(400).json({ error: 'Custom path must be an absolute path or ~' });
       }
       if (!fs.existsSync(actualPath)) {
          fs.mkdirSync(actualPath, { recursive: true });
       }
-      // Create symlink in projects dir pointing to custom path (if it doesn't exist yet)
       if (!fs.existsSync(projectPath)) {
         fs.symlinkSync(actualPath, projectPath, 'dir');
       }
+      metaStoragePath = actualPath;
     } else {
       if (!fs.existsSync(projectPath)) {
         fs.mkdirSync(projectPath, { recursive: true });
       }
+      metaStoragePath = projectPath;
     }
 
-    // Initialize a local git repo so agents treat this as a project root
-    try {
-      const { execSync } = require('child_process');
-      execSync('git init', { cwd: actualPath });
-    } catch (gitErr) {
-      console.warn(`⚠️  Failed to initialize git in ${actualPath}:`, gitErr.message);
+    // Initialize git ONLY for regular agents, NOT for Captain (home dir) or Pets
+    if (!isCaptain && !isPet && actualPath !== os.homedir()) {
+      try {
+        const { execSync } = require('child_process');
+        execSync('git init', { cwd: actualPath });
+      } catch (gitErr) {
+        console.warn(`⚠️  Failed to initialize git in ${actualPath}:`, gitErr.message);
+      }
     }
 
     // Store metadata
     const meta = {
       name: safeName,
-      nickname: nickname || safeName,
-      model: model || 'qwen3.5:cloud',
-      service: service || 'ollama',
+      nickname: nickname || (isCaptain ? 'Captain' : (isPet ? 'Pet' : safeName)),
+      model: model || (isPet ? undefined : 'qwen3.5:cloud'),
+      service: service || (isPet ? undefined : 'ollama'),
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
       emoji: emoji || '🪐',
-      customPath: customPath ? actualPath : (parentAgent ? undefined : undefined),
+      customPath: (customPath || isCaptain) ? actualPath : undefined,
       parentAgent: parentAgent || undefined,
-      nestedPath: parentAgent ? actualPath : undefined,
+      type: type || 'agent',
       createdAt: new Date().toISOString(),
-      lastAgentSpawned: new Date().toISOString(),
       active: true
     };
-    fs.writeFileSync(path.join(actualPath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
-    
-    console.log(`✅ Created project: ${safeName} (Nickname: ${meta.nickname}) in ${actualPath}`);
+    fs.writeFileSync(path.join(metaStoragePath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
+    console.log(`✅ Created ${meta.type}: ${safeName} (Nickname: ${meta.nickname})`);
     res.json(meta);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create project. Check permissions and path.' });
+    console.error(`❌ Error creating project:`, err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -477,6 +465,15 @@ app.delete('/api/projects/:name', (req, res) => {
 
     const isSymlink = fs.lstatSync(projectPath).isSymbolicLink();
     const deleteFiles = req.query.deleteFiles === 'true';
+    const os = require('os');
+    const homeDir = os.homedir();
+
+    const isPathSafeToDelete = (p) => {
+      if (!p) return false;
+      const rp = path.resolve(p);
+      if (rp === homeDir || rp === '/' || rp === PROJECTS_DIR || rp === __dirname) return false;
+      return true;
+    };
 
     // Get metadata to check if it's a nested agent
     let meta = null;
@@ -490,11 +487,13 @@ app.delete('/api/projects/:name', (req, res) => {
     if (isSymlink) {
       // If it's a nested agent (has parentAgent), we might want to delete the actual folder
       if (meta && meta.parentAgent && meta.nestedPath) {
-        if (deleteFiles) {
+        if (deleteFiles && isPathSafeToDelete(meta.nestedPath)) {
           if (fs.existsSync(meta.nestedPath)) {
             fs.rmSync(meta.nestedPath, { recursive: true, force: true });
             console.log(`🗑️  Deleted nested project folder: ${meta.nestedPath}`);
           }
+        } else if (deleteFiles) {
+          console.warn(`🛑 Blocked deletion of unsafe path: ${meta.nestedPath}`);
         } else {
           // Keep folder, but set active: false so it can be resumed
           meta.active = false;
@@ -510,9 +509,13 @@ app.delete('/api/projects/:name', (req, res) => {
     } else {
       // 2. If real directory
       if (deleteFiles) {
-        fs.rmSync(projectPath, { recursive: true, force: true });
-        console.log(`🗑️  Deleted project folder entirely: ${name}`);
-        return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
+        if (isPathSafeToDelete(projectPath)) {
+          fs.rmSync(projectPath, { recursive: true, force: true });
+          console.log(`🗑️  Deleted project folder entirely: ${name}`);
+          return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
+        } else {
+          return res.status(403).json({ error: 'Cannot delete system-protected directory' });
+        }
       } else {
         // Just remove agent status, keep folder orphaned
         if (metaPath) {
@@ -704,6 +707,8 @@ wss.on('connection', (ws, req) => {
   let service = 'ollama'; // default
   let apiKey = '';
   let baseUrl = '';
+  let projectType = 'agent';
+  let actualCwd = projectPath;
 
   if (metaPath) {
     try {
@@ -712,10 +717,22 @@ wss.on('connection', (ws, req) => {
       service = meta.service || 'ollama';
       apiKey = meta.apiKey || '';
       baseUrl = meta.baseUrl || '';
+      projectType = meta.type || 'agent';
+      if (meta.type === 'captain') {
+        actualCwd = os.homedir();
+      } else if (meta.customPath) {
+        actualCwd = meta.customPath;
+      }
     } catch(err) {}
   }
 
-  console.log(`🖥️  Terminal opened for project: ${projectName} using model: ${model}`);
+  // If it's a pet, we don't spawn a PTY
+  if (projectType === 'pet') {
+    ws.send(JSON.stringify({ type: 'output', data: '\r\n🐾 \x1b[1;36mThis is a decorative pet.\x1b[0m No terminal interaction available.\r\n' }));
+    return;
+  }
+
+  console.log(`🖥️  Terminal opened for ${projectType}: ${projectName} using model: ${model} in ${actualCwd}`);
 
   // Fix 2: Kill existing PTY if it exists for this project to avoid zombie processes
   if (terminals.has(projectName)) {
@@ -733,7 +750,7 @@ wss.on('connection', (ws, req) => {
       name: 'xterm-256color',
       cols: 120,
       rows: 30,
-      cwd: projectPath,
+      cwd: actualCwd,
       env: {
         HOME: process.env.HOME || os.homedir(),
         PATH: [
