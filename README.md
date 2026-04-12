@@ -18,6 +18,9 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
     - **Walkable Zones**: Precise pathing logic to keep agents within the office floor boundaries.
     - **Universal Tooltip & Persistence**: Consistent, high-fidelity tooltips for all workspace entities in Dev Mode with automatic sequential naming (e.g., "Position 1", "Dispenser 2").
 - **Smart Persistence**: All floor paths, character-specific anchor settings, project metadata, and **UI docking states** are automatically synced to the server.
+- **Individual Visibility Control**: Toggle the visibility of any agent, captain, or pet individually using eye icons in the sidebar. Provides immediate visual decluttering while keeping background processes active.
+- **Specialized Agent Roles**: Support for **Captains** (global project managers) and **Pets** (companion entities) with tailored spawning interfaces and management rules.
+- **Safe Management Flows**: Intuitive confirmation dialogs for removing agents or dismissing pets, protecting against accidental workspace disruption.
 - **Enhanced Ambient Control**: Minimalist music control system that reveals video and volume sliders on hover only when active, keeping the sidebar focused.
 
 ## 🚀 Tech Stack
@@ -53,6 +56,8 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 - **Docking Mode**: Click the **Yellow Dot** in the terminal header to pin the terminal to the sidebar.
 - **Switch Service**: Click the model badge (pill) in any terminal header to change LLM providers or models on the fly.
 - **Edit Rules**: Click the 📋 icon to edit the agent's `CLAUDE.md` context.
+- **Visibility Control**: Toggle the eye icon next to an agent's name in the sidebar to hide it from the floor view without stopping its process.
+- **Manage Pets**: Spawn companion pets via the "Spawn" dropdown to populate your workspace; requires confirmation for removal.
 - **Dev Mode (`Ctrl + D`)**: 
     - **Layout Mode**: Drag and drop foreground objects (e.g., Dispensers, Tables) with automatic sequential naming.
     - **Positions Mode**: Manage specific agent break/idle positions.

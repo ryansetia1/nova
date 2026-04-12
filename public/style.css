@@ -4304,3 +4304,56 @@ body.dev-mode-theatre .ambient-iframe-container {
   cursor: pointer;
 }
 
+/* ============================================
+    AGENT VISIBILITY (Sidebar)
+   ============================================ */
+.sidebar-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.sidebar-item:hover .sidebar-item-actions {
+  opacity: 1;
+}
+
+.sidebar-item-visibility {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-item-visibility:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--accent-primary);
+}
+
+.sidebar-item-visibility.hidden-agent {
+  color: var(--text-muted);
+}
+
+.sidebar-item-visibility.hidden-agent:hover {
+  color: var(--text-primary);
+}
+
+.sidebar-item-visibility i {
+  width: 14px;
+  height: 14px;
+}
+
+/* Dim sidebar item if hidden in workspace */
+.sidebar-item.is-hidden {
+  opacity: 0.6;
+}
+
+.sidebar-item.is-hidden .sidebar-item-icon {
+  filter: grayscale(1);
+}

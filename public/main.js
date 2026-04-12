@@ -20,7 +20,8 @@ import {
     initSystemStatus,
     showTooltip,
     hideTooltip,
-    initWeatherControl
+    initWeatherControl,
+    toggleAgentVisibility
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -45,6 +46,7 @@ import {
     handleDeleteAgent,
     handleDeleteAgentByName,
     openDeleteAgentModal,
+    openDeleteAgentModalByName,
     openEmojiUpdateModal,
     closeEmojiUpdateModal,
     handleEmojiUpdate,
@@ -424,6 +426,8 @@ window.nova = {
             dom.nicknameInput.value = p.nickname || p.name;
         }
     },
+    openDeleteAgentModalByName,
+    toggleAgentVisibility,
     showTooltip,
     hideTooltip
 };

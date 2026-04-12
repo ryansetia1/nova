@@ -133,17 +133,24 @@ export function renderSidebar() {
           else if (r.hasUpdate) statusChip = '<span class="sidebar-status-chip done">Done</span>';
         }
 
+        const isHidden = state.hiddenAgents.includes(p.name);
+        const visibilityIcon = isHidden ? 'eye-off' : 'eye';
+        const visibilityBtn = `<span class="sidebar-item-visibility ${isHidden ? 'hidden-agent' : ''}" title="${isHidden ? 'Show in workspace' : 'Hide in workspace'}" onclick="event.stopPropagation(); window.nova.toggleAgentVisibility('${p.name}')"><i data-lucide="${visibilityIcon}"></i></span>`;
+
         const dismissBtn = (p.type === 'pet' || !p.active) ? 
-          `<span class="sidebar-item-dismiss" title="Dismiss" onclick="event.stopPropagation(); window.nova.handleDeleteAgentByName('${p.name}', false)">✕</span>` : '';
+          `<span class="sidebar-item-dismiss" title="Dismiss" onclick="event.stopPropagation(); window.nova.openDeleteAgentModalByName('${p.name}')">✕</span>` : '';
 
         return `
-        <div class="sidebar-item ${isNested ? 'nested' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
+        <div class="sidebar-item ${isNested ? 'nested' : ''} ${isHidden ? 'is-hidden' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
             <div class="sidebar-item-name">${prefix}${p.nickname || p.name}${statusChip}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
-          ${dismissBtn}
+          <div class="sidebar-item-actions">
+            ${visibilityBtn}
+            ${dismissBtn}
+          </div>
         </div>
       `;}).join('');
     }
@@ -160,6 +167,8 @@ export function renderSidebar() {
         </div>
       `).join('');
     }
+
+    if (window.lucide) window.lucide.createIcons();
 }
 
 export function renderRobots() {
@@ -178,6 +187,11 @@ export function renderRobots() {
         const isIllegal = r?.isIllegal;
         
         if (!p.active) {
+            return '';
+        }
+
+        // Visibility filtering
+        if (state.hiddenAgents.includes(p.name)) {
             return '';
         }
 
@@ -986,6 +1000,26 @@ export function showTooltip(text, eventOrX, y) {
     tooltip.style.left = `${x}px`;
     tooltip.style.top = `${targetY}px`;
     tooltip.classList.add('visible');
+}
+export function toggleAgentVisibility(pName) {
+    const hidden = [...state.hiddenAgents];
+    const idx = hidden.indexOf(pName);
+    const isNowHidden = idx === -1;
+    
+    if (isNowHidden) {
+        hidden.push(pName);
+    } else {
+        hidden.splice(idx, 1);
+    }
+    
+    state.hiddenAgents = hidden; // Trigger setter
+    
+    showToast('info', isNowHidden ? '🕶️' : '👁️', `${pName} is now ${isNowHidden ? 'hidden' : 'visible'}`);
+    
+    renderRobots();
+    renderSidebar(); // Refresh icons
+    
+    if (window.lucide) window.lucide.createIcons();
 }
 
 export function hideTooltip() {

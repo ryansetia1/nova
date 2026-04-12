@@ -321,19 +321,51 @@ export async function handleEmojiUpdate(emoji) {
 }
 
 export function openDeleteAgentModal(project) {
-    if (project.customPath) {
+    state.agentToDelete = project;
+    
+    if (project.customPath && project.type !== 'pet') {
         handleDeleteAgent(false); 
         return;
     }
 
-    state.agentToDelete = project;
+    const isPet = project.type === 'pet';
+    const msgEl = dom.deleteModal.querySelector('.modal-body p');
+    if (msgEl) {
+        msgEl.innerHTML = isPet 
+            ? `Are you sure you want to remove your pet <strong id="delete-agent-name"></strong>?`
+            : `This will permanently delete the agent <strong id="delete-agent-name"></strong> and its project folder.`;
+    }
+
     dom.deleteAgentName.textContent = project.nickname || project.name;
+    
+    // Adjust footer buttons for pets
+    if (dom.deleteAgentOnlyBtn) {
+        dom.deleteAgentOnlyBtn.classList.toggle('hidden', isPet);
+    }
+    
+    if (dom.deleteConfirmBtn) {
+        const iconSpan = dom.deleteConfirmBtn.querySelectorAll('span')[0];
+        const textSpan = dom.deleteConfirmBtn.querySelectorAll('span')[1];
+        if (isPet) {
+            if (iconSpan) iconSpan.textContent = '🐾';
+            if (textSpan) textSpan.textContent = ' Remove Pet';
+        } else {
+            if (iconSpan) iconSpan.textContent = '🗑️';
+            if (textSpan) textSpan.textContent = ' Delete Everything';
+        }
+    }
+
     dom.deleteModal.classList.remove('hidden');
     const t = state.terminals[project.name];
     if (t && t.panel) {
         const d = t.panel.querySelector('.terminal-dropdown');
         if (d) d.classList.add('hidden');
     }
+}
+
+export function openDeleteAgentModalByName(pName) {
+    const project = state.projects.find(p => p.name === pName);
+    if (project) openDeleteAgentModal(project);
 }
 
 export function closeDeleteAgentModal() { dom.deleteModal.classList.add('hidden'); }

@@ -50,6 +50,16 @@ export const state = {
   originalCharacterAnchors: {
     Char1: { x: 50, y: 85 },
     Char2: { x: 50, y: 85 }
+  },
+
+  // Hidden Agents (Individual Visibility)
+  _hiddenAgents: JSON.parse(localStorage.getItem('nova_hidden_agents')) || [],
+  get hiddenAgents() {
+    return this._hiddenAgents;
+  },
+  set hiddenAgents(val) {
+    this._hiddenAgents = val;
+    localStorage.setItem('nova_hidden_agents', JSON.stringify(val));
   }
 };
 
