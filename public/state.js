@@ -92,7 +92,7 @@ export const dom = {
   
   // Per-Agent Style Selectors
   get spawnTypeToggle() { return $('#spawn-avatar-type-toggle'); },
-  get spawnEmojiZone() { return $('#spawn-emoji-trigger-area'); },
+  get spawnEmojiZone() { return $('#spawn-emoji-zone'); },
   get spawnCharZone() { return $('#spawn-character-hint-area'); },
   get spawnCharacterArea() { return $('#spawn-character-area'); },
   get spawnCharacterSelect() { return $('#spawn-character-select'); },

@@ -321,24 +321,27 @@
             </div>
 
             <div id="spawn-appearance-content" style="margin-bottom: 15px;">
-              <!-- Field combining Preview and Selection -->
-              <div class="selected-emoji-container compact" style="cursor: default;">
+              <!-- Emoji Selection -->
+              <div id="spawn-emoji-zone" class="selected-emoji-container compact">
                 <div id="selected-emoji-preview" style="cursor: pointer;">🪐</div>
-
-                <!-- Hint/Popover only for Emoji mode -->
                 <div id="spawn-emoji-trigger-area" style="flex: 1; text-align: left;">
                   <div id="emoji-popover" class="emoji-popover hidden">
                     <emoji-picker id="modal-emoji-picker" class="dark"></emoji-picker>
                   </div>
                 </div>
+              </div>
 
-                <!-- Dropdown for Character mode (Close-grouped) -->
-                <div id="spawn-character-area" class="hidden" style="display: flex; align-items: center;">
-                  <select id="spawn-character-select" class="compact-select"
-                    style="background: transparent; border: none; padding: 0; outline: none; width: auto; height: 30px; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
-                    <option value="Char1">Character 1</option>
-                    <option value="Char2">Character 2</option>
-                  </select>
+              <!-- Character Selection Grid (Separate from Emoji container) -->
+              <div id="spawn-character-area" class="character-grid hidden">
+                <div class="character-card active" data-value="Char1" title="Character 1 (Cat)">
+                  <div class="character-preview-box">
+                    <img src="assets/characters/Char1/avatar/Char1Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 1">
+                  </div>
+                </div>
+                <div class="character-card" data-value="Char2" title="Character 2 (Agent)">
+                  <div class="character-preview-box">
+                    <img src="assets/characters/Char2/avatar/Char2Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 2">
+                  </div>
                 </div>
               </div>
             </div>
@@ -453,31 +456,31 @@
         </div>
 
         <div id="update-appearance-content" style="margin-bottom: 20px;">
-          <!-- Combined Preview & Dropdown -->
-          <div id="update-preview-container" class="selected-emoji-container compact"
-            style="margin-bottom: 12px; height: 50px; cursor: default;">
-            <div id="update-emoji-preview"
-              style="font-size: 24px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid var(--accent-primary); cursor: pointer;">
-              🪐</div>
-
-            <!-- Emoji hint label (Empty for cleaner UI) -->
-            <div id="update-emoji-hint-container" style="flex: 1; text-align: left;">
+          <!-- Emoji Selection -->
+          <div id="update-emoji-area">
+            <div id="update-preview-container" class="selected-emoji-container compact"
+              style="margin-bottom: 12px; height: 50px; cursor: default;">
+              <div id="update-emoji-preview"
+                style="font-size: 24px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid var(--accent-primary); cursor: pointer;">
+                🪐</div>
+              <div id="update-emoji-hint-container" style="flex: 1; text-align: left;"></div>
             </div>
-
-            <!-- Character dropdown (Inline - Close-grouped) -->
-            <div id="update-character-area" class="hidden" style="display: flex; align-items: center;">
-              <select id="update-character-select" class="compact-select"
-                style="background: transparent; border: none; padding: 0; outline: none; margin: 0; height: 30px; width: auto; font-size: 14px; cursor: pointer; color: var(--accent-primary); font-weight: 500;">
-                <option value="Char1">Character 1</option>
-                <option value="Char2">Character 2</option>
-              </select>
+            <div class="emoji-picker-wrapper" style="height: 300px;">
+              <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
             </div>
           </div>
 
-          <!-- Emoji Picker Region -->
-          <div id="update-emoji-area">
-            <div class="emoji-picker-wrapper" style="height: 300px;">
-              <emoji-picker id="update-emoji-picker" class="dark" style="width: 100%; height: 100%;"></emoji-picker>
+          <!-- Character Selection Grid -->
+          <div id="update-character-area" class="character-grid hidden">
+            <div class="character-card" data-value="Char1" title="Character 1 (Cat)">
+              <div class="character-preview-box">
+                <img src="assets/characters/Char1/avatar/Char1Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 1">
+              </div>
+            </div>
+            <div class="character-card" data-value="Char2" title="Character 2 (Agent)">
+              <div class="character-preview-box">
+                <img src="assets/characters/Char2/avatar/Char2Avatar.png" style="height: 100%; image-rendering: pixelated;" alt="Char 2">
+              </div>
             </div>
           </div>
         </div>

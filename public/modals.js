@@ -135,10 +135,14 @@ export async function openModal() {
     dom.modal.classList.remove('hidden'); 
     dom.modalInput.value = ''; dom.modalInput.disabled = false;
     dom.nicknameInput.value = ''; dom.customPathInput.value = '';
-    state.selectedEmoji = '🪐';
-    state.spawnAppearanceType = 'emoji';
     if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml('🪐');
-    if (dom.spawnCharacterSelect) dom.spawnCharacterSelect.value = 'Char1';
+    
+    // Reset Character selection
+    state.spawnSelectedCharacter = 'Char1';
+    document.querySelectorAll('#spawn-character-area .character-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.value === 'Char1');
+    });
+
     dom.emojiPopover.classList.add('hidden');
     
     if (dom.spawnTypeToggle) {
@@ -202,9 +206,13 @@ export function openEmojiUpdateModal(pName) {
     const p = state.projects.find(x => x.name === pName);
     if (p && p.emoji && p.emoji.startsWith('SPRITE:')) {
         state.updateAppearanceType = 'character';
-        if (dom.updateCharacterSelect) {
-            dom.updateCharacterSelect.value = p.emoji.split(':')[1];
-        }
+        const charId = p.emoji.split(':')[1];
+        state.updateSelectedCharacter = charId;
+        
+        // Sync Grid UI
+        document.querySelectorAll('#update-character-area .character-card').forEach(c => {
+            c.classList.toggle('active', c.dataset.value === charId);
+        });
     } else {
         state.updateAppearanceType = 'emoji';
         state.updateSelectedEmoji = p ? p.emoji : '🪐';
@@ -300,7 +308,7 @@ export async function handleSpawn() {
 
     let emoji = state.selectedEmoji || '🪐';
     if (state.spawnAppearanceType === 'character') {
-         emoji = 'SPRITE:' + dom.spawnCharacterSelect.value;
+         emoji = 'SPRITE:' + (state.spawnSelectedCharacter || 'Char1');
     }
     const apiKey = dom.apiKeyInput.value.trim();
     const baseUrl = dom.baseUrlInput.value.trim();
@@ -368,6 +376,27 @@ export async function handleDeleteAgent(deleteFiles = false) {
 
 export function setupAppearanceToggles(toggleContainer, typeVarName, onTypeChange) {
     if (!toggleContainer) return;
+
+    const modalId = typeVarName === 'spawnAppearanceType' ? 'spawn' : 'update';
+    const characterArea = document.getElementById(`${modalId}-character-area`);
+    
+    // Bind character cards if they exist
+    if (characterArea) {
+        characterArea.querySelectorAll('.character-card').forEach(card => {
+            card.onclick = () => {
+                const val = card.dataset.value;
+                if (typeVarName === 'spawnAppearanceType') state.spawnSelectedCharacter = val;
+                else state.updateSelectedCharacter = val;
+                
+                characterArea.querySelectorAll('.character-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                
+                const preview = document.getElementById(typeVarName === 'spawnAppearanceType' ? 'selected-emoji-preview' : 'update-emoji-preview');
+                if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + val);
+            };
+        });
+    }
+
     const btns = toggleContainer.querySelectorAll('.type-btn');
     btns.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -376,12 +405,31 @@ export function setupAppearanceToggles(toggleContainer, typeVarName, onTypeChang
             btns.forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             if (onTypeChange) onTypeChange(type);
+
+            // Handle visibility of Emoji preview/picker vs Character grid
+            if (typeVarName === 'spawnAppearanceType') {
+                if (type === 'character') {
+                    dom.spawnEmojiZone.classList.add('hidden');
+                    dom.spawnCharacterArea.classList.remove('hidden');
+                } else {
+                    dom.spawnEmojiZone.classList.remove('hidden');
+                    dom.spawnCharacterArea.classList.add('hidden');
+                }
+            } else if (typeVarName === 'updateAppearanceType') {
+                if (type === 'character') {
+                    dom.updateEmojiArea.classList.add('hidden');
+                    dom.updateCharacterArea.classList.remove('hidden');
+                } else {
+                    dom.updateEmojiArea.classList.remove('hidden');
+                    dom.updateCharacterArea.classList.add('hidden');
+                }
+            }
             
             const preview = document.getElementById(typeVarName === 'spawnAppearanceType' ? 'selected-emoji-preview' : 'update-emoji-preview');
             if (preview) {
                 let appearance = (typeVarName === 'spawnAppearanceType' ? state.selectedEmoji : state.updateSelectedEmoji) || '🪐';
                 if (state[typeVarName] === 'character') {
-                    appearance = 'SPRITE:' + (typeVarName === 'spawnAppearanceType' ? dom.spawnCharacterSelect.value : dom.updateCharacterSelect.value);
+                    appearance = 'SPRITE:' + (typeVarName === 'spawnAppearanceType' ? state.spawnSelectedCharacter : state.updateSelectedCharacter);
                 }
                 preview.innerHTML = getAppearanceHtml(appearance);
             }

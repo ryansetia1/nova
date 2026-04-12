@@ -182,23 +182,7 @@ function bindEvents() {
     dom.modalConfirm.addEventListener('click', handleSpawn);
     dom.deleteCancelBtn.addEventListener('click', closeDeleteAgentModal);
     
-    if (dom.spawnCharacterSelect) {
-        dom.spawnCharacterSelect.addEventListener('change', () => {
-            if (state.spawnAppearanceType === 'character') {
-                const preview = dom.emojiPreview;
-                if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + dom.spawnCharacterSelect.value);
-            }
-        });
-    }
 
-    if (dom.updateCharacterSelect) {
-        dom.updateCharacterSelect.addEventListener('change', () => {
-            if (state.updateAppearanceType === 'character') {
-                const preview = dom.updateEmojiPreview;
-                if (preview) preview.innerHTML = getAppearanceHtml('SPRITE:' + dom.updateCharacterSelect.value);
-            }
-        });
-    }
 
     if (dom.orphanedSelect) {
         dom.orphanedSelect.addEventListener('change', (e) => {
@@ -259,33 +243,14 @@ function bindEvents() {
         });
     }
 
-    setupAppearanceToggles(dom.spawnTypeToggle, 'spawnAppearanceType', (type) => {
-        if (type === 'emoji') {
-            if (dom.spawnEmojiZone) dom.spawnEmojiZone.classList.remove('hidden');
-            if (dom.spawnCharacterArea) dom.spawnCharacterArea.classList.add('hidden');
-        } else {
-            if (dom.spawnEmojiZone) dom.spawnEmojiZone.classList.add('hidden');
-            if (dom.spawnCharacterArea) dom.spawnCharacterArea.classList.remove('hidden');
-        }
-    });
-
-    setupAppearanceToggles(dom.updateTypeToggle, 'updateAppearanceType', (type) => {
-        if (type === 'emoji') {
-            dom.updateEmojiArea.classList.remove('hidden');
-            dom.updateCharacterArea.classList.add('hidden');
-            if (dom.updateEmojiHint) dom.updateEmojiHint.classList.remove('hidden');
-        } else {
-            dom.updateEmojiArea.classList.add('hidden');
-            dom.updateCharacterArea.classList.remove('hidden');
-            if (dom.updateEmojiHint) dom.updateEmojiHint.classList.add('hidden');
-        }
-    });
+    setupAppearanceToggles(dom.spawnTypeToggle, 'spawnAppearanceType');
+    setupAppearanceToggles(dom.updateTypeToggle, 'updateAppearanceType');
 
     if (dom.emojiUpdateSaveBtn) {
         dom.emojiUpdateSaveBtn.addEventListener('click', () => {
              let finalAppearance = state.updateSelectedEmoji || '🪐';
              if (state.updateAppearanceType === 'character') {
-                 finalAppearance = 'SPRITE:' + dom.updateCharacterSelect.value;
+                 finalAppearance = 'SPRITE:' + (state.updateSelectedCharacter || 'Char1');
              }
              handleEmojiUpdate(finalAppearance);
         });
