@@ -27,8 +27,10 @@ if (app.isPackaged) {
 }
 
 // Import and start the existing Express+WebSocket server
-// server.js exports nothing — just require it to start it
-require('./server.js');
+// server.js exports nothing — only start it internally in production
+if (app.isPackaged) {
+  require('./server.js');
+}
 
 let mainWindow;
 
