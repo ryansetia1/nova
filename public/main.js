@@ -51,7 +51,8 @@ import {
 import { 
     setupTerminal, 
     openTerminal, 
-    hideTerminal 
+    hideTerminal,
+    updateDockedLayout 
 } from './terminal.js';
 
 // ---- Initialization ----
@@ -383,6 +384,7 @@ function bindEvents() {
                 try { t.fitAddon.fit(); } catch (e) {}
             }
         });
+        updateDockedLayout();
     });
 
     if (dom.emojiUpdateModal) {

@@ -76,8 +76,9 @@ export function updateDockedLayout() {
 
     if (dockCount > 0) {
         dockedPanels.forEach((panel, index) => {
-            panel.style.setProperty('top', `calc(73px + ((100vh - 73px) / ${dockCount}) * ${index})`, 'important');
-            panel.style.setProperty('height', `calc((100vh - 73px) / ${dockCount})`, 'important');
+            const headerHeight = document.body.classList.contains('is-fullscreen') ? 73 : 95;
+            panel.style.setProperty('top', `calc(${headerHeight}px + ((100vh - ${headerHeight}px) / ${dockCount}) * ${index})`, 'important');
+            panel.style.setProperty('height', `calc((100vh - ${headerHeight}px) / ${dockCount})`, 'important');
             
             const pName = panel.dataset.project;
             if (pName && state.terminals[pName]) {

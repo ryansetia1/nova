@@ -1987,12 +1987,12 @@ emoji-picker.dark {
 
 /* Docked Right Styles */
 .terminal-panel.docked-right {
-  top: 73px !important;
+  top: 95px !important;
   right: 0 !important;
   left: auto !important;
   bottom: 0 !important;
   width: var(--docked-width, 400px) !important;
-  height: calc(100vh - 73px) !important;
+  height: calc(100vh - 95px) !important;
   border-radius: 0 !important;
   transform: none !important;
   border-right: none !important;
@@ -2001,6 +2001,11 @@ emoji-picker.dark {
   border-left: 1px solid var(--border-subtle) !important;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5) !important;
   z-index: 200000;
+}
+
+body.is-fullscreen .terminal-panel.docked-right {
+  top: 73px !important;
+  height: calc(100vh - 73px) !important;
 }
 
 .terminal-panel.maximized {
