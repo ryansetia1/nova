@@ -45,6 +45,10 @@
   /* Agent Anchor Variables */
   --anchor-x: 50%;
   --anchor-y: 85%;
+  --anchor-x-Char1: 50%;
+  --anchor-y-Char1: 85%;
+  --anchor-x-Char2: 50%;
+  --anchor-y-Char2: 85%;
 }
 
 /* ============================================
@@ -939,9 +943,21 @@ body.drawing-mode #robot-area {
   width: 210px;
   z-index: 10;
   padding: 10px;
-  /* Anchor is adjustable via CSS variables */
-  transform: translate(calc(-1 * var(--anchor-x)), calc(-1 * var(--anchor-y)));
+  /* Anchor is adjustable via CSS variables per character */
+  --char-anchor-x: var(--anchor-x, 50%);
+  --char-anchor-y: var(--anchor-y, 85%);
+  transform: translate(calc(-1 * var(--char-anchor-x)), calc(-1 * var(--char-anchor-y)));
   transition: transform 0.2s, top 0.1s linear, left 0.1s linear;
+}
+
+.robot-avatar.char-parent-Char1 {
+  --char-anchor-x: var(--anchor-x-Char1, 50%);
+  --char-anchor-y: var(--anchor-y-Char1, 85%);
+}
+
+.robot-avatar.char-parent-Char2 {
+  --char-anchor-x: var(--anchor-x-Char2, 50%);
+  --char-anchor-y: var(--anchor-y-Char2, 85%);
 }
 
 .robot-avatar:hover {
@@ -955,8 +971,8 @@ body.drawing-mode #robot-area {
 
 .robot-anchor-dot {
   position: absolute;
-  left: var(--anchor-x);
-  top: var(--anchor-y);
+  left: var(--char-anchor-x, 50%);
+  top: var(--char-anchor-y, 85%);
   transform: translate(-50%, -50%);
   width: 10px;
   height: 10px;

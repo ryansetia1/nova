@@ -200,59 +200,67 @@ export async function loadAnchorConfig() {
     try {
         const res = await fetch('/api/anchor');
         const data = await res.json();
-        if (typeof data.x === 'number' && typeof data.y === 'number') {
-            state.anchor = { x: data.x, y: data.y };
-            state.originalAnchor = { ...state.anchor };
-            updateAnchorStyles(data.x, data.y);
-        }
+        // Result is expected to be { Char1: { x, y }, Char2: { x, y } }
+        Object.keys(data).forEach(charId => {
+            state.characterAnchors[charId] = data[charId];
+            state.originalCharacterAnchors[charId] = { ...data[charId] };
+            updateAnchorStyles(charId, data[charId].x, data[charId].y);
+        });
     } catch (err) { console.error('Failed to load anchor', err); }
 }
 
-export async function saveAnchorConfig(x, y) {
+export async function saveAnchorConfig(anchors) {
     try {
         const res = await fetch('/api/anchor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ x: Number(x), y: Number(y) })
+            body: JSON.stringify(anchors)
         });
         if (res.ok) {
-            state.originalAnchor = { x, y };
-            showToast('success', '⚓', 'Anchor configuration saved!');
+            Object.keys(anchors).forEach(charId => {
+                state.originalCharacterAnchors[charId] = { ...anchors[charId] };
+            });
+            showToast('success', '⚓', 'Character anchors saved!');
         }
-    } catch (err) { showToast('error', '❌', 'Failed to save anchor'); }
+    } catch (err) { showToast('error', '❌', 'Failed to save anchors'); }
 }
 
-export function updateAnchorStyles(x, y) {
-    document.documentElement.style.setProperty('--anchor-x', `${x}%`);
-    document.documentElement.style.setProperty('--anchor-y', `${y}%`);
-    const inputX = document.querySelector('#input-anchor-x');
-    const inputY = document.querySelector('#input-anchor-y');
-    const valX = document.querySelector('#val-anchor-x');
-    const valY = document.querySelector('#val-anchor-y');
-    if (inputX) inputX.value = x;
-    if (inputY) inputY.value = y;
-    if (valX) valX.textContent = x;
-    if (valY) valY.textContent = y;
+export function updateAnchorStyles(charId, x, y) {
+    document.documentElement.style.setProperty(`--anchor-x-${charId}`, `${x}%`);
+    document.documentElement.style.setProperty(`--anchor-y-${charId}`, `${y}%`);
 }
 
 export function initAnchorAdjuster() {
-  if (!dom.inputAnchorX || !dom.inputAnchorY) return;
+  const { anchorCharSelector, inputAnchorX, inputAnchorY, valAnchorX, valAnchorY } = dom;
+  if (!inputAnchorX || !inputAnchorY || !anchorCharSelector) return;
 
-  const syncUI = () => {
-      const x = dom.inputAnchorX.value;
-      const y = dom.inputAnchorY.value;
-      state.anchor.x = x;
-      state.anchor.y = y;
-      
-      dom.valAnchorX.textContent = x;
-      dom.valAnchorY.textContent = y;
-      
-      document.documentElement.style.setProperty('--anchor-x', `${x}%`);
-      document.documentElement.style.setProperty('--anchor-y', `${y}%`);
+  const updateSlidersFromState = () => {
+    const charId = anchorCharSelector.value;
+    const anchor = state.characterAnchors[charId] || { x: 50, y: 85 };
+    inputAnchorX.value = anchor.x;
+    inputAnchorY.value = anchor.y;
+    valAnchorX.textContent = anchor.x;
+    valAnchorY.textContent = anchor.y;
   };
 
-  dom.inputAnchorX.addEventListener('input', syncUI);
-  dom.inputAnchorY.addEventListener('input', syncUI);
+  const syncUI = () => {
+    const charId = anchorCharSelector.value;
+    const x = inputAnchorX.value;
+    const y = inputAnchorY.value;
+    
+    if (!state.characterAnchors[charId]) state.characterAnchors[charId] = { x: 50, y: 85 };
+    state.characterAnchors[charId].x = Number(x);
+    state.characterAnchors[charId].y = Number(y);
+    
+    valAnchorX.textContent = x;
+    valAnchorY.textContent = y;
+    
+    updateAnchorStyles(charId, x, y);
+  };
+
+  anchorCharSelector.addEventListener('change', updateSlidersFromState);
+  inputAnchorX.addEventListener('input', syncUI);
+  inputAnchorY.addEventListener('input', syncUI);
   
   const btnReset = document.querySelector('#btn-anchor-reset');
   const btnCancel = document.querySelector('#btn-anchor-cancel');
@@ -260,17 +268,19 @@ export function initAnchorAdjuster() {
 
   if (btnReset) {
       btnReset.onclick = () => {
-          dom.inputAnchorX.value = 50;
-          dom.inputAnchorY.value = 85;
+          const charId = anchorCharSelector.value;
+          state.characterAnchors[charId] = { x: 50, y: 85 };
+          updateSlidersFromState();
           syncUI();
-          showToast('info', '🔄', 'Anchor reset to default');
+          showToast('info', '🔄', `Anchor for ${charId} reset to default`);
       };
   }
 
   if (btnCancel) {
       btnCancel.onclick = () => {
-          dom.inputAnchorX.value = state.originalAnchor.x;
-          dom.inputAnchorY.value = state.originalAnchor.y;
+          const charId = anchorCharSelector.value;
+          state.characterAnchors[charId] = { ...state.originalCharacterAnchors[charId] };
+          updateSlidersFromState();
           syncUI();
           showToast('info', '📂', 'Changes discarded');
       };
@@ -278,11 +288,11 @@ export function initAnchorAdjuster() {
 
   if (btnSave) {
       btnSave.onclick = async () => {
-          await saveAnchorConfig(state.anchor.x, state.anchor.y);
+          await saveAnchorConfig(state.characterAnchors);
       };
   }
 
-  syncUI();
+  updateSlidersFromState();
 }
 
 export async function loadBreakPositions() {

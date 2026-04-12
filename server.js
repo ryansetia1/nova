@@ -384,25 +384,30 @@ app.post('/api/walkable-path', (req, res) => {
 
 // API: Get/Save Anchor Config
 app.get('/api/anchor', (req, res) => {
+  const defaultAnchors = { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } };
   if (fs.existsSync(ANCHOR_CONFIG_FILE)) {
     try {
-      const data = fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8');
-      return res.json(JSON.parse(data));
+      const data = JSON.parse(fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8'));
+      // Migrate old format (single object) to new format (map)
+      if (typeof data.x === 'number') {
+        return res.json({ Char1: data, Char2: { x: 50, y: 85 } });
+      }
+      return res.json(data);
     } catch (e) {
       return res.status(500).json({ error: 'Failed to read anchor file' });
     }
   }
-  res.json({ x: 50, y: 85 }); // Default fallback
+  res.json(defaultAnchors);
 });
 
 app.post('/api/anchor', (req, res) => {
-  const { x, y } = req.body;
-  if (typeof x !== 'number' || typeof y !== 'number') {
-    return res.status(400).json({ error: 'Invalid anchor coordinates' });
+  const anchors = req.body;
+  if (typeof anchors !== 'object') {
+    return res.status(400).json({ error: 'Invalid anchor data' });
   }
   try {
-    fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify({ x, y }, null, 2));
-    console.log(`⚓  Anchor updated: x=${x}, y=${y}`);
+    fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify(anchors, null, 2));
+    console.log(`⚓  Anchors updated for: ${Object.keys(anchors).join(', ')}`);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save anchor' });

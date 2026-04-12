@@ -42,8 +42,14 @@ export const state = {
   get charFrames() { return (this.characterFrames['Char1']?.walk) || []; },
   get idleFrames() { return (this.characterFrames['Char1']?.idle) || []; },
   
-  anchor: { x: 50, y: 85 },
-  originalAnchor: { x: 50, y: 85 }
+  characterAnchors: {
+    Char1: { x: 50, y: 85 },
+    Char2: { x: 50, y: 85 }
+  },
+  originalCharacterAnchors: {
+    Char1: { x: 50, y: 85 },
+    Char2: { x: 50, y: 85 }
+  }
 };
 
 export const $ = (sel) => document.querySelector(sel);
@@ -125,6 +131,7 @@ export const dom = {
   get loaderStatus() { return $('.loader-status'); },
 
   // Anchor Adj
+  get anchorCharSelector() { return $('#anchor-char-selector'); },
   get inputAnchorX() { return $('#input-anchor-x'); },
   get inputAnchorY() { return $('#input-anchor-y'); },
   get valAnchorX() { return $('#val-anchor-x'); },
