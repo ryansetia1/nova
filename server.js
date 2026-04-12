@@ -171,6 +171,20 @@ app.post('/api/projects', (req, res) => {
       if (!fs.existsSync(parentProjectPath) || parentName === '.' || parentName === '..') {
         return res.status(404).json({ error: `Parent agent "${parentName}" not found` });
       }
+
+      // Ensure parent is NOT a captain
+      const parentMetaPathNew = path.join(parentProjectPath, '.nova-meta.json');
+      const parentMetaPathOld = path.join(parentProjectPath, '.nova_meta.json');
+      const parentMetaPath = fs.existsSync(parentMetaPathNew) ? parentMetaPathNew : (fs.existsSync(parentMetaPathOld) ? parentMetaPathOld : null);
+      if (parentMetaPath) {
+        try {
+          const parentMeta = JSON.parse(fs.readFileSync(parentMetaPath, 'utf8'));
+          if (parentMeta.type === 'captain') {
+            return res.status(400).json({ error: 'Agents cannot be nested inside a Captain' });
+          }
+        } catch (e) {}
+      }
+
       const resolvedParentPath = fs.realpathSync(parentProjectPath);
       const nestedFolderPath = path.join(resolvedParentPath, safeName);
       

@@ -201,7 +201,7 @@ export async function openModal(type = 'agent') {
     }
 
     // Populate Parent Agent (Agent Only)
-    const activeAgents = state.projects.filter(p => p.active && p.type !== 'pet');
+    const activeAgents = state.projects.filter(p => p.active && p.type !== 'pet' && p.type !== 'captain');
     if (dom.nestParentSelect) {
         dom.nestParentSelect.innerHTML = '<option value="">— None (create standalone agent) —</option>' +
             activeAgents.map(p => {
