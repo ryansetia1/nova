@@ -882,7 +882,7 @@ body.theme-night .robot-avatar:hover .robot-card-emoji {
   transition: opacity 0.3s ease;
 }
 
-body.drawing-mode #robot-area {
+body.drawing-mode:not(.show-visuals) #robot-area {
   display: none !important;
 }
 
@@ -3579,20 +3579,89 @@ body.dev-mode-layout #dev-svg-layer g {
 }
 
 .settings-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  padding: 4px 12px 2px;
+  font-size: 8px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.15em;
+  padding: 12px 14px 4px;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
 }
-.default-folder-display {
-  font-size: 11px;
+
+.default-folder-setting {
+  padding: 0 4px;
+}
+
+.settings-menu-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
   color: var(--text-secondary);
-  padding: 2px 12px 6px;
-  font-family: var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.settings-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.default-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.default-folder-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.default-folder-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.default-folder-name {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.default-folder-clear {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: var(--transition-fast);
+}
+
+.default-folder-clear:hover {
+  color: var(--accent-rose);
+  background: rgba(244, 63, 94, 0.1);
 }
 
 /* ============================================

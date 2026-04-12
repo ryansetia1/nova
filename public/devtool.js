@@ -150,10 +150,10 @@ function enterDevMode() {
     // Fetch object assets
     import('./walking.js').then(m => m.loadObjectAssets());
 
-    showDevToolbar();
+    setDevMode('visualize');
     initDevSvg();
     renderActivePath();
-    showToast('info', '🛠️', 'Dev Mode: ON. Use toolbar to Draw, Tweak, or set Positions.');
+    showToast('info', '🛠️', 'Dev Mode: ON');
 }
 
 function exitDevMode(save = true) {
@@ -202,6 +202,7 @@ function showDevToolbar() {
     const btnStyle = 'padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; cursor:pointer; font-size:12px; transition:all 0.2s;';
     
     dev.toolbar.innerHTML = `
+        <button id="dev-btn-visualize" style="${btnStyle} ${dev.mode === 'visualize' ? 'background:#8b5cf6; border-color:#8b5cf6;' : ''}">⚓ Visualize</button>
         <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🖋️ Draw</button>
         <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
@@ -216,10 +217,11 @@ function showDevToolbar() {
     
     document.body.appendChild(dev.toolbar);
     
-    dev.toolbar.querySelector('#dev-btn-draw').onclick = () => setDevMode('draw');
-    dev.toolbar.querySelector('#dev-btn-tweak').onclick = () => setDevMode('tweak');
-    dev.toolbar.querySelector('#dev-btn-positions').onclick = () => setDevMode('positions');
-    dev.toolbar.querySelector('#dev-btn-layout').onclick = () => setDevMode('layout');
+    dev.toolbar.querySelector('#dev-btn-visualize').onclick = (e) => { e.stopPropagation(); setDevMode('visualize'); };
+    dev.toolbar.querySelector('#dev-btn-draw').onclick = (e) => { e.stopPropagation(); setDevMode('draw'); };
+    dev.toolbar.querySelector('#dev-btn-tweak').onclick = (e) => { e.stopPropagation(); setDevMode('tweak'); };
+    dev.toolbar.querySelector('#dev-btn-positions').onclick = (e) => { e.stopPropagation(); setDevMode('positions'); };
+    dev.toolbar.querySelector('#dev-btn-layout').onclick = (e) => { e.stopPropagation(); setDevMode('layout'); };
     
     const addObjBtn = dev.toolbar.querySelector('#dev-btn-add-obj');
     if (addObjBtn) {
@@ -475,9 +477,21 @@ function hideLayoutConfig() {
 
 function setDevMode(mode) {
     dev.mode = mode;
+    showDevToolbar();
     
+    // Toggle visualization visibility
+    if (mode === 'visualize') {
+        document.body.classList.add('show-visuals');
+        const adj = document.getElementById('anchor-adjuster');
+        if (adj) adj.classList.add('active');
+    } else {
+        document.body.classList.remove('show-visuals');
+        const adj = document.getElementById('anchor-adjuster');
+        if (adj) adj.classList.remove('active');
+    }
+
     // Update body classes for CSS targeting
-    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout');
+    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize');
     document.body.classList.add(`dev-mode-${mode}`);
     
     // Close any open config panels when switching modes to prevent stale data

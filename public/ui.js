@@ -613,47 +613,59 @@ export function initNotificationSettings() {
 }
 
 export function initDefaultFolderSettings() {
-  const setBtn = document.getElementById('set-default-folder-btn');
-  const clearBtn = document.getElementById('clear-default-folder-btn');
-  const display = document.getElementById('default-folder-display');
+  const container = document.getElementById('default-folder-setting');
+  if (!container) return;
 
-  const updateDisplay = () => {
+  const render = () => {
     const saved = localStorage.getItem('nova_default_folder');
-    if (display) {
-      display.textContent = saved
-        ? saved.split('/').pop()
-        : 'Not set';
-      display.title = saved || '';
+
+    if (!saved) {
+      container.innerHTML = `
+        <button id="set-default-folder-btn" class="settings-menu-btn">
+          📁 Set Default Folder
+        </button>
+      `;
+      document.getElementById('set-default-folder-btn')
+        .addEventListener('click', pickFolder);
+    } else {
+      const folderName = saved.split('/').pop();
+      container.innerHTML = `
+        <div class="default-folder-row" id="set-default-folder-btn" title="${saved}">
+          <span class="default-folder-icon">📁</span>
+          <span class="default-folder-name">${folderName}</span>
+          <button class="default-folder-clear" id="clear-default-folder-btn" title="Clear">✕</button>
+        </div>
+      `;
+      document.getElementById('set-default-folder-btn')
+        .addEventListener('click', (e) => {
+          if (e.target.id === 'clear-default-folder-btn') return;
+          pickFolder();
+        });
+      document.getElementById('clear-default-folder-btn')
+        .addEventListener('click', (e) => {
+          e.stopPropagation();
+          localStorage.removeItem('nova_default_folder');
+          render();
+          showToast('info', '📁', 'Default folder cleared');
+        });
     }
   };
 
-  updateDisplay();
+  const pickFolder = async () => {
+    if (!window.electronAPI || !window.electronAPI.selectFolder) {
+      showToast('info', '📁', 'Only available in desktop app');
+      return;
+    }
+    const folderPath = await window.electronAPI.selectFolder();
+    if (folderPath) {
+      localStorage.setItem('nova_default_folder', folderPath);
+      render();
+      showToast('success', '📁', 
+        `Default folder: ${folderPath.split('/').pop()}`);
+    }
+  };
 
-  if (setBtn) {
-    setBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!window.electronAPI || !window.electronAPI.selectFolder) {
-        showToast('info', '📁', 'Only available in desktop app');
-        return;
-      }
-      const folderPath = await window.electronAPI.selectFolder();
-      if (folderPath) {
-        localStorage.setItem('nova_default_folder', folderPath);
-        updateDisplay();
-        showToast('success', '📁', 
-          `Default folder: ${folderPath.split('/').pop()}`);
-      }
-    });
-  }
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      localStorage.removeItem('nova_default_folder');
-      updateDisplay();
-      showToast('info', '📁', 'Default folder cleared');
-    });
-  }
+  render();
 }
 
 export function initMusicManager() {
