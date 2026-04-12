@@ -134,6 +134,7 @@ export const dom = {
   get sidebarToggle() { return $('#sidebar-toggle'); },
   get activeAgentList() { return $('#active-agent-list'); },
   get orphanedFolderList() { return $('#orphaned-folder-list'); },
+  get orphanedSection() { return $('#orphaned-section'); },
   get activeCount() { return $('#active-count'); },
   get orphanedCount() { return $('#orphaned-count'); },
   

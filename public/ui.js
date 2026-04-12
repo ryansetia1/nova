@@ -76,6 +76,12 @@ export function renderSidebar() {
     // Update Counts
     if (dom.activeCount) dom.activeCount.innerText = activeAgents.length;
     if (dom.orphanedCount) dom.orphanedCount.innerText = orphanedFolders.length;
+    
+    // Hide orphaned section if count is 0
+    if (dom.orphanedSection) {
+        if (orphanedFolders.length === 0) dom.orphanedSection.classList.add('hidden');
+        else dom.orphanedSection.classList.remove('hidden');
+    }
 
     // Render Active Agents
     if (dom.activeAgentList) {
