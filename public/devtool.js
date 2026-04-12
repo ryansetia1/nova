@@ -13,13 +13,16 @@ export const dev = {
     originalPolygon: [], 
     originalPositions: [], 
     originalObjects: [],
+    originalAmbientObjects: [],
     svg: null, 
     toolbar: null, 
     draggingIndex: null,
     draggingPositionIndex: null, 
     draggingObjectIndex: null,
+    draggingAmbientIndex: null,
     editingPosition: null, // index of break position being edited
     editingObject: null, // index of foreground object being edited
+    editingAmbient: null, // index of ambient object being edited
     availableAnimationsMap: {}, // { charId: [animations] }
     resizeStart: { w:0, h:0, x:0, y:0 }
 };
@@ -29,6 +32,9 @@ function getNextDefaultName(type, asset = null) {
         const base = (asset || 'Object').charAt(0).toUpperCase() + (asset || 'Object').slice(1);
         const existingCount = state.foregroundObjects.filter(o => o.name && o.name.startsWith(base)).length;
         return `${base} ${existingCount + 1}`;
+    } else if (type === 'ambient') {
+        const existingCount = state.ambientObjects.filter(p => p.name && p.name.startsWith('Ambient')).length;
+        return `Ambient ${existingCount + 1}`;
     } else {
         const existingCount = state.breakPositions.filter(p => p.name && p.name.startsWith('Position')).length;
         return `Position ${existingCount + 1}`;
@@ -85,6 +91,16 @@ export function initDevTool() {
                     document.addEventListener('mouseup', onObjectUp);
                     showLayoutConfig(hitIndex);
                 }
+            } else if (dev.mode === 'theatre') {
+                const targetAmbient = e.target.closest('.ambient-object-wrapper');
+                if (targetAmbient) {
+                    const hitIndex = parseInt(targetAmbient.getAttribute('data-index'));
+                    dev.draggingAmbientIndex = hitIndex;
+                    dev.editingAmbient = hitIndex;
+                    document.addEventListener('mousemove', onAmbientMove);
+                    document.addEventListener('mouseup', onAmbientUp);
+                    showAmbientConfig(hitIndex);
+                }
             }
         });
     }
@@ -114,6 +130,32 @@ function onObjectUp() {
     document.removeEventListener('mouseup', onObjectUp);
 }
 
+function onAmbientMove(e) {
+    if (dev.draggingAmbientIndex === null) return;
+    const floorWrapper = document.querySelector('#floor-wrapper');
+    const rect = floorWrapper.getBoundingClientRect();
+    let x = ((e.clientX - rect.left) / rect.width) * 100;
+    let y = ((e.clientY - rect.top) / rect.height) * 100;
+    x = parseFloat(Math.max(0, Math.min(100, x)).toFixed(2));
+    y = parseFloat(Math.max(0, Math.min(100, y)).toFixed(2));
+    
+    state.ambientObjects[dev.draggingAmbientIndex].x = x;
+    state.ambientObjects[dev.draggingAmbientIndex].y = y;
+    
+    // Fast dynamic update
+    const el = document.querySelector(`.ambient-object-wrapper[data-index="${dev.draggingAmbientIndex}"]`);
+    if (el) {
+        el.style.left = x + '%';
+        el.style.top = y + '%';
+    }
+}
+
+function onAmbientUp() {
+    dev.draggingAmbientIndex = null;
+    document.removeEventListener('mousemove', onAmbientMove);
+    document.removeEventListener('mouseup', onAmbientUp);
+}
+
 function onPositionMove(e) {
     if (dev.draggingPositionIndex === null) return;
     const pt = dev.svg.createSVGPoint();
@@ -138,6 +180,7 @@ function enterDevMode() {
     dev.originalPolygon = JSON.parse(JSON.stringify(WALKABLE_PATH));
     dev.originalPositions = JSON.parse(JSON.stringify(state.breakPositions));
     dev.originalObjects = JSON.parse(JSON.stringify(state.foregroundObjects));
+    dev.originalAmbientObjects = JSON.parse(JSON.stringify(state.ambientObjects));
     
     dev.polygon = [...WALKABLE_PATH];
     document.body.classList.add('drawing-mode');
@@ -162,25 +205,26 @@ function renderDevSidebar() {
 
     const isPositions = dev.mode === 'positions';
     const isLayout = dev.mode === 'layout';
+    const isTheatre = dev.mode === 'theatre';
     
-    if (!isPositions && !isLayout) {
+    if (!isPositions && !isLayout && !isTheatre) {
         sidebar.classList.add('hidden');
         return;
     }
 
     sidebar.classList.remove('hidden');
     
-    const entities = isPositions ? state.breakPositions : state.foregroundObjects;
-    const title = isPositions ? 'Workspace Positions' : 'Workspace Objects';
-    const icon = isPositions ? '📍' : '📦';
+    const entities = isPositions ? state.breakPositions : (isLayout ? state.foregroundObjects : state.ambientObjects);
+    const title = isPositions ? 'Workspace Positions' : (isLayout ? 'Workspace Objects' : 'Ambient Objects');
+    const icon = isPositions ? '📍' : (isLayout ? '📦' : '🎬');
 
     sidebar.innerHTML = `
         <div class="dev-sidebar-header">${title}</div>
         <div class="dev-entity-list">
             ${entities.map((ent, i) => `
-                <div class="dev-entity-item ${ (isPositions ? dev.editingPosition : dev.editingObject) === i ? 'active' : ''}" data-index="${i}">
-                    <span style="font-size:14px;">${ent.emoji || (isPositions ? '📍' : (state.objectAssets.includes(ent.asset) ? '📦' : '❓'))}</span>
-                    <span class="dev-entity-name">${ent.name || (isPositions ? 'Position ' + (i+1) : ent.asset)}</span>
+                <div class="dev-entity-item ${ (isPositions ? dev.editingPosition : (isLayout ? dev.editingObject : dev.editingAmbient)) === i ? 'active' : ''}" data-index="${i}">
+                    <span style="font-size:14px;">${ent.emoji || (isPositions ? '📍' : (isLayout ? (state.objectAssets.includes(ent.asset) ? '📦' : '❓') : '🎬'))}</span>
+                    <span class="dev-entity-name">${ent.name || (isPositions ? 'Position ' + (i+1) : (isLayout ? ent.asset : 'Ambient ' + (i+1)))}</span>
                     <span class="dev-entity-delete" data-index="${i}">✕</span>
                 </div>
             `).join('')}
@@ -193,7 +237,8 @@ function renderDevSidebar() {
             if (e.target.classList.contains('dev-entity-delete')) return;
             const idx = parseInt(item.getAttribute('data-index'));
             if (isPositions) showPositionConfig(idx);
-            else showLayoutConfig(idx);
+            else if (isLayout) showLayoutConfig(idx);
+            else showAmbientConfig(idx);
             renderDevSidebar(); 
             renderActivePath();
         };
@@ -206,10 +251,14 @@ function renderDevSidebar() {
             if (isPositions) {
                 state.breakPositions.splice(idx, 1);
                 hidePositionConfig();
-            } else {
+            } else if (isLayout) {
                 state.foregroundObjects.splice(idx, 1);
                 hideLayoutConfig();
                 import('./ui.js').then(m => m.renderForegroundObjects());
+            } else {
+                state.ambientObjects.splice(idx, 1);
+                hideAmbientConfig();
+                import('./ui.js').then(m => m.renderAmbientObjects());
             }
             renderDevSidebar();
             renderActivePath();
@@ -220,8 +269,9 @@ function renderDevSidebar() {
 export function exitDevMode(save = true) {
     document.body.classList.remove('drawing-mode');
     document.body.classList.remove('layout-mode');
+    document.body.classList.remove('theatre-mode');
     document.body.classList.remove('show-visuals');
-    document.body.classList.remove('dev-mode-visualize', 'dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout');
+    document.body.classList.remove('dev-mode-visualize', 'dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-theatre');
     
     // Clear panels
     const adj = document.getElementById('anchor-adjuster');
@@ -232,22 +282,28 @@ export function exitDevMode(save = true) {
 
     hidePositionConfig();
     hideLayoutConfig();
+    hideAmbientConfig();
 
     if (dev.toolbar) dev.toolbar.remove();
     dev.toolbar = null;
-    if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0 || state.foregroundObjects.length > 0)) {
+    if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0 || state.foregroundObjects.length > 0 || state.ambientObjects.length > 0)) {
         saveWalkablePath(dev.polygon);
         import('./walking.js').then(m => {
             m.saveBreakPositions(state.breakPositions);
             m.saveForegroundObjects(state.foregroundObjects);
+            m.saveAmbientObjects(state.ambientObjects);
         });
     } else if (!save) {
         dev.polygon = [...dev.originalPolygon];
         state.breakPositions = JSON.parse(JSON.stringify(dev.originalPositions));
         state.foregroundObjects = JSON.parse(JSON.stringify(dev.originalObjects));
+        state.ambientObjects = JSON.parse(JSON.stringify(dev.originalAmbientObjects));
         
         // Re-render UI to remove discarded objects
-        import('./ui.js').then(m => m.renderForegroundObjects());
+        import('./ui.js').then(m => {
+            m.renderForegroundObjects();
+            m.renderAmbientObjects();
+        });
         
         showToast('info', '📂', 'Changes discarded.');
     }
@@ -281,8 +337,10 @@ function showDevToolbar() {
         <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
         <button id="dev-btn-layout" style="${btnStyle} ${dev.mode === 'layout' ? 'background:#10b981; border-color:#10b981;' : ''}">📐 Layout</button>
+        <button id="dev-btn-theatre" style="${btnStyle} ${dev.mode === 'theatre' ? 'background:#d97706; border-color:#d97706;' : ''}">🎬 Theatre</button>
         ${dev.mode === 'layout' ? `<button id="dev-btn-add-obj" style="${btnStyle} background:rgba(16,185,129,0.2); border-color:#10b981; color:#10b981;">➕ Add Object</button>` : ''}
         ${dev.mode === 'positions' ? `<button id="dev-btn-add-pos" style="${btnStyle} background:rgba(99,102,241,0.2); border-color:#6366f1; color:#a5b4fc;">➕ Add Pos</button>` : ''}
+        ${dev.mode === 'theatre' ? `<button id="dev-btn-add-ambient" style="${btnStyle} background:rgba(217,119,6,0.2); border-color:#d97706; color:#fbbf24;">➕ Add Iframe</button>` : ''}
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
         <button id="dev-btn-cancel" style="${btnStyle}">❌ Cancel</button>
@@ -296,6 +354,8 @@ function showDevToolbar() {
     dev.toolbar.querySelector('#dev-btn-tweak').onclick = (e) => { e.stopPropagation(); setDevMode('tweak'); };
     dev.toolbar.querySelector('#dev-btn-positions').onclick = (e) => { e.stopPropagation(); setDevMode('positions'); };
     dev.toolbar.querySelector('#dev-btn-layout').onclick = (e) => { e.stopPropagation(); setDevMode('layout'); };
+    const theatreBtn = dev.toolbar.querySelector('#dev-btn-theatre');
+    if (theatreBtn) theatreBtn.onclick = (e) => { e.stopPropagation(); setDevMode('theatre'); };
     
     const addObjBtn = dev.toolbar.querySelector('#dev-btn-add-obj');
     if (addObjBtn) {
@@ -325,15 +385,36 @@ function showDevToolbar() {
         };
     }
 
+    const addAmbientBtn = dev.toolbar.querySelector('#dev-btn-add-ambient');
+    if (addAmbientBtn) {
+        addAmbientBtn.onclick = () => {
+            const id = 'ambient_' + Date.now();
+            const name = getNextDefaultName('ambient');
+            state.ambientObjects.push({ 
+                id, 
+                name,
+                url: '', // Default empty follow playlist
+                x: 50, y: 50, 
+                width: 300, height: 180,
+                rotation: 0, scale: 1, skewX: 0, skewY: 0
+            });
+            dev.editingAmbient = state.ambientObjects.length - 1;
+            showAmbientConfig(state.ambientObjects.length - 1);
+            renderDevSidebar();
+            import('./ui.js').then(m => m.renderAmbientObjects());
+        };
+    }
+
     dev.toolbar.querySelector('#dev-btn-clear').onclick = () => { 
         if (dev.mode === 'positions') state.breakPositions = [];
         else if (dev.mode === 'layout') { state.foregroundObjects = []; import('./ui.js').then(m => m.renderForegroundObjects()); }
+        else if (dev.mode === 'theatre') { state.ambientObjects = []; import('./ui.js').then(m => m.renderAmbientObjects()); }
         else dev.polygon = []; 
         renderActivePath(); 
     };
 
-    dev.toolbar.querySelector('#dev-btn-cancel').onclick = () => { dev.isActive = false; exitDevMode(false); hidePositionConfig(); hideLayoutConfig(); };
-    dev.toolbar.querySelector('#dev-btn-save').onclick = () => { dev.isActive = false; exitDevMode(true); hidePositionConfig(); hideLayoutConfig(); };
+    dev.toolbar.querySelector('#dev-btn-cancel').onclick = () => { dev.isActive = false; exitDevMode(false); hidePositionConfig(); hideLayoutConfig(); hideAmbientConfig(); };
+    dev.toolbar.querySelector('#dev-btn-save').onclick = () => { dev.isActive = false; exitDevMode(true); hidePositionConfig(); hideLayoutConfig(); hideAmbientConfig(); };
 }
 
 function showPositionConfig(index) {
@@ -575,11 +656,11 @@ function setDevMode(mode) {
     }
 
     // Update body classes for CSS targeting
-    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize');
+    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize', 'dev-mode-theatre');
     document.body.classList.add(`dev-mode-${mode}`);
     
     // Sidebar management
-    if (mode === 'positions' || mode === 'layout') {
+    if (mode === 'positions' || mode === 'layout' || mode === 'theatre') {
         renderDevSidebar();
     } else {
         const sidebar = document.getElementById('dev-right-sidebar');
@@ -589,11 +670,20 @@ function setDevMode(mode) {
     // Close any open config panels when switching modes to prevent stale data
     hidePositionConfig();
     hideLayoutConfig();
+    hideAmbientConfig();
 
     if (mode === 'layout') {
         document.body.classList.add('layout-mode');
     } else {
         document.body.classList.remove('layout-mode');
+    }
+
+    if (mode === 'theatre') {
+        document.body.classList.add('theatre-mode');
+        renderDevSidebar();
+        import('./ui.js').then(m => m.renderAmbientObjects());
+    } else {
+        document.body.classList.remove('theatre-mode');
     }
 
     // DON'T clear dev.polygon here anymore, let the user use the Clear button
@@ -604,6 +694,123 @@ function setDevMode(mode) {
     showDevToolbar();
     renderActivePath();
     showToast('info', '⚙️', `Switched to ${mode.toUpperCase()} mode`);
+}
+
+export function showAmbientConfig(index) {
+    const obj = state.ambientObjects[index];
+    if (!obj) return;
+
+    let panel = document.querySelector('#dev-ambient-config');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'dev-ambient-config';
+        panel.setAttribute('style', 'position:fixed; top:100px; left:70px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #d97706; width:240px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        const app = document.getElementById('app');
+        if (app) app.appendChild(panel);
+        else document.body.appendChild(panel);
+    }
+    panel.classList.remove('hidden');
+
+    // Highlight selection
+    document.querySelectorAll('.ambient-object-wrapper').forEach(el => el.classList.remove('dev-selected'));
+    const selected = document.querySelector(`.ambient-object-wrapper[data-index="${index}"]`);
+    if (selected) selected.classList.add('dev-selected');
+
+    panel.innerHTML = `
+        <div style="font-weight:700; color:#d97706; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Ambient</div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Name</label>
+            <input type="text" id="amb-name" value="${obj.name || ''}" placeholder="e.g. Laptop Screen" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; font-size:10px; margin-bottom:8px;">
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Iframe URL (Leave empty to mirror playlist)</label>
+            <input type="text" id="amb-url" value="${obj.url || ''}" placeholder="Optional: YouTube URL" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; font-size:10px;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+                <label style="display:block; font-size:10px; opacity:0.6;">Width</label>
+                <input type="number" id="amb-w" value="${obj.width}" style="width:100%; height:32px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:0 8px;">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; opacity:0.6;">Height</label>
+                <input type="number" id="amb-h" value="${obj.height}" style="width:100%; height:32px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:0 8px;">
+            </div>
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Rotation (${obj.rotation}°)</label>
+            <input type="range" id="amb-rot" min="-180" max="180" value="${obj.rotation}" style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Scale (${obj.scale.toFixed(2)})</label>
+            <input type="range" id="amb-scale" min="0.1" max="3" step="0.1" value="${obj.scale}" style="width:100%;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+                <label style="display:block; font-size:10px; opacity:0.6;">Skew X (${obj.skewX}°)</label>
+                <input type="range" id="amb-skew-x" min="-60" max="60" value="${obj.skewX}" style="width:100%;">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; opacity:0.6;">Skew Y (${obj.skewY}°)</label>
+                <input type="range" id="amb-skew-y" min="-60" max="60" value="${obj.skewY}" style="width:100%;">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+            <button id="amb-delete" style="flex:1; padding:8px; background:#f43f5e; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Delete</button>
+            <button id="amb-close" style="flex:1; padding:8px; background:#10b981; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Done</button>
+        </div>
+    `;
+
+    panel.querySelector('#amb-name').oninput = (e) => { 
+        obj.name = e.target.value; 
+        renderDevSidebar();
+    };
+    panel.querySelector('#amb-url').onchange = (e) => { 
+        obj.url = e.target.value; 
+        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    };
+    panel.querySelector('#amb-w').oninput = (e) => { obj.width = parseInt(e.target.value); import('./ui.js').then(m => m.renderAmbientObjects()); };
+    panel.querySelector('#amb-h').oninput = (e) => { obj.height = parseInt(e.target.value); import('./ui.js').then(m => m.renderAmbientObjects()); };
+    panel.querySelector('#amb-rot').oninput = (e) => { 
+        obj.rotation = parseInt(e.target.value); 
+        panel.querySelectorAll('label')[4].textContent = `Rotation (${obj.rotation}°)`;
+        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    };
+    panel.querySelector('#amb-scale').oninput = (e) => { 
+        obj.scale = parseFloat(e.target.value); 
+        panel.querySelectorAll('label')[5].textContent = `Scale (${obj.scale.toFixed(2)})`;
+        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    };
+    panel.querySelector('#amb-skew-x').oninput = (e) => { 
+        obj.skewX = parseInt(e.target.value); 
+        panel.querySelectorAll('label')[6].textContent = `Skew X (${obj.skewX}°)`;
+        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    };
+    panel.querySelector('#amb-skew-y').oninput = (e) => { 
+        obj.skewY = parseInt(e.target.value); 
+        panel.querySelectorAll('label')[7].textContent = `Skew Y (${obj.skewY}°)`;
+        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    };
+
+    panel.querySelector('#amb-delete').onclick = () => {
+        state.ambientObjects.splice(index, 1);
+        hideAmbientConfig();
+        import('./ui.js').then(m => m.renderAmbientObjects());
+        renderDevSidebar();
+        // Auto-save on delete
+        import('./walking.js').then(m => m.saveAmbientObjects(state.ambientObjects));
+    };
+    panel.querySelector('#amb-close').onclick = () => {
+        hideAmbientConfig();
+        // Auto-save on done to prevent data loss
+        import('./walking.js').then(m => m.saveAmbientObjects(state.ambientObjects));
+    };
+}
+
+export function hideAmbientConfig() {
+    const panel = document.querySelector('#dev-ambient-config');
+    if (panel) panel.classList.add('hidden');
+    dev.editingAmbient = null;
+    document.querySelectorAll('.ambient-object-wrapper').forEach(el => el.classList.remove('dev-selected'));
 }
 
 function onTweakMove(e) {
@@ -626,6 +833,15 @@ function onTweakUp() {
 }
 
 export function renderActivePath() {
+    if (dev.mode === 'theatre' && dev.isActive) {
+        if (dev.svg) {
+            dev.svg.innerHTML = '';
+            dev.svg.style.display = 'none';
+        }
+        return;
+    }
+    if (dev.svg) dev.svg.style.display = dev.isActive ? 'block' : 'none';
+
     const targetPolygon = dev.isActive ? dev.polygon : WALKABLE_PATH;
     if (targetPolygon.length < 1) { if (dev.svg) dev.svg.innerHTML = ''; return; }
     

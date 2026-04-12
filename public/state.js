@@ -33,6 +33,7 @@ export const state = {
   projectForEmojiUpdate: null,
   breakPositions: [], // { id, x, y, emoji, animation, command }
   foregroundObjects: [], // { id, x, y, rotation, scale, asset, positionId }
+  ambientObjects: [], // { id, type: 'iframe', url, x, y, rotation, scale, skewX, skewY, width, height }
   objectAssets: [], // ['dispenser', ...]
   
   // Pre-calculated frames for all characters

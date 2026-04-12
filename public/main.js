@@ -29,6 +29,7 @@ import {
     initAnchorAdjuster,
     loadBreakPositions,
     loadForegroundObjects,
+    loadAmbientObjects,
     moveToPosition
 } from './walking.js';
 import { 
@@ -70,6 +71,7 @@ async function init() {
     await loadAnchorConfig(); 
     await loadBreakPositions();
     await loadForegroundObjects();
+    await loadAmbientObjects();
     initSidebar();
     // initYouTubePlayer calls were in init in original app.js
     // I will check if initYouTubePlayer was there. Yes it was.

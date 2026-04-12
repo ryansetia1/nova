@@ -2,8 +2,8 @@
    NOVA — Walking & Path Logic
    ============================================ */
 
-import { state, dom } from './state.js';
-import { showToast, renderRobots, renderForegroundObjects } from './ui.js';
+import { state, dom, CHARACTERS } from './state.js';
+import { showToast, renderRobots, renderForegroundObjects, renderAmbientObjects } from './ui.js';
 import { renderActivePath } from './devtool.js';
 
 export let WALKABLE_PATH = [{"x":17.75,"y":73.69},{"x":53.13,"y":55.56},{"x":59.62,"y":58.94},{"x":67.63,"y":60.31},{"x":71.13,"y":58.31},{"x":88.13,"y":66.94},{"x":84,"y":67.94},{"x":85.88,"y":71.31},{"x":74,"y":77.69},{"x":70.63,"y":75.19},{"x":62.88,"y":80.06},{"x":59.62,"y":83.94},{"x":44,"y":74.94},{"x":33.13,"y":81.06},{"x":18.13,"y":73.81}];
@@ -348,6 +348,33 @@ export async function saveForegroundObjects(objects) {
             renderActivePath();
         }
     } catch (err) { showToast('error', '❌', 'Failed to save objects'); }
+}
+
+export async function loadAmbientObjects() {
+    try {
+        const res = await fetch('/api/ambient-objects');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            state.ambientObjects = data;
+            renderAmbientObjects();
+        }
+    } catch (err) { console.error('Failed to load ambient objects', err); }
+}
+
+export async function saveAmbientObjects(objects) {
+    try {
+        const res = await fetch('/api/ambient-objects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ objects })
+        });
+        if (res.ok) {
+            state.ambientObjects = objects;
+            showToast('success', '🎬', 'Theater workspace saved!');
+            renderAmbientObjects();
+            renderActivePath();
+        }
+    } catch (err) { showToast('error', '❌', 'Failed to save ambient layout'); }
 }
 
 export async function loadObjectAssets() {

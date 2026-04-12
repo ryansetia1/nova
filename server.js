@@ -18,6 +18,7 @@ const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
 const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
 const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
 const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
+const AMBIENT_OBJECTS_FILE = path.join(DATA_PATH, 'ambient_objects.json');
 
 // Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
@@ -465,6 +466,35 @@ app.post('/api/foreground-objects', (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save foreground objects' });
+  }
+});
+
+// API: Get/Save Ambient Objects (Iframes)
+app.get('/api/ambient-objects', (req, res) => {
+  if (fs.existsSync(AMBIENT_OBJECTS_FILE)) {
+    try {
+      const data = fs.readFileSync(AMBIENT_OBJECTS_FILE, 'utf8');
+      return res.json(JSON.parse(data));
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to read ambient objects file' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/ambient-objects', (req, res) => {
+  const { objects } = req.body;
+  console.log('🎬  Received ambient objects save request:', (objects || []).length, 'items');
+  if (!Array.isArray(objects)) {
+    return res.status(400).json({ error: 'Objects must be an array' });
+  }
+  try {
+    fs.writeFileSync(AMBIENT_OBJECTS_FILE, JSON.stringify(objects, null, 2));
+    console.log('✅  Ambient objects written to disk');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('❌  Failed to save ambient objects:', e);
+    res.status(500).json({ error: 'Failed to save ambient objects' });
   }
 });
 

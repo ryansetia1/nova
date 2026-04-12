@@ -233,6 +233,87 @@ export function renderForegroundObjects() {
     }).join('');
 }
 
+export function renderAmbientObjects() {
+    const container = document.getElementById('ambient-objects');
+    if (!container) return;
+
+    container.innerHTML = state.ambientObjects.map((obj, i) => {
+        const transform = `
+            translate(-50%, -50%) 
+            rotate(${obj.rotation || 0}deg) 
+            scale(${obj.scale || 1}) 
+            skew(${obj.skewX || 0}deg, ${obj.skewY || 0}deg)
+        `;
+        
+        let finalUrl = obj.url;
+        if (!finalUrl && dom.youtubePlayer) {
+            const mainSrc = dom.youtubePlayer.src;
+            if (mainSrc && !mainSrc.includes('about:blank')) {
+                finalUrl = mainSrc;
+                if (!finalUrl.includes('autoplay=1')) finalUrl += '&autoplay=1';
+                if (!finalUrl.includes('mute=1')) finalUrl += '&mute=1';
+                if (!finalUrl.includes('controls=0')) finalUrl += '&controls=0';
+            } else {
+                finalUrl = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=0&loop=1';
+            }
+        }
+
+        const zIndex = Math.floor(obj.y * 100) - 100; // Keep below agents at same Y
+        return `
+            <div class="ambient-object-wrapper ${obj.url ? 'has-custom-url' : ''}" 
+                 data-id="${obj.id}" 
+                 data-index="${i}"
+                 style="left: ${obj.x}%; top: ${obj.y}%; width: ${obj.width || 200}px; height: ${obj.height || 120}px; transform: ${transform}; z-index: ${zIndex};"
+                 onclick="window.handleAmbientClick('${obj.id}', event)">
+                 <div class="ambient-label" style="position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:9px; color:rgba(255,255,255,0.4); white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.2s;">${obj.name}</div>
+                <div class="ambient-iframe-container" style="pointer-events: none;">
+                    <iframe src="${finalUrl}" 
+                            class="ambient-iframe"
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen></iframe>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function extractYouTubeIdFromSrc(src) {
+    if (!src) return null;
+    const match = src.match(/embed\/([^?&]+)/);
+    return match ? match[1] : null;
+}
+
+// Global sync for ambient iframes when main player source changes
+export function syncAmbientPlayers() {
+    if (!dom.youtubePlayer) return;
+    const mainSrc = dom.youtubePlayer.src;
+    if (!mainSrc || mainSrc.includes('about:blank')) return;
+
+    const mainVideoId = extractYouTubeIdFromSrc(mainSrc);
+    if (!mainVideoId) return;
+
+    document.querySelectorAll('.ambient-iframe').forEach((iframe, i) => {
+        const obj = state.ambientObjects[i];
+        if (obj && !obj.url) { // Only sync if no custom URL
+            const currentId = extractYouTubeIdFromSrc(iframe.src);
+            if (currentId !== mainVideoId) {
+                iframe.src = `https://www.youtube.com/embed/${mainVideoId}?autoplay=1&mute=1&controls=0&loop=1&enablejsapi=1`;
+            }
+        }
+    });
+}
+
+window.handleAmbientClick = async (objectId, event) => {
+    const devModule = await import('./devtool.js');
+    if (devModule?.dev?.isActive && devModule?.dev?.mode === 'theatre') {
+        const idx = state.ambientObjects.findIndex(o => o.id === objectId);
+        if (idx !== -1) {
+            devModule.showAmbientConfig(idx);
+        }
+    }
+};
+
 
 
 window.handleObjectClick = async (objectId, event) => {
@@ -418,7 +499,19 @@ export function initYouTubePlayer() {
         if (autoplay) {
             setTimeout(() => sendCommand('setVolume', Number(volumeSlider.value)), 2000);
         }
+        syncAmbientPlayers();
+        updateAmbientVisibility();
     };
+
+    function updateAmbientVisibility() {
+        const container = document.getElementById('ambient-objects');
+        if (!container) return;
+        if (isYouTubePlaying) container.classList.remove('music-paused');
+        else container.classList.add('music-paused');
+    }
+
+    // Periodic sync every 10 seconds to catch playlist song changes
+    setInterval(syncAmbientPlayers, 10000);
 
     // Set initial random video from playlist
     const initialPlaylist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
@@ -432,6 +525,7 @@ export function initYouTubePlayer() {
     const togglePlay = () => {
         isYouTubePlaying = !isYouTubePlaying;
         sendCommand(isYouTubePlaying ? 'playVideo' : 'pauseVideo');
+        updateAmbientVisibility();
 
         if (dom.headerPlayBtn) {
             const icon = dom.headerPlayBtn.querySelector('i');

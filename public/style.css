@@ -4135,3 +4135,130 @@ body.dev-mode-layout #dev-svg-layer g {
   opacity: 1;
   background: rgba(244, 63, 94, 0.1);
 }
+
+/* ============================================
+   AMBIENT / THEATRE OBJECTS (IFRAMES)
+   ============================================ */
+
+#ambient-objects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: auto; /* Let children handle z-index */
+  perspective: 2000px;
+}
+
+/* Hide walking zone and disable other interactions in theatre mode */
+body.dev-mode-theatre #dev-svg-layer,
+body.dev-mode-theatre #robot-cards,
+body.dev-mode-theatre .workspace-object {
+  pointer-events: none !important;
+}
+
+body.dev-mode-theatre #dev-svg-layer {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+#ambient-objects.music-paused .ambient-object-wrapper:not(.has-custom-url) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Force visible in theatre mode even if paused */
+body.dev-mode-theatre #ambient-objects.music-paused .ambient-object-wrapper {
+  opacity: 0.5 !important;
+  pointer-events: auto !important;
+}
+
+.ambient-object-wrapper {
+  position: absolute;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+  transition: box-shadow 0.3s ease;
+  overflow: visible;
+  display: block;
+  z-index: 1;
+}
+
+body.dev-mode-theatre .ambient-object-wrapper {
+  outline: 1px dashed rgba(245, 158, 11, 0.5);
+}
+
+body.dev-mode-theatre .ambient-label {
+  opacity: 1 !important;
+}
+
+.ambient-object-wrapper.dev-selected {
+  outline: 2px solid var(--accent-amber) !important;
+  outline-offset: 4px;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+}
+
+.ambient-iframe-container {
+  width: 100%;
+  height: 100%;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.ambient-iframe-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Disable iframe interaction when moving in dev mode */
+body.theatre-mode .ambient-iframe-container {
+  pointer-events: none;
+}
+
+body.dev-mode-theatre .ambient-iframe-container {
+  pointer-events: none !important;
+}
+
+/* Dev Mode Specific Styles for Ambient */
+#dev-ambient-config {
+  position: fixed;
+  top: 100px;
+  left: 70px;
+  background: rgba(13, 17, 28, 0.95);
+  padding: 16px;
+  border-radius: 12px;
+  z-index: 45000;
+  border: 1px solid var(--accent-amber);
+  width: 240px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dev-ambient-preview {
+  width: 100%;
+  height: 80px;
+  background: #000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-amber);
+  font-size: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.ambient-item-delete {
+  background: var(--accent-rose);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
