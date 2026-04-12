@@ -139,13 +139,12 @@ async function init() {
         const availableHeight = window.innerHeight - 200; // Account for header and padding
         
         const targetSize = Math.min(availableWidth, availableHeight);
-        let scale = targetSize / 800;
+        let scale = (targetSize / 800) * 0.95; // Shrink by 5% as requested
         
         // Boundaries: 0.25x (~200px) to 1.5x (~1200px)
         scale = Math.max(0.25, Math.min(scale, 1.5));
         
         // Using zoom instead of transform because it recalculates layout space,
-        // preventing scrollbars and keeping the flex centering perfect.
         wrapper.style.zoom = scale;
     };
     

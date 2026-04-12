@@ -36,9 +36,9 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 1200,
-    minWidth: 1024,
+    width: 1000,
+    height: 1000,
+    minWidth: 800,
     minHeight: 600,
     titleBarStyle: 'hidden', // macOS native traffic lights
     trafficLightPosition: { x: 20, y: 20 }, // precision alignment
