@@ -1061,12 +1061,11 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 .settings-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: rgba(255, 255, 255, 0.45); /* Muted */
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 18px;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1079,16 +1078,18 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 
 .settings-menu {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 15px);
   right: 0;
-  background: rgba(13, 17, 28, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 12px;
-  padding: 8px;
-  min-width: 160px;
-  z-index: 10000;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(13, 17, 28, 0.9);
+  backdrop-filter: blur(25px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+  min-width: 240px;
+  max-width: 320px;
+  z-index: 1000000;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.7), 
+              0 0 20px rgba(59, 130, 246, 0.1);
 }
 
 .settings-menu.hidden {
@@ -1097,16 +1098,21 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 
 .settings-menu button {
   width: 100%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: var(--font-main);
   font-size: 13px;
+  font-weight: 500;
   transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .settings-menu button:hover {
@@ -2982,16 +2988,15 @@ body.is-fullscreen .terminal-panel.docked-right {
 .header-action-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.45); /* Muted */
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all var(--transition-fast);
-  font-size: 14px;
 }
 
 .header-action-btn:hover {
@@ -3601,4 +3606,236 @@ body.is-fullscreen .terminal-panel.docked-right {
 .music-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+/* ============================================
+   MUSIC POPOVER
+   ============================================ */
+
+.header-music-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.music-popover {
+  position: absolute;
+  top: calc(100% + 18px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13, 17, 23, 0.9) !important;
+  backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 20px;
+  padding: 24px 16px !important;
+  width: 240px !important; /* Wider to avoid clipping */
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8);
+  z-index: 9999999 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 20px !important;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+  box-sizing: border-box !important;
+}
+
+.music-popover::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(13, 17, 23, 0.9);
+}
+
+.music-popover.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-15px) scale(0.95);
+}
+
+.popover-controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.popover-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  width: 54px;
+  height: 54px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5) !important; /* Even more muted */
+}
+
+.popover-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent-primary) !important;
+  transform: translateY(-2px);
+}
+
+.popover-btn svg, .popover-btn i {
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 1.5px !important; /* Force thin stroke */
+}
+
+.popover-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  width: 100%;
+  box-sizing: border-box !important;
+}
+
+.volume-icon {
+  width: 16px !important;
+  height: 16px !important;
+  color: rgba(255, 255, 255, 0.3) !important; /* Soft muted color */
+  flex-shrink: 0;
+  stroke-width: 1.5px !important;
+}
+
+#music-volume-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+  margin: 0;
+}
+
+#music-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.header-action-btn, 
+.settings-btn {
+  color: rgba(255, 255, 255, 0.45) !important; /* Muted header icons */
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-action-btn:hover, 
+.settings-btn:hover {
+  color: var(--accent-primary) !important;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.header-action-btn i, 
+.settings-btn i {
+  width: 20px !important;
+  height: 20px !important;
+  stroke-width: 1.5px !important;
+}
+
+.header-action-btn.playing {
+  color: var(--accent-primary) !important;
+}
+
+/* ============================================
+   STATUS POPOVER (RESTART)
+   ============================================ */
+
+.status-indicator-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.status-popover {
+  position: absolute;
+  top: calc(100% + 15px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13, 17, 23, 0.9);
+  backdrop-filter: blur(25px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+  width: 200px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 1000000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.status-popover::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(13, 17, 23, 0.9);
+}
+
+.status-popover.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-15px) scale(0.95);
+  pointer-events: none;
+}
+
+.popover-action-btn {
+  width: 100%;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 10px;
+  color: var(--accent-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.popover-action-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.popover-action-btn i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2px;
+}
+
+.popover-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+  opacity: 0.7;
 }

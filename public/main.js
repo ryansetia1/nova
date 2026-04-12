@@ -16,7 +16,8 @@ import {
     getAppearanceHtml,
     initNotificationSettings,
     initDefaultFolderSettings,
-    initMusicManager
+    initMusicManager,
+    initSystemStatus
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -87,6 +88,7 @@ async function init() {
     initNotificationSettings();
     initDefaultFolderSettings();
     initMusicManager();
+    initSystemStatus();
     initFolderPicker();
     
     setTimeout(() => {

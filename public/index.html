@@ -12,7 +12,8 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
-  <link rel="stylesheet" href="style.css?v=nova-desktop-1">
+  <link rel="stylesheet" href="style.css?v=nova-music-v2">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Error Catcher for Debugging -->
   <script>
     window.addEventListener('error', function(e) {
@@ -65,9 +66,18 @@
         <h1 class="logo-text app-title">NOVA</h1>
       </div>
       <div class="header-right">
-        <div class="status-indicator">
-          <span class="status-dot"></span>
-          <span class="status-text">System Online</span>
+        <div class="status-indicator-container">
+          <div class="status-indicator" id="system-status">
+            <span class="status-dot"></span>
+            <span class="status-text">System Online</span>
+          </div>
+          <div id="status-popover" class="status-popover hidden">
+            <button id="restart-app-btn" class="popover-action-btn">
+              <i data-lucide="refresh-cw"></i>
+              <span>Restart Application</span>
+            </button>
+            <p class="popover-hint">Equivalent to Cmd + R</p>
+          </div>
         </div>
         <div class="clock" id="clock"></div>
 
@@ -105,9 +115,30 @@
           </div>
         </div>
 
-        <button id="header-play-btn" class="header-action-btn" title="Toggle Ambient Music">🎵</button>
+        <div class="header-music-container">
+          <button id="header-play-btn" class="header-action-btn" title="Toggle Ambient Music">
+            <i data-lucide="music"></i>
+          </button>
+          <div id="music-popover" class="music-popover hidden">
+            <div class="popover-controls">
+              <button id="music-prev-btn" class="popover-btn" title="Previous Track">
+                <i data-lucide="skip-back"></i>
+              </button>
+              <button id="music-next-btn" class="popover-btn" title="Next Track">
+                <i data-lucide="skip-forward"></i>
+              </button>
+            </div>
+            <div class="popover-volume">
+              <i data-lucide="volume-x" class="volume-icon"></i>
+              <input type="range" id="music-volume-slider" min="0" max="100" value="50">
+              <i data-lucide="volume-2" class="volume-icon"></i>
+            </div>
+          </div>
+        </div>
         <div class="settings-container">
-          <button id="settings-btn" class="settings-btn">⚙️</button>
+          <button id="settings-btn" class="settings-btn">
+            <i data-lucide="settings"></i>
+          </button>
           <div id="settings-menu" class="settings-menu hidden">
             <button id="toggle-visuals-btn">Toggle Visualize</button>
             <button id="toggle-notifications-btn">Agent Notifications: ON</button>

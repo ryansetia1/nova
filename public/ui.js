@@ -370,25 +370,54 @@ export async function preloadAllAssets() {
 import { CONFIG } from './config.js';
 
 let isYouTubePlaying = false;
+let currentPlaylistIndex = 0;
+
 export function initYouTubePlayer() {
     if (!dom.youtubeLoadBtn || !dom.youtubeUrlInput || !dom.youtubePlayer) return;
 
-    // Set initial random video from playlist
+    const popover = document.getElementById('music-popover');
+    const musicContainer = document.querySelector('.header-music-container');
+    const volumeSlider = document.getElementById('music-volume-slider');
+    const nextBtn = document.getElementById('music-next-btn');
+    const prevBtn = document.getElementById('music-prev-btn');
+
     const playlist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
-    if (playlist && playlist.length > 0) {
-        const randomIndex = Math.floor(Math.random() * playlist.length);
-        const videoId = playlist[randomIndex];
-        dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
-    }
 
     function sendCommand(func, args = '') {
         if (dom.youtubePlayer && dom.youtubePlayer.contentWindow) {
+            // YouTube API expects 'args' to be an array for many commands like setVolume
+            const formattedArgs = Array.isArray(args) ? args : [args];
             dom.youtubePlayer.contentWindow.postMessage(JSON.stringify({
                 event: 'command',
                 func: func,
-                args: args
+                args: formattedArgs
             }), '*');
         }
+    }
+
+    const loadVideo = (videoId, autoplay = true) => {
+        dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1${autoplay ? '&autoplay=1' : ''}`;
+        isYouTubePlaying = autoplay;
+        if (dom.headerPlayBtn) {
+            const icon = dom.headerPlayBtn.querySelector('i');
+            if (icon) {
+                icon.setAttribute('data-lucide', isYouTubePlaying ? 'pause' : 'music');
+                if (window.lucide) window.lucide.createIcons();
+            }
+            dom.headerPlayBtn.classList.toggle('playing', isYouTubePlaying);
+        }
+        // Initialize volume after a short delay to let iframe load
+        if (autoplay) {
+            setTimeout(() => sendCommand('setVolume', Number(volumeSlider.value)), 2000);
+        }
+    };
+
+    // Set initial random video from playlist
+    if (playlist && playlist.length > 0) {
+        currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
+        loadVideo(playlist[currentPlaylistIndex], false);
+        // Set default volume
+        setTimeout(() => sendCommand('setVolume', 50), 3000);
     }
 
     const togglePlay = () => {
@@ -396,7 +425,11 @@ export function initYouTubePlayer() {
         sendCommand(isYouTubePlaying ? 'playVideo' : 'pauseVideo');
 
         if (dom.headerPlayBtn) {
-            dom.headerPlayBtn.textContent = isYouTubePlaying ? '⏸️' : '🎵';
+            const icon = dom.headerPlayBtn.querySelector('i');
+            if (icon) {
+                icon.setAttribute('data-lucide', isYouTubePlaying ? 'pause' : 'music');
+                if (window.lucide) window.lucide.createIcons();
+            }
             dom.headerPlayBtn.classList.toggle('playing', isYouTubePlaying);
         }
     };
@@ -404,6 +437,39 @@ export function initYouTubePlayer() {
     if (dom.headerPlayBtn) {
         dom.headerPlayBtn.addEventListener('click', togglePlay);
     }
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Next/Prev logic
+    nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
+        loadVideo(playlist[currentPlaylistIndex]);
+    });
+
+    prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentPlaylistIndex = (currentPlaylistIndex - 1 + playlist.length) % playlist.length;
+        loadVideo(playlist[currentPlaylistIndex]);
+    });
+
+    // Volume logic
+    volumeSlider.addEventListener('input', () => {
+        sendCommand('setVolume', Number(volumeSlider.value));
+    });
+
+    // Hover logic
+    let hoverTimeout;
+    musicContainer.addEventListener('mouseenter', () => {
+        clearTimeout(hoverTimeout);
+        popover.classList.remove('hidden');
+    });
+
+    musicContainer.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+            popover.classList.add('hidden');
+        }, 500);
+    });
 
     dom.youtubeLoadBtn.addEventListener('click', () => {
         let input = dom.youtubeUrlInput.value.trim();
@@ -421,12 +487,7 @@ export function initYouTubePlayer() {
         }
 
         if (videoId) {
-            dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1`;
-            isYouTubePlaying = true;
-            if (dom.headerPlayBtn) {
-                dom.headerPlayBtn.textContent = '⏸️';
-                dom.headerPlayBtn.classList.add('playing');
-            }
+            loadVideo(videoId);
             showToast('info', '🎵', 'Loading YouTube video...');
         } else {
             showToast('error', '⚠️', 'Invalid YouTube URL or ID');
@@ -596,9 +657,12 @@ export function initMusicManager() {
                 <div class="music-item-info">
                     <div class="music-item-id">${id}</div>
                 </div>
-                <div class="music-item-remove" onclick="window.removeMusicItem(${index})">🗑️</div>
+                <div class="music-item-remove" onclick="window.removeMusicItem(${index})" title="Remove">
+                    <i data-lucide="trash-2"></i>
+                </div>
             </div>
         `).join('');
+        if (window.lucide) window.lucide.createIcons();
     };
 
     window.removeMusicItem = (index) => {
@@ -650,4 +714,30 @@ export function initMusicManager() {
         showToast('success', '💾', 'Playlist saved! Refresh to apply.');
         modal.classList.add('hidden');
     });
+}
+
+export function initSystemStatus() {
+    const container = document.querySelector('.status-indicator-container');
+    const popover = document.getElementById('status-popover');
+    const restartBtn = document.getElementById('restart-app-btn');
+
+    if (!container || !popover || !restartBtn) return;
+
+    let hoverTimeout;
+    container.addEventListener('mouseenter', () => {
+        clearTimeout(hoverTimeout);
+        popover.classList.remove('hidden');
+    });
+
+    container.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+            popover.classList.add('hidden');
+        }, 500);
+    });
+
+    restartBtn.addEventListener('click', () => {
+        window.location.reload();
+    });
+
+    if (window.lucide) window.lucide.createIcons();
 }
