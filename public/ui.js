@@ -420,9 +420,10 @@ export function initYouTubePlayer() {
     };
 
     // Set initial random video from playlist
-    if (playlist && playlist.length > 0) {
-        currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
-        loadVideo(playlist[currentPlaylistIndex], false);
+    const initialPlaylist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
+    if (initialPlaylist && initialPlaylist.length > 0) {
+        currentPlaylistIndex = Math.floor(Math.random() * initialPlaylist.length);
+        loadVideo(initialPlaylist[currentPlaylistIndex], false);
         // Set default volume
         setTimeout(() => sendCommand('setVolume', 50), 3000);
     }
@@ -479,14 +480,16 @@ export function initYouTubePlayer() {
     // Next/Prev logic
     nextBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
-        loadVideo(playlist[currentPlaylistIndex]);
+        const currentPlaylist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
+        currentPlaylistIndex = (currentPlaylistIndex + 1) % currentPlaylist.length;
+        loadVideo(currentPlaylist[currentPlaylistIndex]);
     });
 
     prevBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        currentPlaylistIndex = (currentPlaylistIndex - 1 + playlist.length) % playlist.length;
-        loadVideo(playlist[currentPlaylistIndex]);
+        const currentPlaylist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
+        currentPlaylistIndex = (currentPlaylistIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+        loadVideo(currentPlaylist[currentPlaylistIndex]);
     });
 
     // Volume logic
