@@ -22,23 +22,43 @@
   "build": {
     "appId": "com.nova.workspace",
     "productName": "NOVA",
+    "compression": "maximum",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "public/assets/icon/nova-icon.png",
+      "icon": "public/assets/icon/nova-icon.icns",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
       ]
     },
     "files": [
       "electron.js",
+      "preload.js",
       "server.js",
       "public/**/*",
-      "projects/**/*",
+      "package.json",
       "walkable_path.json",
       "anchor_config.json",
-      "node_modules/**/*",
-      "package.json"
+      "!**/*.md",
+      "!**/*.ts",
+      "!**/*.map",
+      "!**/test/**",
+      "!**/tests/**",
+      "!**/spec/**",
+      "!**/.github/**",
+      "!**/docs/**",
+      "!node_modules/**/*.md",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**",
+      "!node_modules/**/.github/**",
+      "!node_modules/**/docs/**",
+      "!node_modules/**/example/**",
+      "!node_modules/**/examples/**"
     ],
     "extraResources": [
       {
