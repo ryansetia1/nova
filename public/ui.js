@@ -13,16 +13,37 @@ export function getAppearanceHtml(appearance, className = "") {
     return `<span class="${className}">${appearance || '🪐'}</span>`;
 }
 
-export function createParticles() {
+export function createParticles(type = 'starry') {
+    if (!dom.particles) return;
+    dom.particles.innerHTML = '';
+    
+    // Original starry colors
     const colors = ['#3b82f6', '#2563eb', '#06b6d4', '#10b981'];
-    for (let i = 0; i < 25; i++) {
+    const count = type === 'rainy' ? 150 : 25; // Original starry count was 25
+    
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < count; i++) {
         const p = document.createElement('div');
-        p.className = 'particle';
+        p.className = 'particle' + (type === 'rainy' ? ' rain' : '');
         p.style.left = Math.random() * 100 + '%';
-        p.style.animationDelay = Math.random() * 8 + 's';
-        p.style.background = colors[Math.floor(Math.random() * 4)];
-        dom.particles.appendChild(p);
+        
+        if (type === 'rainy') {
+            p.style.animationDelay = Math.random() * 2 + 's';
+            // Slight variation in duration
+            p.style.animationDuration = (0.5 + Math.random() * 0.3) + 's';
+            // Variative slant/angle for each drop (e.g., tilted slightly by wind)
+            const angle = 5 + Math.random() * 15; // between 5 and 20 degrees
+            p.style.setProperty('--rain-angle', angle + 'deg');
+        } else {
+            p.style.animationDelay = Math.random() * 8 + 's';
+            p.style.background = colors[Math.floor(Math.random() * colors.length)];
+            // Restore original starry size
+            p.style.width = '3px';
+            p.style.height = '3px';
+        }
+        frag.appendChild(p);
     }
+    dom.particles.appendChild(frag);
 }
 
 export function startClock() {
@@ -381,6 +402,74 @@ export function initThemeControl() {
 
     applyTheme();
     setInterval(applyTheme, 30000); // Check auto-theme every 30s
+}
+
+export function initWeatherControl() {
+    const weatherBtn = document.getElementById('toggle-weather-btn');
+    if (!weatherBtn) return;
+
+    const modes = ['auto', 'starry', 'rainy'];
+    let currentMode = localStorage.getItem('nova_weather_mode') || 'auto';
+
+    // Show initial particles immediately based on saved mode (default to starry if auto is pending)
+    createParticles(currentMode === 'auto' ? 'starry' : currentMode);
+
+    const fetchAutoWeather = async () => {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) return resolve('starry');
+            
+            // Fallback timeout for geolocation
+            const geoTimeout = setTimeout(() => {
+                resolve('starry');
+            }, 6000);
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                clearTimeout(geoTimeout);
+                const { latitude, longitude } = pos.coords;
+                try {
+                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+                    if (!res.ok) throw new Error('Weather API failed');
+                    const data = await res.json();
+                    const code = data.current_weather.weathercode;
+                    // WMO Codes: 51, 53, 55 (Drizzle), 61, 63, 65 (Rain), 66, 67 (Freezing rain), 80, 81, 82 (Showers)
+                    const rainyCodes = [51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82];
+                    const isRainy = rainyCodes.includes(code);
+                    resolve(isRainy ? 'rainy' : 'starry');
+                } catch (e) {
+                    console.error('Weather fetch error:', e);
+                    resolve('starry');
+                }
+            }, (err) => {
+                clearTimeout(geoTimeout);
+                console.warn('Geolocation error:', err);
+                resolve('starry');
+            }, { timeout: 5000 });
+        });
+    };
+
+    const applyWeather = async (showFeedback = false) => {
+        const label = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
+        weatherBtn.textContent = `Weather: ${label}`;
+
+        let type = currentMode;
+        if (currentMode === 'auto') {
+            if (showFeedback) showToast('info', '🌍', 'Fetching local weather...');
+            type = await fetchAutoWeather();
+        }
+        createParticles(type);
+    };
+
+    weatherBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = modes.indexOf(currentMode);
+        currentMode = modes[(idx + 1) % modes.length];
+        localStorage.setItem('nova_weather_mode', currentMode);
+        applyWeather(true);
+        showToast('info', '☁️', `Weather set to ${currentMode.toUpperCase()}`);
+    });
+
+    applyWeather();
+    setInterval(() => applyWeather(false), 600000); // Check every 10 mins
 }
 
 export function updateThemeAssets() {

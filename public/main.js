@@ -19,7 +19,8 @@ import {
     initMusicManager,
     initSystemStatus,
     showTooltip,
-    hideTooltip
+    hideTooltip,
+    initWeatherControl
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -62,7 +63,6 @@ import {
 
 // ---- Initialization ----
 async function init() {
-    createParticles();
     startClock();
     
     await preloadAllAssets();
@@ -93,6 +93,7 @@ async function init() {
     initDefaultFolderSettings();
     initMusicManager();
     initSystemStatus();
+    initWeatherControl();
     initFolderPicker();
     
     setTimeout(() => {
