@@ -58,6 +58,10 @@ export function initSidebar() {
     if (!dom.sidebarToggle) return;
     dom.sidebarToggle.addEventListener('click', () => {
       dom.sidebar.classList.toggle('collapsed');
+      // Ensure office rescale after sidebar animation finishes
+      setTimeout(() => {
+          if (window.rescaleOffice) window.rescaleOffice();
+      }, 350);
     });
 }
 

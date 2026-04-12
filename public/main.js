@@ -126,6 +126,34 @@ async function init() {
 
     window.addEventListener('resize', updateHeaderPadding);
     updateHeaderPadding();
+
+    // Responsive Office Scaling
+    const rescaleOffice = () => {
+        const wrapper = document.getElementById('floor-wrapper');
+        if (!wrapper) return;
+
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarWidth = (sidebar && !sidebar.classList.contains('collapsed')) ? 300 : 80;
+        
+        const availableWidth = window.innerWidth - sidebarWidth - 60;
+        const availableHeight = window.innerHeight - 200; // Account for header and padding
+        
+        const targetSize = Math.min(availableWidth, availableHeight);
+        let scale = targetSize / 800;
+        
+        // Boundaries: 0.25x (~200px) to 1.5x (~1200px)
+        scale = Math.max(0.25, Math.min(scale, 1.5));
+        
+        // Using zoom instead of transform because it recalculates layout space,
+        // preventing scrollbars and keeping the flex centering perfect.
+        wrapper.style.zoom = scale;
+    };
+    
+    window.addEventListener('resize', rescaleOffice);
+    rescaleOffice();
+    
+    // Store it globally if needed for sidebar toggle updates
+    window.rescaleOffice = rescaleOffice;
 }
 
 async function loadProjects() {
