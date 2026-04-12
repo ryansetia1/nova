@@ -57,7 +57,8 @@ export function bringToFront(panel) {
 export function initSidebar() {
     if (!dom.sidebarToggle) return;
     dom.sidebarToggle.addEventListener('click', () => {
-      dom.sidebar.classList.toggle('collapsed');
+      const isCollapsed = dom.sidebar.classList.toggle('collapsed');
+      document.body.classList.toggle('sidebar-expanded', !isCollapsed);
       // Ensure office rescale after sidebar animation finishes
       setTimeout(() => {
           if (window.rescaleOffice) window.rescaleOffice();

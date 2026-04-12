@@ -278,11 +278,8 @@ export function initAnchorAdjuster() {
 
   if (btnCancel) {
       btnCancel.onclick = () => {
-          const charId = anchorCharSelector.value;
-          state.characterAnchors[charId] = { ...state.originalCharacterAnchors[charId] };
-          updateSlidersFromState();
-          syncUI();
-          showToast('info', '📂', 'Changes discarded');
+          import('./devtool.js').then(m => m.exitDevMode(false));
+          showToast('info', '📂', 'Dev Mode: OFF (Discarded)');
       };
   }
 

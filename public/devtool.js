@@ -156,9 +156,83 @@ function enterDevMode() {
     showToast('info', '🛠️', 'Dev Mode: ON');
 }
 
-function exitDevMode(save = true) {
+function renderDevSidebar() {
+    const sidebar = document.getElementById('dev-right-sidebar');
+    if (!sidebar) return;
+
+    const isPositions = dev.mode === 'positions';
+    const isLayout = dev.mode === 'layout';
+    
+    if (!isPositions && !isLayout) {
+        sidebar.classList.add('hidden');
+        return;
+    }
+
+    sidebar.classList.remove('hidden');
+    
+    const entities = isPositions ? state.breakPositions : state.foregroundObjects;
+    const title = isPositions ? 'Workspace Positions' : 'Workspace Objects';
+    const icon = isPositions ? '📍' : '📦';
+
+    sidebar.innerHTML = `
+        <div class="dev-sidebar-header">${title}</div>
+        <div class="dev-entity-list">
+            ${entities.map((ent, i) => `
+                <div class="dev-entity-item ${ (isPositions ? dev.editingPosition : dev.editingObject) === i ? 'active' : ''}" data-index="${i}">
+                    <span style="font-size:14px;">${ent.emoji || (isPositions ? '📍' : (state.objectAssets.includes(ent.asset) ? '📦' : '❓'))}</span>
+                    <span class="dev-entity-name">${ent.name || (isPositions ? 'Position ' + (i+1) : ent.asset)}</span>
+                    <span class="dev-entity-delete" data-index="${i}">✕</span>
+                </div>
+            `).join('')}
+            ${entities.length === 0 ? '<div style="font-size:11px; opacity:0.3; text-align:center; margin-top:20px;">No entities found</div>' : ''}
+        </div>
+    `;
+
+    sidebar.querySelectorAll('.dev-entity-item').forEach(item => {
+        item.onclick = (e) => {
+            if (e.target.classList.contains('dev-entity-delete')) return;
+            const idx = parseInt(item.getAttribute('data-index'));
+            if (isPositions) showPositionConfig(idx);
+            else showLayoutConfig(idx);
+            renderDevSidebar(); 
+            renderActivePath();
+        };
+    });
+
+    sidebar.querySelectorAll('.dev-entity-delete').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.getAttribute('data-index'));
+            if (isPositions) {
+                state.breakPositions.splice(idx, 1);
+                hidePositionConfig();
+            } else {
+                state.foregroundObjects.splice(idx, 1);
+                hideLayoutConfig();
+                import('./ui.js').then(m => m.renderForegroundObjects());
+            }
+            renderDevSidebar();
+            renderActivePath();
+        };
+    });
+}
+
+export function exitDevMode(save = true) {
     document.body.classList.remove('drawing-mode');
     document.body.classList.remove('layout-mode');
+    document.body.classList.remove('show-visuals');
+    document.body.classList.remove('dev-mode-visualize', 'dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout');
+    
+    // Clear panels
+    const adj = document.getElementById('anchor-adjuster');
+    if (adj) adj.classList.remove('active');
+    
+    const sidebar = document.getElementById('dev-right-sidebar');
+    if (sidebar) sidebar.classList.add('hidden');
+
+    hidePositionConfig();
+    hideLayoutConfig();
+
     if (dev.toolbar) dev.toolbar.remove();
     dev.toolbar = null;
     if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0 || state.foregroundObjects.length > 0)) {
@@ -232,6 +306,7 @@ function showDevToolbar() {
             state.foregroundObjects.push({ id, name, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
             dev.editingObject = state.foregroundObjects.length - 1;
             showLayoutConfig(state.foregroundObjects.length - 1);
+            renderDevSidebar();
             import('./ui.js').then(m => m.renderForegroundObjects());
             renderActivePath();
         };
@@ -245,6 +320,7 @@ function showDevToolbar() {
             state.breakPositions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
             dev.editingPosition = state.breakPositions.length - 1;
             showPositionConfig(state.breakPositions.length - 1);
+            renderDevSidebar();
             renderActivePath();
         };
     }
@@ -268,8 +344,10 @@ function showPositionConfig(index) {
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'dev-pos-config';
-        panel.setAttribute('style', 'position:fixed; top:100px; right:20px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #6366f1; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
-        document.body.appendChild(panel);
+        panel.setAttribute('style', 'position:fixed; top:100px; left:70px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #6366f1; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        const app = document.getElementById('app');
+        if (app) app.appendChild(panel);
+        else document.body.appendChild(panel);
     }
     panel.classList.remove('hidden');
 
@@ -347,6 +425,8 @@ function showPositionConfig(index) {
         </div>
     `;
 
+    renderDevSidebar(); // Sync sidebar selection
+
     panel.querySelectorAll('.pos-emoji-chip').forEach(btn => {
         btn.onclick = () => {
             pos.emoji = btn.textContent;
@@ -385,8 +465,10 @@ function showLayoutConfig(index) {
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'dev-layout-config';
-        panel.setAttribute('style', 'position:fixed; top:100px; left:20px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #10b981; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
-        document.body.appendChild(panel);
+        panel.setAttribute('style', 'position:fixed; top:100px; left:70px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #10b981; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        const app = document.getElementById('app');
+        if (app) app.appendChild(panel);
+        else document.body.appendChild(panel);
     }
     panel.classList.remove('hidden');
 
@@ -436,6 +518,8 @@ function showLayoutConfig(index) {
             <button id="obj-close" style="flex:1; padding:6px; background:#10b981; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Done</button>
         </div>
     `;
+
+    renderDevSidebar(); // Sync sidebar selection
 
     panel.querySelector('#obj-name').oninput = (e) => { obj.name = e.target.value; };
     panel.querySelector('#obj-asset').onchange = (e) => { 
@@ -494,6 +578,14 @@ function setDevMode(mode) {
     document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize');
     document.body.classList.add(`dev-mode-${mode}`);
     
+    // Sidebar management
+    if (mode === 'positions' || mode === 'layout') {
+        renderDevSidebar();
+    } else {
+        const sidebar = document.getElementById('dev-right-sidebar');
+        if (sidebar) sidebar.classList.add('hidden');
+    }
+
     // Close any open config panels when switching modes to prevent stale data
     hidePositionConfig();
     hideLayoutConfig();

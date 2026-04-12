@@ -995,20 +995,32 @@ body.show-visuals .robot-anchor-dot {
 /* Anchor Adjuster UI Styles */
 .anchor-adjuster {
   position: fixed;
-  bottom: 24px;
-  left: 24px;
+  top: 100px;
+  left: 70px;
+  width: 220px;
   background: rgba(13, 17, 28, 0.95);
   backdrop-filter: blur(12px);
   border: 1px solid var(--accent-primary);
   border-radius: 12px;
   padding: 16px;
   z-index: 10000;
-  width: 220px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s ease;
+  transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s, opacity 0.4s;
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+/* Shift dev panels when left sidebar is open */
+body.sidebar-expanded .anchor-adjuster,
+body.sidebar-expanded #dev-pos-config,
+body.sidebar-expanded #dev-layout-config {
+  left: 270px !important;
+}
+
+/* Base styles for dynamic dev panels to enable transition */
+#dev-pos-config, #dev-layout-config {
+  transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s, opacity 0.4s !important;
 }
 
 body:not(.show-visuals) .anchor-adjuster {
@@ -4014,4 +4026,112 @@ body.dev-mode-layout #dev-svg-layer g {
   width: 100%;
   height: 100%;
   display: block;
+}
+/* ============================================
+   DEV MODE RIGHT SIDEBAR & ENTITY LIST
+   ============================================ */
+.dev-sidebar-right {
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  bottom: 40px; /* Leave room for save/cancel toolbar if needed */
+  width: 250px;
+  background: rgba(13, 17, 26, 0.9) !important;
+  backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  z-index: 40000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  padding: 16px;
+  gap: 16px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.dev-sidebar-right.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(30px) scale(0.98);
+}
+
+.dev-sidebar-header {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.dev-entity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+
+.dev-entity-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dev-entity-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.dev-entity-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dev-entity-item:hover {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.3);
+  transform: translateX(-4px); /* Slide towards center */
+}
+
+.dev-entity-item.active {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dev-entity-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dev-entity-item:hover .dev-entity-name {
+  color: var(--text-primary);
+}
+
+.dev-entity-delete {
+  padding: 6px;
+  color: var(--accent-rose);
+  opacity: 0.3;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.dev-entity-delete:hover {
+  opacity: 1;
+  background: rgba(244, 63, 94, 0.1);
 }
