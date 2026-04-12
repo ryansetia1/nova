@@ -290,13 +290,13 @@ app.post('/api/projects', (req, res) => {
             const saved = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
             const wasActiveDefined = saved.active !== undefined;
             meta = { ...meta, ...saved };
-            // Auto-activate projects that existed before the 'active' flag was introduced
-            if (!wasActiveDefined) {
+            // Auto-activate older projects or Force Captain to be active
+            if (!wasActiveDefined || meta.type === 'captain' || meta.name === 'Captain') {
                 meta.active = true;
             }
           } catch(err) {}
         } else {
-           meta.active = false;
+           meta.active = (e.name === 'Captain');
         }
         
         if (e.isSymbolicLink() && !meta.active) return null;

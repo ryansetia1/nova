@@ -67,7 +67,11 @@ export function initSidebar() {
 
 export function renderSidebar() {
     const activeAgents = state.projects.filter(p => p.active === true || p.active === "true");
-    const orphanedFolders = state.projects.filter(p => p.active === false || p.active === "false" || !p.active);
+    const orphanedFolders = state.projects.filter(p => 
+        (p.active === false || p.active === "false" || !p.active) && 
+        p.name !== 'Captain' && 
+        p.type !== 'captain'
+    );
 
     // Update Counts
     if (dom.activeCount) dom.activeCount.innerText = activeAgents.length;
