@@ -67,6 +67,11 @@ nova/
 - Break positions for idle animations
 - Configurable via `walkable_path.json` and `foreground_objects.json`
 
+### Ambient & Weather System
+- GPU-accelerated CSS particle system for rendering Starry and Rainy weather conditions.
+- Uses Open-Meteo API and HTML5 Geolocation to automatically sync the background weather with the user's real-world location in Auto mode.
+- Optimized rendering using `DocumentFragment` generation and CSS `will-change: transform`.
+
 ### Character Sprite Animation
 - Multi-frame sprite sheets for movement animations
 - Configurable directions and frame timing

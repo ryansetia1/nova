@@ -11,7 +11,7 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 - **Dynamic Multi-Service Support**: Switch seamlessly between **Ollama (local)**, **Claude (Anthropic)**, **Sumo**, and **Custom API** services directly from the terminal.
 - **Persistent Sidebar Docking**: Snap up to 3 terminal windows to the right sidebar. They automatically divide the screen height equally and maintain their state across page refreshes.
 - **Integrated Agent Editor**: Dedicated `CLAUDE.md` editor built into terminal headers for rapid documentation and agent rules management.
-- **Dynamic Day/Night System**: The office environment automatically transitions between Day and Night themes based on your local system time, featuring custom lighting (FX) and dimmed agent states.
+- **Dynamic Day/Night & Weather System**: The office environment automatically transitions between Day and Night themes based on your local system time, featuring custom lighting (FX) and dimmed agent states. Includes a dynamic weather engine (Starry vs. Rainy) that tracks real-world geolocation via the Open-Meteo API.
 - **Persistent Terminals**: Every agent manages its own project folder with a real, integrated terminal (powered by `xterm.js` and `node-pty`).
 - **Dynamic Office Environment (NOVA HQ)**:
     - **Depth Sorting**: Agents naturally overlap based on their vertical position, creating a 3D depth illusion.
