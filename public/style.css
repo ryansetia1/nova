@@ -4167,8 +4167,7 @@ body.dev-mode-layout #dev-svg-layer g {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: auto; /* Let children handle z-index */
-  perspective: 2000px;
+  z-index: auto;
 }
 
 /* Hide walking zone and disable other interactions in theatre mode */
@@ -4196,16 +4195,18 @@ body.dev-mode-theatre #ambient-objects.music-paused .ambient-object-wrapper {
 
 .ambient-object-wrapper {
   position: absolute;
-  pointer-events: auto;
+  pointer-events: auto !important;
   transform-style: preserve-3d;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, border-color 0.2s ease;
   overflow: visible;
   display: block;
   z-index: 1;
 }
 
 body.dev-mode-theatre .ambient-object-wrapper {
-  outline: 1px dashed rgba(245, 158, 11, 0.5);
+  outline: 1.5px dashed var(--accent-amber);
+  background: rgba(217, 119, 6, 0.1);
+  cursor: move;
 }
 
 body.dev-mode-theatre .ambient-label {
@@ -4214,6 +4215,7 @@ body.dev-mode-theatre .ambient-label {
 
 .ambient-object-wrapper.dev-selected {
   outline: 2px solid var(--accent-amber) !important;
+  background: rgba(217, 119, 6, 0.2);
   outline-offset: 4px;
   box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
 }

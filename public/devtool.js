@@ -94,12 +94,12 @@ export function initDevTool() {
             } else if (dev.mode === 'theatre') {
                 const targetAmbient = e.target.closest('.ambient-object-wrapper');
                 if (targetAmbient) {
-                    const hitIndex = parseInt(targetAmbient.getAttribute('data-index'));
-                    dev.draggingAmbientIndex = hitIndex;
-                    dev.editingAmbient = hitIndex;
+                    const idx = parseInt(targetAmbient.getAttribute('data-index'));
+                    dev.draggingAmbientIndex = idx;
+                    dev.editingAmbient = idx;
                     document.addEventListener('mousemove', onAmbientMove);
                     document.addEventListener('mouseup', onAmbientUp);
-                    showAmbientConfig(hitIndex);
+                    showAmbientConfig(idx);
                 }
             }
         });
