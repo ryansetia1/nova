@@ -2,11 +2,14 @@
   "name": "nova",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "electron.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "electron": "electron .",
+    "electron:dev": "concurrently \"node server.js\" \"wait-on http://localhost:3000 && electron .\"",
+    "build": "electron-builder --mac",
+    "dist": "electron-builder --mac --publish never",
+    "postinstall": "electron-rebuild -f -w node-pty"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +18,40 @@
     "express": "^5.2.1",
     "node-pty": "^1.1.0",
     "ws": "^8.20.0"
+  },
+  "build": {
+    "appId": "com.nova.workspace",
+    "productName": "NOVA",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "public/assets/icon/nova-icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "files": [
+      "electron.js",
+      "server.js",
+      "public/**/*",
+      "projects/**/*",
+      "walkable_path.json",
+      "anchor_config.json",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "projects",
+        "to": "projects"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^9.0.5"
   }
 }

@@ -104,6 +104,28 @@ async function init() {
             notifBtn.title = 'Enable notifications in your browser settings';
         }
     }, 3500);
+
+    // Electron Fullscreen Padding Fix (macOS)
+    const updateHeaderPadding = () => {
+        // Now handled by CSS classes (is-fullscreen)
+    };
+
+    // Fullscreen Hover Detection (For macOS Menu Bar Reveal)
+    window.addEventListener('mousemove', (e) => {
+        if (!document.body.classList.contains('is-fullscreen')) return;
+        const header = document.getElementById('header');
+        if (header) {
+            // If mouse is in top 80px, reveal padding to clear traffic lights
+            if (e.clientY < 80) {
+                header.classList.add('reveal-padding');
+            } else {
+                header.classList.remove('reveal-padding');
+            }
+        }
+    });
+
+    window.addEventListener('resize', updateHeaderPadding);
+    updateHeaderPadding();
 }
 
 async function loadProjects() {

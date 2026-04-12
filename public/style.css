@@ -124,19 +124,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
-  background: rgba(10, 14, 26, 0.8);
-  backdrop-filter: blur(20px);
+  padding: 42px 32px 16px 24px; /* Default windowed padding */
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(25px);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
   z-index: 100;
+  -webkit-app-region: drag;
+  transition: padding-top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fullscreen handling */
+body.is-fullscreen #header {
+  padding-top: 16px;
+}
+
+body.is-fullscreen #header.reveal-padding {
+  padding-top: 42px; /* Slide down when mouse is near top to reveal traffic lights */
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  -webkit-app-region: no-drag; /* Logo and title should be clickable/selectable */
 }
 
 .logo-icon {

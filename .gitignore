@@ -5,3 +5,4 @@ projects/**/_uploads/
 projects/**/.DS_Store
 projects/
 .nova_init
+dist/

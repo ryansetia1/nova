@@ -11,10 +11,11 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PROJECTS_DIR = path.join(__dirname, 'projects');
+const DATA_PATH = process.env.NOVA_DATA_PATH || __dirname;
+const PROJECTS_DIR = path.join(DATA_PATH, 'projects');
 
-const WALKABLE_PATH_FILE = path.join(__dirname, 'walkable_path.json');
-const ANCHOR_CONFIG_FILE = path.join(__dirname, 'anchor_config.json');
+const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
+const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
 
 // Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
