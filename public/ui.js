@@ -235,17 +235,44 @@ export function initThemeControl() {
 }
 
 export async function preloadAllAssets() {
+    // 1. Fetch available animations map
+    let animationMap = { 'Char1': ['Walk', 'Idle'], 'Char2': ['Walk', 'Idle'] };
+    try {
+        const res = await fetch('/api/character-animations');
+        animationMap = await res.json();
+    } catch (e) {}
+
+    // 2. Identify characters
+    const charIds = Object.keys(CHARACTERS);
+
+    // 3. Populate state.characterFrames
+    for (const id of charIds) {
+        state.characterFrames[id] = {};
+        const animMap = animationMap[id] || { 'Walk': 42, 'Idle': 80 };
+        for (const [anim, count] of Object.entries(animMap)) {
+            const pathFn = (CHARACTERS[id][anim.toLowerCase()]?.path) || 
+                          ((i) => `assets/characters/${id}/${anim}/frame_${(i + 1).toString().padStart(3, '0')}.png`);
+            
+            state.characterFrames[id][anim.toLowerCase()] = Array.from({ length: count }, (_, i) => pathFn(i));
+        }
+    }
+
     const assets = [
         'assets/office/day/office_bg_day.png',
         'assets/office/day/office_fg_day.png',
         'assets/office/night/office_bg_night.png',
         'assets/office/night/office_fg_night.png',
         'assets/office/night/office_fx_night.png',
-        ...Object.values(state.characterFrames).flatMap(cf => [...cf.walk, ...cf.idle])
+        ...Object.values(state.characterFrames).flatMap(charAnims => 
+            Object.values(charAnims).flat()
+        )
     ];
 
     let loaded = 0;
     const total = assets.length;
+
+    // Use a smaller subset for "blocking" preloader to avoid waiting 1000s of frames if some are missing
+    const criticalAssets = assets.slice(0, 50); 
 
     const promises = assets.map((src) => {
         return new Promise((resolve) => {
@@ -255,24 +282,19 @@ export async function preloadAllAssets() {
                 loaded++;
                 const percent = (loaded / total) * 100;
                 if (dom.loaderProgress) dom.loaderProgress.style.width = percent + '%';
-                
-                if (dom.loaderStatus) {
-                    if (loaded < total * 0.2) dom.loaderStatus.textContent = 'Loading HQ Environment...';
-                    else if (loaded < total * 0.8) dom.loaderStatus.textContent = 'Syncing Agent Sprites...';
-                    else dom.loaderStatus.textContent = 'Finalizing Neural Workspace...';
-                }
                 resolve();
             };
             img.onerror = () => {
-                loaded++; // Skip failed
+                loaded++; 
                 resolve();
             };
         });
     });
 
+    // Don't wait for ALL, just wait for critical or a timeout
     await Promise.race([
-        Promise.all(promises),
-        new Promise(resolve => setTimeout(resolve, 4000))
+        Promise.all(promises.slice(0, 100)), // Wait for first 100
+        new Promise(resolve => setTimeout(resolve, 3000))
     ]);
 }
 

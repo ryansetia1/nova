@@ -2286,14 +2286,6 @@ emoji-picker.dark {
     font-size: 14px;
 }
 
-.terminal-footer {
-    padding: 10px 16px;
-    border-top: 1px solid var(--border-subtle);
-    display: flex;
-    justify-content: flex-end;
-    background: rgba(0,0,0,0.2);
-}
-
 .back-to-office-btn {
     display: flex;
     align-items: center;
@@ -3115,4 +3107,74 @@ emoji-picker.dark {
 .claude-md-actions {
   display: flex;
   gap: 12px;
+}
+
+/* Terminal Footer & Activity Bar */
+.terminal-footer {
+    height: 44px;
+    background: rgba(13, 17, 28, 0.6);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 12px;
+    flex-shrink: 0;
+}
+
+.terminal-activity-bar {
+    display: flex;
+    gap: 8px;
+}
+
+.activity-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #fff;
+    padding: 0;
+}
+
+.activity-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.activity-btn.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+}
+
+/* Dev Mode Position Config */
+#dev-pos-config {
+    animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#dev-pos-config.hidden {
+    display: none !important;
+}
+
+#dev-pos-config input, #dev-pos-config select {
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#dev-pos-config input:focus, #dev-pos-config select:focus {
+    border-color: #6366f1 !important;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }

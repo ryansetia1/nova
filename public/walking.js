@@ -44,7 +44,8 @@ export function startWalkingLoop() {
                   tx: target.x, ty: target.y,
                   speed: 0.07 + Math.random() * 0.13,
                   isWalking: true, isHovered: false, isThinking: false, hasUpdate: false,
-                  isIllegal: false, frame: 0, naturalIdleTimer: 0
+                  isIllegal: false, frame: 0, naturalIdleTimer: 0,
+                  forcedTarget: null, activity: null, activityFrame: 0
               };
           }
 
@@ -54,38 +55,56 @@ export function startWalkingLoop() {
           const t = state.terminals[name];
           const isWindowVisible = t && t.panel && !t.panel.classList.contains('hidden');
           const isOrphaned = p && !p.active;
-          const isManualStop = isWindowVisible || r.isHovered || isOrphaned;
           
-          if (r.naturalIdleTimer > 0) {
+          // If we have a forced target, we override normal stops UNLESS hovered
+          const isManualStop = (isWindowVisible || r.isHovered || isOrphaned) && !r.forcedTarget;
+          
+          if (r.naturalIdleTimer > 0 && !r.forcedTarget) {
               r.naturalIdleTimer--;
               r.isWalking = false;
           } else {
               r.isWalking = !isManualStop;
-              if (r.isWalking && Math.random() < 0.002) {
+              if (r.isWalking && Math.random() < 0.002 && !r.forcedTarget) {
                   r.naturalIdleTimer = 50 + Math.random() * 100;
                   r.frame = 0;
               }
           }
 
           if (r.isWalking) {
-              const dx = r.tx - r.x;
-              const dy = r.ty - r.y;
+              const tx = r.forcedTarget ? r.forcedTarget.x : r.tx;
+              const ty = r.forcedTarget ? r.forcedTarget.y : r.ty;
+              
+              const dx = tx - r.x;
+              const dy = ty - r.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
               
-              if (dist < 1.5) {
-                  if (Math.random() < 0.5) {
-                      r.naturalIdleTimer = 80 + Math.random() * 150;
-                      r.frame = 0;
+              if (dist < 1.0) { // Closer threshold for forced targets
+                  if (r.forcedTarget) {
+                      // ARRIVED at forced target
+                      r.activity = r.forcedTarget.animation || 'idle';
+                      r.isWalking = false;
+                      // We keep forcedTarget so we stay there, but stop walking
+                  } else {
+                      if (Math.random() < 0.5) {
+                          r.naturalIdleTimer = 80 + Math.random() * 150;
+                          r.frame = 0;
+                      }
+                      const next = pickSafePoint();
+                      r.tx = next.x; r.ty = next.y;
                   }
-                  const next = pickSafePoint();
-                  r.tx = next.x; r.ty = next.y;
               } else {
+                  // If we were doing an activity but started walking (shouldn't happen with logic above but safety first)
+                  r.activity = null; 
+                  
                   const nextX = r.x + (dx / dist) * r.speed;
                   const nextY = r.y + (dy / dist) * r.speed;
                   
                   if (r.isIllegal) {
                       r.x = nextX; r.y = nextY;
                   } else if (isPointInPolygon({x: nextX, y: nextY}, WALKABLE_PATH)) {
+                      r.x = nextX; r.y = nextY;
+                  } else if (r.forcedTarget) {
+                      // Forced targets ignore polygon if they are slightly outside for precision (e.g. sitting on a chair)
                       r.x = nextX; r.y = nextY;
                   } else {
                       const next = pickSafePoint();
@@ -107,21 +126,31 @@ export function startWalkingLoop() {
               el.style.top = r.y + '%';
               el.style.zIndex = Math.floor(r.y * 100);
               
-              const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0 || isWindowVisible;
+              const isPlayingIdle = r.isHovered || r.naturalIdleTimer > 0 || isWindowVisible || r.activity;
               if (r.isWalking || isPlayingIdle) {
                   const p = state.projects.find(x => x.name === name);
                   const appearance = p?.emoji || 'SPRITE:Char1';
                   const charId = appearance.startsWith('SPRITE:') ? appearance.split(':')[1] : 'Char1';
-                  const charFrames = state.characterFrames[charId] || state.characterFrames['Char1'];
-                  // Use idle frames if hovered, resting, OR if the terminal is open
-                  const frames = isPlayingIdle ? charFrames.idle : charFrames.walk;
+                  const charAnims = state.characterFrames[charId] || state.characterFrames['Char1'];
+                  
+                  // Priority: Activity > Walk > Hover/Idle/Visible
+                  let animName = 'idle';
+                  if (r.activity) animName = r.activity.toLowerCase();
+                  else if (r.isWalking) animName = 'walk';
+                  else if (isPlayingIdle) animName = 'idle';
+                  else animName = 'walk'; // Fallback
+
+                  // Fallback to idle if animation doesn't exist
+                  if (!charAnims[animName]) animName = 'idle';
+                  const frames = charAnims[animName] || charAnims['idle'];
                   
                   r.frame = (r.frame + 1) % frames.length;
                   const sprite = el.querySelector('.robot-char-sprite');
                   if (sprite) {
                       sprite.src = frames[r.frame];
                       if (r.isWalking) {
-                          const isFlipped = r.tx < r.x;
+                          const tx = r.forcedTarget ? r.forcedTarget.x : r.tx;
+                          const isFlipped = tx < r.x;
                           sprite.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
                       } else {
                           sprite.style.transform = 'scaleX(1)';
@@ -254,6 +283,34 @@ export function initAnchorAdjuster() {
   }
 
   syncUI();
+}
+
+export async function loadBreakPositions() {
+    try {
+        const res = await fetch('/api/break-positions');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            state.breakPositions = data;
+        }
+    } catch (err) { console.error('Failed to load break positions', err); }
+}
+
+export async function saveBreakPositions(positions) {
+    try {
+        const res = await fetch('/api/break-positions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ positions })
+        });
+        if (res.ok) {
+            state.breakPositions = positions;
+            showToast('success', '☕', 'Break positions saved!');
+            renderActivePath();
+            
+            // Refresh all terminal activity bars
+            import('./terminal.js').then(m => m.renderAllActivityBars());
+        }
+    } catch (err) { showToast('error', '❌', 'Failed to save positions'); }
 }
 
 export function bindHoverListeners() {

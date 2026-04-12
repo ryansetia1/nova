@@ -16,6 +16,7 @@ const PROJECTS_DIR = path.join(DATA_PATH, 'projects');
 
 const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
 const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
+const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
 
 // Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
@@ -58,6 +59,41 @@ app.get('/api/claude-models', (req, res) => {
     'claude-sonnet-4-6', 
     'claude-haiku-4-5-20251001',
   ]);
+});
+
+// API: List available animations for all character folders
+app.get('/api/character-animations', (req, res) => {
+  const charsPath = path.join(__dirname, 'public', 'assets', 'characters');
+  if (!fs.existsSync(charsPath)) return res.json({});
+
+  try {
+    const charFolders = fs.readdirSync(charsPath, { withFileTypes: true })
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'));
+    
+    const animationMap = {};
+    charFolders.forEach(folder => {
+      const p = path.join(charsPath, folder.name);
+      const entries = fs.readdirSync(p, { withFileTypes: true });
+      const animations = entries
+        .filter(e => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'avatar')
+        .map(e => {
+          const animPath = path.join(p, e.name);
+          const frameCount = fs.readdirSync(animPath).filter(f => !f.startsWith('.')).length;
+          return { name: e.name, count: frameCount };
+        });
+      
+      // Also add standard ones if not detected or to normalize
+      const finalAnims = {};
+      animations.forEach(a => { finalAnims[a.name] = a.count; });
+      if (!finalAnims.Walk) finalAnims.Walk = 42;
+      if (!finalAnims.Idle) finalAnims.Idle = 80;
+      
+      animationMap[folder.name] = finalAnims;
+    });
+    res.json(animationMap);
+  } catch (err) {
+    res.json({});
+  }
 });
 
 // API: Create a new project folder with metadata
@@ -350,6 +386,33 @@ app.post('/api/anchor', (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save anchor' });
+  }
+});
+
+// API: Get/Save Break Positions
+app.get('/api/break-positions', (req, res) => {
+  if (fs.existsSync(BREAK_POSITIONS_FILE)) {
+    try {
+      const data = fs.readFileSync(BREAK_POSITIONS_FILE, 'utf8');
+      return res.json(JSON.parse(data));
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to read break positions file' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/break-positions', (req, res) => {
+  const { positions } = req.body;
+  if (!Array.isArray(positions)) {
+    return res.status(400).json({ error: 'Positions must be an array' });
+  }
+  try {
+    fs.writeFileSync(BREAK_POSITIONS_FILE, JSON.stringify(positions, null, 2));
+    console.log(`☕  Break positions updated: ${positions.length} spots`);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save break positions' });
   }
 });
 

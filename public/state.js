@@ -28,21 +28,16 @@ export const state = {
   updateSelectedEmoji: '🪐',
   spawnAppearanceType: 'emoji', // 'emoji' or 'character'
   updateAppearanceType: 'emoji',
-  walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame } }
+  walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame, forcedTarget, activity, activityFrame } }
   projectForEmojiUpdate: null,
+  breakPositions: [], // { id, x, y, emoji, animation, command }
   
   // Pre-calculated frames for all characters
-  characterFrames: Object.keys(CHARACTERS).reduce((acc, id) => {
-    acc[id] = {
-      walk: Array.from({ length: CHARACTERS[id].walk.count }, (_, i) => CHARACTERS[id].walk.path(i)),
-      idle: Array.from({ length: CHARACTERS[id].idle.count }, (_, i) => CHARACTERS[id].idle.path(i))
-    };
-    return acc;
-  }, {}),
-  
-  // Legacy support for parts of code that still use state.charFrames/idleFrames
-  get charFrames() { return this.characterFrames['Char1'].walk; },
-  get idleFrames() { return this.characterFrames['Char1'].idle; },
+  characterFrames: {}, // { charId: { animationName: [paths] } }
+
+  // Initial legacy support
+  get charFrames() { return (this.characterFrames['Char1']?.walk) || []; },
+  get idleFrames() { return (this.characterFrames['Char1']?.idle) || []; },
   
   anchor: { x: 50, y: 85 },
   originalAnchor: { x: 50, y: 85 }

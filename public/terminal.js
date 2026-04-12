@@ -164,6 +164,8 @@ export function setupTerminal(pName, showUI = false) {
           })
           .catch(() => {});
         
+        renderActivityBar(pName, panel);
+
         dom.mainContent.appendChild(panel);
 
         const term = new Terminal({ 
@@ -362,7 +364,17 @@ export function setupTerminal(pName, showUI = false) {
             showToast('success', '✅', parts.join(', '));
         });
 
-        ws.onopen = () => { setTimeout(() => { if (ws.readyState === WebSocket.OPEN) { refit(t); t.ready = true; renderRobots(); } }, 1000); };
+        ws.onopen = () => { 
+            setTimeout(() => { 
+                if (ws.readyState === WebSocket.OPEN) { 
+                    refit(t); 
+                    t.ready = true; 
+                    renderRobots(); 
+                    // Re-render activity bar when ready to ensure buttons are synced
+                    renderActivityBar(pName);
+                } 
+            }, 1000); 
+        };
         ws.onmessage = (e) => { 
             try { 
                 const msg = JSON.parse(e.data); 
@@ -561,6 +573,8 @@ function bindWindowEvents(pName, panel, tState) {
     if (claudeMdBtn) {
         claudeMdBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const dropdown = panel.querySelector('.terminal-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
             openClaudeMdModal(pName);
         });
     }
@@ -765,4 +779,58 @@ function updateUploadsPanel(pName) {
       }
     });
   });
+}
+
+export function renderAllActivityBars() {
+    Object.keys(state.terminals).forEach(pName => {
+        renderActivityBar(pName);
+    });
+}
+
+export function renderActivityBar(pName, panel = null) {
+    const t = state.terminals[pName];
+    const targetPanel = panel || (t ? t.panel : null);
+    if (!targetPanel) return;
+
+    const bar = targetPanel.querySelector('.terminal-activity-bar');
+    if (!bar) return;
+
+    const robot = state.walkingRobots[pName];
+    
+    bar.innerHTML = state.breakPositions
+        .filter(pos => !pos.assignee || pos.assignee === 'All Agents' || pos.assignee === pName)
+        .map(pos => {
+            const isActive = robot?.forcedTarget?.id === pos.id;
+            return `<button class="activity-btn ${isActive ? 'active' : ''}" data-id="${pos.id}" title="Go to ${pos.animation}">${pos.emoji || '📍'}</button>`;
+        }).join('');
+
+    bar.querySelectorAll('.activity-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const posId = btn.dataset.id;
+            const pos = state.breakPositions.find(x => x.id === posId);
+            if (!pos || !robot) return;
+
+            if (robot.forcedTarget?.id === pos.id) {
+                // Cancel break
+                robot.forcedTarget = null;
+                robot.activity = null;
+                robot.isWalking = true;
+                showToast('info', '🏃', 'Break cancelled. Returning to work.');
+            } else {
+                // Start break
+                robot.forcedTarget = pos;
+                robot.activity = null; // Reset activity until arrival
+                robot.isWalking = true;
+                showToast('success', pos.emoji || '☕', `Heading to ${pos.animation} spot...`);
+                
+                // Send command if any
+                if (pos.command && t && t.ws && t.ws.readyState === WebSocket.OPEN) {
+                    t.ws.send(JSON.stringify({ type: 'input', data: pos.command + '\r' }));
+                }
+            }
+            renderActivityBar(pName);
+            renderRobots();
+        };
+    });
 }
