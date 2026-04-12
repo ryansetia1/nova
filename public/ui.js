@@ -187,6 +187,59 @@ export function renderRobots() {
     renderSidebar();
 }
 
+export function renderForegroundObjects() {
+    const container = document.getElementById('foreground-objects');
+    if (!container) return;
+
+    // Check current theme
+    const isNight = document.body.classList.contains('theme-night');
+    const suffix = isNight ? '_night' : '_day';
+    
+    container.innerHTML = state.foregroundObjects.map((obj, i) => {
+        const isLinked = state.breakPositions.some(p => p.objectId === obj.id);
+        const transform = `translate(-50%, -50%) rotate(${obj.rotation || 0}deg) scale(${obj.scale || 1})`;
+        const zIndex = obj.layer === 'front' ? '20005' : '50';
+        
+        return `
+            <div class="workspace-object ${isLinked ? 'linked' : ''}" 
+                 data-index="${i}" 
+                 data-id="${obj.id}"
+                 style="left: ${obj.x}%; top: ${obj.y}%; transform: ${transform}; z-index: ${zIndex};"
+                 onclick="window.handleObjectClick('${obj.id}', event)">
+                <div class="layout-delete-btn" onclick="window.removeObject('${obj.id}', event)">❌</div>
+                <img src="assets/office/${isNight ? 'night' : 'day'}/objects/${obj.asset}${suffix}.png" alt="${obj.asset}" draggable="false">
+            </div>
+        `;
+    }).join('');
+}
+
+window.removeObject = (objectId, event) => {
+    event.stopPropagation();
+    const index = state.foregroundObjects.findIndex(obj => obj.id === objectId);
+    if (index !== -1) {
+        state.foregroundObjects.splice(index, 1);
+        const panel = document.querySelector('#dev-layout-config');
+        if (panel) panel.classList.add('hidden');
+        renderForegroundObjects();
+    }
+};
+
+window.handleObjectClick = async (objectId, event) => {
+    // If in dev mode, don't trigger actions
+    const devModule = await import('./devtool.js');
+    if (devModule?.dev?.isActive) return;
+
+    const pos = state.breakPositions.find(p => p.objectId === objectId);
+    if (!pos) return;
+
+    // Trigger position action
+    let targetAgent = pos.assignee === 'All Agents' ? state.projects.find(p => p.active)?.name : pos.assignee;
+    
+    if (targetAgent && window.nova && window.nova.moveToPosition) {
+        window.nova.moveToPosition(targetAgent, pos.id);
+    }
+};
+
 export function initThemeControl() {
     const themeBtn = document.getElementById('toggle-theme-btn');
     if (!themeBtn) return;
@@ -219,6 +272,9 @@ export function initThemeControl() {
 
         const label = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
         themeBtn.textContent = `Theme: ${label}`;
+
+        // Ensure objects are in sync
+        updateThemeAssets();
     };
 
     themeBtn.addEventListener('click', (e) => {
@@ -227,11 +283,17 @@ export function initThemeControl() {
         currentMode = modes[(idx + 1) % modes.length];
         localStorage.setItem('nova_theme_mode', currentMode);
         applyTheme();
+        updateThemeAssets();
         showToast('info', '🌗', `Theme set to ${currentMode.toUpperCase()}`);
     });
 
     applyTheme();
     setInterval(applyTheme, 30000); // Check auto-theme every 30s
+}
+
+export function updateThemeAssets() {
+    renderForegroundObjects();
+    // Also update any other theme-specific assets if needed
 }
 
 export async function preloadAllAssets() {

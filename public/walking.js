@@ -3,7 +3,7 @@
    ============================================ */
 
 import { state, dom } from './state.js';
-import { showToast, renderRobots } from './ui.js';
+import { showToast, renderRobots, renderForegroundObjects } from './ui.js';
 import { renderActivePath } from './devtool.js';
 
 export let WALKABLE_PATH = [{"x":17.75,"y":73.69},{"x":53.13,"y":55.56},{"x":59.62,"y":58.94},{"x":67.63,"y":60.31},{"x":71.13,"y":58.31},{"x":88.13,"y":66.94},{"x":84,"y":67.94},{"x":85.88,"y":71.31},{"x":74,"y":77.69},{"x":70.63,"y":75.19},{"x":62.88,"y":80.06},{"x":59.62,"y":83.94},{"x":44,"y":74.94},{"x":33.13,"y":81.06},{"x":18.13,"y":73.81}];
@@ -307,10 +307,77 @@ export async function saveBreakPositions(positions) {
             showToast('success', '☕', 'Break positions saved!');
             renderActivePath();
             
+            // Re-render objects in case association changed
+            renderForegroundObjects();
+            
             // Refresh all terminal activity bars
             import('./terminal.js').then(m => m.renderAllActivityBars());
         }
     } catch (err) { showToast('error', '❌', 'Failed to save positions'); }
+}
+
+export async function loadForegroundObjects() {
+    try {
+        const res = await fetch('/api/foreground-objects');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            state.foregroundObjects = data;
+            renderForegroundObjects();
+        }
+    } catch (err) { console.error('Failed to load foreground objects', err); }
+}
+
+export async function saveForegroundObjects(objects) {
+    try {
+        const res = await fetch('/api/foreground-objects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ objects })
+        });
+        if (res.ok) {
+            state.foregroundObjects = objects;
+            showToast('success', '🖼️', 'Foreground layout saved!');
+            renderForegroundObjects();
+            renderActivePath();
+        }
+    } catch (err) { showToast('error', '❌', 'Failed to save objects'); }
+}
+
+export async function loadObjectAssets() {
+    try {
+        const res = await fetch('/api/object-assets');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            state.objectAssets = data;
+        }
+    } catch (err) { console.error('Failed to load object assets', err); }
+}
+
+export function moveToPosition(pName, positionId) {
+    const r = state.walkingRobots[pName];
+    if (!r) return;
+    const pos = state.breakPositions.find(p => p.id === positionId);
+    // Toggle: if already moving to or at this specific position target, cancel it
+    if (r.forcedTarget && r.forcedTarget.id === pos.id) {
+        r.forcedTarget = null;
+        r.naturalIdleTimer = 0; // Return to natural AI
+        import('./terminal.js').then(m => m.renderAllActivityBars());
+        return;
+    }
+
+    r.forcedTarget = { id: pos.id, x: pos.x, y: pos.y, animation: pos.animation };
+    r.isWalking = true;
+    r.tx = pos.x; r.ty = pos.y;
+    
+    import('./terminal.js').then(m => m.renderAllActivityBars());
+
+    // Optional: Send command if defined
+    if (pos.command) {
+        const t = state.terminals[pName];
+        if (t && t.send) {
+            t.send(pos.command + '\n');
+        }
+    }
 }
 
 export function bindHoverListeners() {

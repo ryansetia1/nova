@@ -22,7 +22,9 @@ import {
     startWalkingLoop, 
     bindHoverListeners, 
     initAnchorAdjuster,
-    loadBreakPositions
+    loadBreakPositions,
+    loadForegroundObjects,
+    moveToPosition
 } from './walking.js';
 import { 
     initDevTool 
@@ -59,6 +61,7 @@ async function init() {
     await loadWalkablePath(); 
     await loadAnchorConfig(); 
     await loadBreakPositions();
+    await loadForegroundObjects();
     initSidebar();
     // initYouTubePlayer calls were in init in original app.js
     // I will check if initYouTubePlayer was there. Yes it was.
@@ -392,6 +395,7 @@ function bindEvents() {
 // Global exposure for inline HTML handlers
 window.nova = { 
     openTerminal,
+    moveToPosition,
     setHover: (name, isActive) => {
         if (state.walkingRobots[name]) {
             if (state.walkingRobots[name].isHovered !== isActive) {

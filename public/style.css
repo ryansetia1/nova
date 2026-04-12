@@ -602,6 +602,76 @@ body.is-fullscreen #header.reveal-padding {
   flex-shrink: 0;
 }
 
+#foreground-objects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#foreground-objects .workspace-object {
+  position: absolute;
+  pointer-events: auto;
+  transform-origin: center center;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  z-index: 50; /* Default below floor-foreground */
+}
+
+#foreground-objects .workspace-object:hover {
+  filter: brightness(1.1) drop-shadow(0 0 6px var(--accent-primary));
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+#foreground-objects .workspace-object.linked {
+  /* Visual cue that it's interactive */
+}
+
+#foreground-objects .workspace-object img {
+  display: block;
+}
+
+/* Layout Mode Specifics - removed z-index to allow SVG layer to float on top */
+body.drawing-mode #foreground-objects {
+  pointer-events: auto;
+}
+
+body.layout-mode .layout-delete-btn {
+  display: flex !important;
+}
+
+.layout-delete-btn {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  width: 32px;
+  height: 32px;
+  background: var(--accent-rose);
+  color: white;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 99999;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4);
+  pointer-events: auto;
+  border: 2px solid white;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.layout-delete-btn:hover {
+  transform: scale(1.2);
+  background: #fb7185;
+  box-shadow: 0 6px 16px rgba(244, 63, 94, 0.6);
+}
+
+body.drawing-mode .workspace-object.selected {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 4px;
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
 .floor-foreground {
   position: absolute;
   inset: 0;

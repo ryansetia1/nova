@@ -17,6 +17,7 @@ const PROJECTS_DIR = path.join(DATA_PATH, 'projects');
 const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
 const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
 const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
+const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
 
 // Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
@@ -93,6 +94,21 @@ app.get('/api/character-animations', (req, res) => {
     res.json(animationMap);
   } catch (err) {
     res.json({});
+  }
+});
+
+// API: List available foreground object assets
+app.get('/api/object-assets', (req, res) => {
+  const objectsPath = path.join(__dirname, 'public', 'assets', 'office', 'day', 'objects');
+  if (!fs.existsSync(objectsPath)) return res.json([]);
+
+  try {
+    const files = fs.readdirSync(objectsPath)
+      .filter(f => f.endsWith('_day.png'))
+      .map(f => f.replace('_day.png', ''));
+    res.json(files);
+  } catch (err) {
+    res.json([]);
   }
 });
 
@@ -413,6 +429,33 @@ app.post('/api/break-positions', (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save break positions' });
+  }
+});
+
+// API: Get/Save Foreground Objects
+app.get('/api/foreground-objects', (req, res) => {
+  if (fs.existsSync(FOREGROUND_OBJECTS_FILE)) {
+    try {
+      const data = fs.readFileSync(FOREGROUND_OBJECTS_FILE, 'utf8');
+      return res.json(JSON.parse(data));
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to read foreground objects file' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/foreground-objects', (req, res) => {
+  const { objects } = req.body;
+  if (!Array.isArray(objects)) {
+    return res.status(400).json({ error: 'Objects must be an array' });
+  }
+  try {
+    fs.writeFileSync(FOREGROUND_OBJECTS_FILE, JSON.stringify(objects, null, 2));
+    console.log(`🖼️  Foreground objects updated: ${objects.length} items`);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save foreground objects' });
   }
 });
 

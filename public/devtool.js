@@ -15,7 +15,9 @@ export const dev = {
     toolbar: null, 
     draggingIndex: null,
     draggingPositionIndex: null, 
+    draggingObjectIndex: null,
     editingPosition: null, // index of break position being edited
+    editingObject: null, // index of foreground object being edited
     availableAnimationsMap: {} // { charId: [animations] }
 };
 
@@ -58,16 +60,44 @@ export function initDevTool() {
                     dev.editingPosition = hitIndex;
                     document.addEventListener('mousemove', onPositionMove);
                     document.addEventListener('mouseup', onPositionUp);
-                } else {
-                    const id = 'pos_' + Date.now();
-                    state.breakPositions.push({ id, x, y, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents' });
-                    dev.editingPosition = state.breakPositions.length - 1;
-                    showPositionConfig(state.breakPositions.length - 1);
-                    renderActivePath();
+                }
+            } else if (dev.mode === 'layout') {
+                const targetObj = e.target.closest('.workspace-object');
+                if (targetObj) {
+                    const hitIndex = parseInt(targetObj.getAttribute('data-index'));
+                    dev.draggingObjectIndex = hitIndex;
+                    dev.editingObject = hitIndex;
+                    document.addEventListener('mousemove', onObjectMove);
+                    document.addEventListener('mouseup', onObjectUp);
+                    showLayoutConfig(hitIndex);
                 }
             }
         });
     }
+}
+
+function onObjectMove(e) {
+    if (dev.draggingObjectIndex === null) return;
+    const pt = dev.svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const svgP = pt.matrixTransform(dev.svg.getScreenCTM().inverse());
+    
+    state.foregroundObjects[dev.draggingObjectIndex].x = parseFloat(svgP.x.toFixed(2));
+    state.foregroundObjects[dev.draggingObjectIndex].y = parseFloat(svgP.y.toFixed(2));
+    
+    // Direct DOM manipulation for fast drag without full re-render
+    const el = document.querySelector(`.workspace-object[data-index="${dev.draggingObjectIndex}"]`);
+    if (el) {
+        el.style.left = parseFloat(svgP.x.toFixed(2)) + '%';
+        el.style.top = parseFloat(svgP.y.toFixed(2)) + '%';
+    }
+    renderActivePath();
+}
+
+function onObjectUp() {
+    dev.draggingObjectIndex = null;
+    document.removeEventListener('mousemove', onObjectMove);
+    document.removeEventListener('mouseup', onObjectUp);
 }
 
 function onPositionMove(e) {
@@ -100,6 +130,9 @@ function enterDevMode() {
         .then(r => r.json())
         .then(data => { dev.availableAnimationsMap = data; });
 
+    // Fetch object assets
+    import('./walking.js').then(m => m.loadObjectAssets());
+
     showDevToolbar();
     initDevSvg();
     renderActivePath();
@@ -108,11 +141,15 @@ function enterDevMode() {
 
 function exitDevMode(save = true) {
     document.body.classList.remove('drawing-mode');
+    document.body.classList.remove('layout-mode');
     if (dev.toolbar) dev.toolbar.remove();
     dev.toolbar = null;
-    if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0)) {
+    if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0 || state.foregroundObjects.length > 0)) {
         saveWalkablePath(dev.polygon);
-        import('./walking.js').then(m => m.saveBreakPositions(state.breakPositions));
+        import('./walking.js').then(m => {
+            m.saveBreakPositions(state.breakPositions);
+            m.saveForegroundObjects(state.foregroundObjects);
+        });
     } else if (!save) {
         dev.polygon = [...dev.originalPolygon];
         showToast('info', '📂', 'Changes discarded.');
@@ -129,7 +166,6 @@ function initDevSvg() {
         const floorWrapper = document.querySelector('#floor-wrapper');
         if (floorWrapper) floorWrapper.appendChild(dev.svg);
     }
-    dev.svg.style.pointerEvents = 'auto'; 
 }
 
 function showDevToolbar() {
@@ -144,10 +180,13 @@ function showDevToolbar() {
         <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🖋️ Draw</button>
         <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
+        <button id="dev-btn-layout" style="${btnStyle} ${dev.mode === 'layout' ? 'background:#10b981; border-color:#10b981;' : ''}">📐 Layout</button>
+        ${dev.mode === 'layout' ? `<button id="dev-btn-add-obj" style="${btnStyle} background:rgba(16,185,129,0.2); border-color:#10b981; color:#10b981;">➕ Add Object</button>` : ''}
+        ${dev.mode === 'positions' ? `<button id="dev-btn-add-pos" style="${btnStyle} background:rgba(99,102,241,0.2); border-color:#6366f1; color:#a5b4fc;">➕ Add Pos</button>` : ''}
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
         <button id="dev-btn-cancel" style="${btnStyle}">❌ Cancel</button>
-        <button id="dev-btn-save" style="${btnStyle} background:#10b981; border-color:#10b981;">✅ Save & Exit</button>
+        <button id="dev-btn-save" style="${btnStyle} background:#3b82f6; border-color:#3b82f6;">✅ Save & Exit</button>
     `;
     
     document.body.appendChild(dev.toolbar);
@@ -155,13 +194,41 @@ function showDevToolbar() {
     dev.toolbar.querySelector('#dev-btn-draw').onclick = () => setDevMode('draw');
     dev.toolbar.querySelector('#dev-btn-tweak').onclick = () => setDevMode('tweak');
     dev.toolbar.querySelector('#dev-btn-positions').onclick = () => setDevMode('positions');
+    dev.toolbar.querySelector('#dev-btn-layout').onclick = () => setDevMode('layout');
+    
+    const addObjBtn = dev.toolbar.querySelector('#dev-btn-add-obj');
+    if (addObjBtn) {
+        addObjBtn.onclick = () => {
+            const id = 'obj_' + Date.now();
+            const asset = state.objectAssets[0] || 'dispenser';
+            state.foregroundObjects.push({ id, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
+            dev.editingObject = state.foregroundObjects.length - 1;
+            showLayoutConfig(state.foregroundObjects.length - 1);
+            import('./ui.js').then(m => m.renderForegroundObjects());
+            renderActivePath();
+        };
+    }
+
+    const addPosBtn = dev.toolbar.querySelector('#dev-btn-add-pos');
+    if (addPosBtn) {
+        addPosBtn.onclick = () => {
+            const id = 'pos_' + Date.now();
+            state.breakPositions.push({ id, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
+            dev.editingPosition = state.breakPositions.length - 1;
+            showPositionConfig(state.breakPositions.length - 1);
+            renderActivePath();
+        };
+    }
+
     dev.toolbar.querySelector('#dev-btn-clear').onclick = () => { 
         if (dev.mode === 'positions') state.breakPositions = [];
+        else if (dev.mode === 'layout') { state.foregroundObjects = []; import('./ui.js').then(m => m.renderForegroundObjects()); }
         else dev.polygon = []; 
         renderActivePath(); 
     };
-    dev.toolbar.querySelector('#dev-btn-cancel').onclick = () => { dev.isActive = false; exitDevMode(false); hidePositionConfig(); };
-    dev.toolbar.querySelector('#dev-btn-save').onclick = () => { dev.isActive = false; exitDevMode(true); hidePositionConfig(); };
+
+    dev.toolbar.querySelector('#dev-btn-cancel').onclick = () => { dev.isActive = false; exitDevMode(false); hidePositionConfig(); hideLayoutConfig(); };
+    dev.toolbar.querySelector('#dev-btn-save').onclick = () => { dev.isActive = false; exitDevMode(true); hidePositionConfig(); hideLayoutConfig(); };
 }
 
 function showPositionConfig(index) {
@@ -172,7 +239,7 @@ function showPositionConfig(index) {
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'dev-pos-config';
-        panel.setAttribute('style', 'position:fixed; top:20px; right:20px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #6366f1; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        panel.setAttribute('style', 'position:fixed; top:100px; right:20px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #6366f1; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
         document.body.appendChild(panel);
     }
     panel.classList.remove('hidden');
@@ -238,6 +305,13 @@ function showPositionConfig(index) {
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Command (Terminal)</label>
             <input type="text" id="pos-cmd" value="${pos.command || ''}" placeholder="/coffee" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
         </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Link to Object</label>
+            <select id="pos-object-id" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
+                <option value="">— No Object —</option>
+                ${state.foregroundObjects.map(obj => `<option value="${obj.id}" ${pos.objectId === obj.id ? 'selected' : ''}>${obj.asset} (${obj.id.slice(-4)})</option>`).join('')}
+            </select>
+        </div>
         <div style="display:flex; gap:8px;">
             <button id="pos-delete" style="flex:1; padding:6px; background:#f43f5e; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Delete</button>
             <button id="pos-close" style="flex:1; padding:6px; background:#10b981; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Done</button>
@@ -259,6 +333,7 @@ function showPositionConfig(index) {
     };
     panel.querySelector('#pos-anim').onchange = (e) => { pos.animation = e.target.value; };
     panel.querySelector('#pos-cmd').oninput = (e) => { pos.command = e.target.value; };
+    panel.querySelector('#pos-object-id').onchange = (e) => { pos.objectId = e.target.value || null; import('./ui.js').then(m => m.renderForegroundObjects()); };
     panel.querySelector('#pos-delete').onclick = () => {
         state.breakPositions.splice(index, 1);
         hidePositionConfig();
@@ -273,12 +348,97 @@ function hidePositionConfig() {
     dev.editingPosition = null;
 }
 
+function showLayoutConfig(index) {
+    const obj = state.foregroundObjects[index];
+    if (!obj) return;
+
+    let panel = document.querySelector('#dev-layout-config');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'dev-layout-config';
+        panel.setAttribute('style', 'position:fixed; top:100px; left:20px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #10b981; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        document.body.appendChild(panel);
+    }
+    panel.classList.remove('hidden');
+
+    // Highlight selection in HTML
+    document.querySelectorAll('.workspace-object').forEach(el => el.classList.remove('selected'));
+    const selected = document.querySelector(`.workspace-object[data-index="${index}"]`);
+    if (selected) selected.classList.add('selected');
+
+    const assetOptions = state.objectAssets.map(a => `<option value="${a}" ${obj.asset === a ? 'selected' : ''}>${a}</option>`).join('');
+
+    panel.innerHTML = `
+        <div style="font-weight:700; color:#10b981; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Object</div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Asset Type</label>
+            <select id="obj-asset" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
+                ${assetOptions}
+            </select>
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Layer Order</label>
+            <select id="obj-layer" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
+                <option value="behind" ${obj.layer !== 'front' ? 'selected' : ''}>Behind Foreground</option>
+                <option value="front" ${obj.layer === 'front' ? 'selected' : ''}>In Front of Foreground</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Rotation (${obj.rotation || 0}°)</label>
+            <input type="range" id="obj-rot" min="0" max="360" value="${obj.rotation || 0}" style="width:100%;">
+        </div>
+        <div>
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Scale (${(obj.scale || 1).toFixed(2)})</label>
+            <input type="range" id="obj-scale" min="0.01" max="2" step="0.01" value="${obj.scale || 0.4}" style="width:100%;">
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button id="obj-delete" style="flex:1; padding:6px; background:#f43f5e; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Delete</button>
+            <button id="obj-close" style="flex:1; padding:6px; background:#10b981; border:none; color:#fff; border-radius:6px; font-size:11px; cursor:pointer;">Done</button>
+        </div>
+    `;
+
+    panel.querySelector('#obj-asset').onchange = (e) => { obj.asset = e.target.value; import('./ui.js').then(m => m.renderForegroundObjects()); };
+    panel.querySelector('#obj-layer').onchange = (e) => { obj.layer = e.target.value; import('./ui.js').then(m => m.renderForegroundObjects()); };
+    
+    const rotLabel = panel.querySelectorAll('label')[2];
+    const scaleLabel = panel.querySelectorAll('label')[3];
+    
+    panel.querySelector('#obj-rot').oninput = (e) => {
+        obj.rotation = parseInt(e.target.value);
+        rotLabel.textContent = `Rotation (${obj.rotation}°)`;
+        import('./ui.js').then(m => m.renderForegroundObjects());
+    };
+    panel.querySelector('#obj-scale').oninput = (e) => {
+        obj.scale = parseFloat(e.target.value);
+        scaleLabel.textContent = `Scale (${obj.scale.toFixed(2)})`;
+        import('./ui.js').then(m => m.renderForegroundObjects());
+    };
+
+    panel.querySelector('#obj-delete').onclick = () => {
+        state.foregroundObjects.splice(index, 1);
+        hideLayoutConfig();
+        import('./ui.js').then(m => m.renderForegroundObjects());
+    };
+    panel.querySelector('#obj-close').onclick = hideLayoutConfig;
+}
+
+function hideLayoutConfig() {
+    const panel = document.querySelector('#dev-layout-config');
+    if (panel) panel.classList.add('hidden');
+    dev.editingObject = null;
+    // Remove selection highlight
+    document.querySelectorAll('.workspace-object').forEach(el => el.classList.remove('selected'));
+}
+
 function setDevMode(mode) {
     dev.mode = mode;
+    document.body.classList.remove('layout-mode');
     if (mode === 'draw') {
         dev.polygon = []; 
     } else if (mode === 'tweak' && dev.polygon.length === 0) {
         dev.polygon = [...WALKABLE_PATH]; 
+    } else if (mode === 'layout') {
+        document.body.classList.add('layout-mode');
     }
     showDevToolbar();
     renderActivePath();
@@ -353,18 +513,28 @@ export function renderActivePath() {
         state.breakPositions.forEach((pos, i) => {
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.setAttribute('style', 'cursor:pointer; pointer-events:auto;');
-            group.onclick = (e) => { e.stopPropagation(); showPositionConfig(i); };
+            group.onclick = (e) => { 
+                e.stopPropagation(); 
+                dev.mode = 'positions';
+                dev.editingPosition = i;
+                showPositionConfig(i); 
+                showDevToolbar();
+            };
 
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y);
             circle.setAttribute('r', '2');
-            circle.setAttribute('fill', 'rgba(99, 102, 241, 0.4)');
+            circle.setAttribute('fill', 'rgba(99, 102, 241, 0.2)');
             circle.setAttribute('stroke', '#6366f1');
-            circle.setAttribute('stroke-width', '0.3');
+            circle.setAttribute('stroke-width', '0.2');
+            if (dev.editingPosition === i) {
+                circle.setAttribute('stroke-width', '0.5');
+                circle.setAttribute('stroke-dasharray', '0.5,0.5');
+            }
             group.appendChild(circle);
 
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 0.5);
+            text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 0.6);
             text.setAttribute('font-size', '1.5');
             text.setAttribute('text-anchor', 'middle');
             text.textContent = pos.emoji || '📍';

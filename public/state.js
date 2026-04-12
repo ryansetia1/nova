@@ -31,6 +31,8 @@ export const state = {
   walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame, forcedTarget, activity, activityFrame } }
   projectForEmojiUpdate: null,
   breakPositions: [], // { id, x, y, emoji, animation, command }
+  foregroundObjects: [], // { id, x, y, rotation, scale, asset, positionId }
+  objectAssets: [], // ['dispenser', ...]
   
   // Pre-calculated frames for all characters
   characterFrames: {}, // { charId: { animationName: [paths] } }
