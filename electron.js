@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Notification } = require('electron');
+const { app, BrowserWindow, shell, Notification, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -46,6 +46,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'public/preload.js')
     },
     icon: path.join(__dirname, 'public/assets/icon/nova-icon.png'),
   });
@@ -78,6 +79,16 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+ipcMain.handle('select-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Select Project Folder',
+    buttonLabel: 'Select Folder'
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
 });
 
 app.on('window-all-closed', () => {

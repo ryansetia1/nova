@@ -508,3 +508,47 @@ export function initNotificationSettings() {
         }
     });
 }
+
+export function initDefaultFolderSettings() {
+  const setBtn = document.getElementById('set-default-folder-btn');
+  const clearBtn = document.getElementById('clear-default-folder-btn');
+  const display = document.getElementById('default-folder-display');
+
+  const updateDisplay = () => {
+    const saved = localStorage.getItem('nova_default_folder');
+    if (display) {
+      display.textContent = saved
+        ? saved.split('/').pop()
+        : 'Not set';
+      display.title = saved || '';
+    }
+  };
+
+  updateDisplay();
+
+  if (setBtn) {
+    setBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!window.electronAPI || !window.electronAPI.selectFolder) {
+        showToast('info', '📁', 'Only available in desktop app');
+        return;
+      }
+      const folderPath = await window.electronAPI.selectFolder();
+      if (folderPath) {
+        localStorage.setItem('nova_default_folder', folderPath);
+        updateDisplay();
+        showToast('success', '📁', 
+          `Default folder: ${folderPath.split('/').pop()}`);
+      }
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.removeItem('nova_default_folder');
+      updateDisplay();
+      showToast('info', '📁', 'Default folder cleared');
+    });
+  }
+}

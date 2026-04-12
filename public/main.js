@@ -14,7 +14,8 @@ import {
     showToast,
     bringToFront,
     getAppearanceHtml,
-    initNotificationSettings
+    initNotificationSettings,
+    initDefaultFolderSettings
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -44,7 +45,8 @@ import {
     setupAppearanceToggles,
     initServiceSelector,
     initClaudeMdModal,
-    initSwitchServiceModal
+    initSwitchServiceModal,
+    initFolderPicker
 } from './modals.js';
 import { 
     setupTerminal, 
@@ -81,6 +83,8 @@ async function init() {
     initClaudeMdModal();
     initSwitchServiceModal();
     initNotificationSettings();
+    initDefaultFolderSettings();
+    initFolderPicker();
     
     setTimeout(() => {
         if (dom.loader) dom.loader.classList.add('hidden');

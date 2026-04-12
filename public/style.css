@@ -3444,3 +3444,55 @@ emoji-picker.dark {
     from { transform: translateX(50px); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
+
+.custom-path-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-path-wrapper .form-input {
+  flex: 1;
+}
+
+.browse-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.browse-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-divider {
+  height: 0.5px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 6px 0;
+}
+
+.settings-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  padding: 4px 12px 2px;
+}
+
+.default-folder-display {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 2px 12px 6px;
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}

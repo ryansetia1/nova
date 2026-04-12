@@ -139,7 +139,7 @@ export function setupTerminal(pName, showUI = false) {
         if (meta) {
             if (meta.isDocked) panel.classList.add('docked-right');
             panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
-            panel.querySelector('.terminal-folder').textContent = meta.nickname ? `projects/${pName}` : '';
+            panel.querySelector('.terminal-folder').textContent = meta.customPath || `projects/${pName}`;
             const badge = panel.querySelector('.terminal-project-badge');
             badge.textContent = meta.model || '';
             badge.dataset.service = `Service: ${meta.service ? meta.service.toUpperCase() : 'OLLAMA'}`;

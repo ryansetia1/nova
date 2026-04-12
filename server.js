@@ -197,6 +197,22 @@ app.post('/api/projects', (req, res) => {
       if (!path.isAbsolute(actualPath)) {
          return res.status(400).json({ error: 'Custom path must be an absolute path or ~' });
       }
+
+      const resolvedCustomAbs = path.resolve(actualPath);
+      const resolvedNova = path.resolve(__dirname);
+
+      const isNovaRoot = resolvedCustomAbs === resolvedNova;
+      const criticalFolders = ['public', 'node_modules', 'projects', 'dist'];
+      const isCriticalSubfolder = criticalFolders.some(folder =>
+        resolvedCustomAbs === path.join(resolvedNova, folder) ||
+        resolvedCustomAbs.startsWith(path.join(resolvedNova, folder) + path.sep)
+      );
+
+      if (isNovaRoot || isCriticalSubfolder) {
+        return res.status(400).json({ 
+          error: 'Cannot use this folder as a project path — it conflicts with NOVA system folders'
+        });
+      }
       if (!fs.existsSync(actualPath)) {
          fs.mkdirSync(actualPath, { recursive: true });
       }
@@ -827,13 +843,19 @@ wss.on('connection', (ws, req) => {
           // Clear the init marker so next cold start is also fresh
           try { if (fs.existsSync(initMarker)) fs.unlinkSync(initMarker); } catch(e) {}
 
-          const fallbackCmd = `/model ${model}`;
+          // If the agent wrapper exited, we are likely in raw zsh. 
+          // Re-running the full command without --continue is the safest recovery.
+          const fallbackCmd = (service === 'claude' || service === 'sumo' || service === 'custom')
+            ? `claude --model ${model}`
+            : `ollama launch claude --model ${model}`;
+
           setTimeout(() => {
               ptyProcess.write('\x03'); // Send Ctrl+C to clear any stuck prompt
               setTimeout(() => {
                   ptyProcess.write(fallbackCmd + '\r');
-              }, 500);
-          }, 500);
+                  console.log(`♻️  Restarted agent for ${projectName} using: ${fallbackCmd}`);
+              }, 800);
+          }, 400);
       }
     } catch (e) {}
   });

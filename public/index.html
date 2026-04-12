@@ -112,6 +112,11 @@
             <button id="toggle-visuals-btn">Toggle Visualize</button>
             <button id="toggle-notifications-btn">Agent Notifications: ON</button>
             <button id="toggle-theme-btn">Theme: Auto</button>
+            <div class="settings-divider"></div>
+            <div class="settings-label">DEFAULT PROJECT FOLDER</div>
+            <button id="set-default-folder-btn">📁 Set Default Folder</button>
+            <button id="clear-default-folder-btn">✕ Clear Default Folder</button>
+            <div id="default-folder-display" class="default-folder-display"></div>
           </div>
         </div>
       </div>
@@ -337,7 +342,12 @@
         <div class="spawn-group-agent">
           <div class="input-group">
             <label for="custom-path-input">Custom Folder Path <span class="label-hint">optional</span></label>
-            <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
+            <div class="custom-path-wrapper">
+              <input type="text" id="custom-path-input" placeholder="/Users/name/Desktop/..." autocomplete="off">
+              <button type="button" id="browse-folder-btn" class="browse-btn" title="Browse folder">
+                📁
+              </button>
+            </div>
           </div>
           <div id="nest-agent-group" class="input-group" style="margin-top: 15px;">
             <label class="form-label" for="nest-parent-select" style="display: block; font-size: 11px; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px; text-transform: uppercase;">NEST INSIDE EXISTING AGENT <span class="label-hint">optional</span></label>

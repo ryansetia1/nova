@@ -226,6 +226,12 @@ export async function openModal(type = 'agent') {
         loadModelsForService('ollama');
     }
 
+    const defaultFolder = localStorage.getItem('nova_default_folder');
+    if (defaultFolder && dom.customPathInput && !dom.customPathInput.value) {
+        dom.customPathInput.value = defaultFolder;
+        dom.customPathInput.dispatchEvent(new Event('input'));
+    }
+
     setTimeout(() => {
         if (type === 'agent') dom.modalInput.focus();
         else dom.nicknameInput.focus();
@@ -845,4 +851,24 @@ export function initSwitchServiceModal() {
     dom.switchServiceModal.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
     });
+}
+
+export function initFolderPicker() {
+    if (dom.browseBtn) {
+        dom.browseBtn.addEventListener('click', async () => {
+          if (!window.electronAPI || !window.electronAPI.selectFolder) {
+            showToast('info', '📁', 'Folder picker only available in desktop app');
+            return;
+          }
+          try {
+            const folderPath = await window.electronAPI.selectFolder();
+            if (folderPath) {
+              dom.customPathInput.value = folderPath;
+              dom.customPathInput.dispatchEvent(new Event('input'));
+            }
+          } catch (err) {
+              console.error('Folder picker error:', err);
+          }
+        });
+    }
 }
