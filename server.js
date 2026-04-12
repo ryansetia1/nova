@@ -117,7 +117,7 @@ app.post('/api/projects', (req, res) => {
   const { name, model, nickname, customPath, emoji, parentAgent, service, apiKey, baseUrl, type } = req.body;
   console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath, type });
   
-  if (!name || !name.trim()) {
+  if (type !== 'pet' && (!name || !name.trim())) {
     return res.status(400).json({ error: 'Project name is required' });
   }
 
