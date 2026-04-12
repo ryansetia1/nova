@@ -16,12 +16,9 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 - **Dynamic Office Environment (NOVA HQ)**:
     - **Depth Sorting**: Agents naturally overlap based on their vertical position, creating a 3D depth illusion.
     - **Walkable Zones**: Precise pathing logic to keep agents within the office floor boundaries.
-    - **Ambient Experience**: Integrated YouTube music player in the sidebar for a focused deep-work environment.
-- **Developer Suite (Ctrl+D)**:
-    - **Floor Drawing**: Draw custom walkable paths directly on the floor.
-    - **Point Tweaking**: Interactive drag-and-drop system to refine paths.
-    - **Anchor Adjustment**: Visually align character pivot points for perfect floor placement.
-- **Smart Persistence**: All floor paths, anchor settings, project metadata, and **UI docking states** are automatically synced to the server.
+    - **Universal Tooltip & Persistence**: Consistent, high-fidelity tooltips for all workspace entities in Dev Mode with automatic sequential naming (e.g., "Position 1", "Dispenser 2").
+- **Smart Persistence**: All floor paths, character-specific anchor settings, project metadata, and **UI docking states** are automatically synced to the server.
+- **Enhanced Ambient Control**: Minimalist music control system that reveals video and volume sliders on hover only when active, keeping the sidebar focused.
 
 ## 🚀 Tech Stack
 
@@ -57,9 +54,10 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 - **Switch Service**: Click the model badge (pill) in any terminal header to change LLM providers or models on the fly.
 - **Edit Rules**: Click the 📋 icon to edit the agent's `CLAUDE.md` context.
 - **Dev Mode (`Ctrl + D`)**: 
-    - Use the floating toolbar to **Draw** new paths or **Tweak** existing ones.
-    - Click **Save & Apply** to persist changes.
-- **Visualize Mode**: Toggle via the settings gear (top right) to see/adjust agent foot anchors.
+    - **Layout Mode**: Drag and drop foreground objects (e.g., Dispensers, Tables) with automatic sequential naming.
+    - **Positions Mode**: Manage specific agent break/idle positions.
+    - **Interaction Isolation**: Modes strictly isolate entity interactions to prevent accidental movement.
+- **Visualize Mode**: Toggle via the settings gear (top right) to see/adjust **character-specific foot anchors** (individual settings for Char1 vs Char2).
 
 ## 📂 Project Structure
 

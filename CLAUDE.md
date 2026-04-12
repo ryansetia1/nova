@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**NOVA** - A visual office interface with Electron desktop app, featuring:
+- **NOVA** - A visual office interface with Electron desktop app, featuring:
 - Interactive character agents that move around an office environment
 - Dockable terminal sidebar with WebSocket PTY streaming
 - LLM service switching (Ollama, Claude, Sumo, Custom)
-- Project management system (agent, captain, pet types)
+- Project & Entity management (Agents, Captains, Pets, and Workspace Objects)
+- Dedicated character anchor alignment & interaction modes
 
 ## Quick Start
 
@@ -74,10 +75,11 @@ nova/
 ## Data Persistence
 
 Key configuration files:
-- `anchor_config.json` - Terminal anchor/dock positions
-- `break_positions.json` - Character idle/break positions
-- `foreground_objects.json` - Collision objects for agent movement
-- `walkable_path.json` - Walkable area polygons
+- `anchor_config.json` - Character-specific sprite pivot points (Char1, Char2, etc.)
+- `break_positions.json` - Named break points for agent idling
+- `foreground_objects.json` - Named collision objects for agent movement
+- `walkable_path.json` - Floor area polygon vertices
+- `character_mapping.json` - Maps entity IDs to sprite assets and behavior profiles
 
 ## Development Patterns
 
@@ -98,10 +100,10 @@ Key configuration files:
 
 ## Common Tasks
 
-### Add New Character
-1. Add sprite sheets to `public/sprites/`
-2. Configure in `break_positions.json`
-3. Update agent initialization in `main.js`
+### Configure character-specific anchor
+- 1. Toggle **Visualize Mode** via Settings Gear
+- 2. Select character (Char1, Char2, etc.) in the Anchor Adjuster panel
+- 3. Adjust sliders and click **Save & Apply**
 
 ### Modify Walkable Area
 1. Edit `walkable_path.json` with new polygons
