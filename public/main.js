@@ -15,7 +15,8 @@ import {
     bringToFront,
     getAppearanceHtml,
     initNotificationSettings,
-    initDefaultFolderSettings
+    initDefaultFolderSettings,
+    initMusicManager
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -52,7 +53,7 @@ import {
     setupTerminal, 
     openTerminal, 
     hideTerminal,
-    updateDockedLayout 
+    updateDockedLayout
 } from './terminal.js';
 
 // ---- Initialization ----
@@ -85,6 +86,7 @@ async function init() {
     initSwitchServiceModal();
     initNotificationSettings();
     initDefaultFolderSettings();
+    initMusicManager();
     initFolderPicker();
     
     setTimeout(() => {

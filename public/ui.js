@@ -374,9 +374,10 @@ export function initYouTubePlayer() {
     if (!dom.youtubeLoadBtn || !dom.youtubeUrlInput || !dom.youtubePlayer) return;
 
     // Set initial random video from playlist
-    if (CONFIG.YOUTUBE_PLAYLIST && CONFIG.YOUTUBE_PLAYLIST.length > 0) {
-        const randomIndex = Math.floor(Math.random() * CONFIG.YOUTUBE_PLAYLIST.length);
-        const videoId = CONFIG.YOUTUBE_PLAYLIST[randomIndex];
+    const playlist = JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST;
+    if (playlist && playlist.length > 0) {
+        const randomIndex = Math.floor(Math.random() * playlist.length);
+        const videoId = playlist[randomIndex];
         dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
     }
 
@@ -560,4 +561,93 @@ export function initDefaultFolderSettings() {
       showToast('info', '📁', 'Default folder cleared');
     });
   }
+}
+
+export function initMusicManager() {
+    const modal = document.getElementById('music-modal');
+    const openBtn = document.getElementById('manage-music-btn');
+    const closeBtn = document.getElementById('music-close-btn');
+    const saveBtn = document.getElementById('music-save-btn');
+    const addBtn = document.getElementById('music-add-btn');
+    const urlInput = document.getElementById('music-url-input');
+    const listContainer = document.getElementById('music-list');
+    const previewThumb = document.getElementById('music-preview-thumb');
+
+    let tempPlaylist = [...(JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST)];
+
+    const extractVideoId = (input) => {
+        let videoId = '';
+        if (input.includes('youtube.com/watch?v=')) {
+            videoId = input.split('v=')[1].split('&')[0];
+        } else if (input.includes('youtu.be/')) {
+            videoId = input.split('youtu.be/')[1].split('?')[0];
+        } else if (input.includes('youtube.com/embed/')) {
+            videoId = input.split('embed/')[1].split('?')[0];
+        } else {
+            videoId = input.trim();
+        }
+        return videoId.length === 11 ? videoId : null;
+    };
+
+    const renderList = () => {
+        listContainer.innerHTML = tempPlaylist.map((id, index) => `
+            <div class="music-item">
+                <div class="music-item-thumb" style="background-image: url('https://img.youtube.com/vi/${id}/mqdefault.jpg')"></div>
+                <div class="music-item-info">
+                    <div class="music-item-id">${id}</div>
+                </div>
+                <div class="music-item-remove" onclick="window.removeMusicItem(${index})">🗑️</div>
+            </div>
+        `).join('');
+    };
+
+    window.removeMusicItem = (index) => {
+        tempPlaylist.splice(index, 1);
+        renderList();
+    };
+
+    if (!openBtn) return;
+
+    openBtn.addEventListener('click', () => {
+        tempPlaylist = [...(JSON.parse(localStorage.getItem('nova_playlist')) || CONFIG.YOUTUBE_PLAYLIST)];
+        renderList();
+        modal.classList.remove('hidden');
+    });
+
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+    
+    urlInput.addEventListener('input', () => {
+        const id = extractVideoId(urlInput.value);
+        if (id) {
+            previewThumb.style.backgroundImage = `url('https://img.youtube.com/vi/${id}/mqdefault.jpg')`;
+            previewThumb.innerHTML = '';
+        } else {
+            previewThumb.style.backgroundImage = 'none';
+            previewThumb.innerHTML = '<span>PREVIEW</span>';
+        }
+    });
+
+    addBtn.addEventListener('click', () => {
+        const id = extractVideoId(urlInput.value);
+        if (id) {
+            if (!tempPlaylist.includes(id)) {
+                tempPlaylist.push(id);
+                renderList();
+                urlInput.value = '';
+                previewThumb.style.backgroundImage = 'none';
+                previewThumb.innerHTML = '<span>PREVIEW</span>';
+                showToast('success', '🎵', 'Added to playlist');
+            } else {
+                showToast('info', '⚠️', 'Already in playlist');
+            }
+        } else {
+            showToast('error', '⚠️', 'Invalid YouTube URL or ID');
+        }
+    });
+
+    saveBtn.addEventListener('click', () => {
+        localStorage.setItem('nova_playlist', JSON.stringify(tempPlaylist));
+        showToast('success', '💾', 'Playlist saved! Refresh to apply.');
+        modal.classList.add('hidden');
+    });
 }

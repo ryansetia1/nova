@@ -117,6 +117,9 @@
             <button id="set-default-folder-btn">📁 Set Default Folder</button>
             <button id="clear-default-folder-btn">✕ Clear Default Folder</button>
             <div id="default-folder-display" class="default-folder-display"></div>
+            <div class="settings-divider"></div>
+            <div class="settings-label">SYSTEM MUSIC</div>
+            <button id="manage-music-btn" class="settings-item">🎵 Manage Playlist</button>
           </div>
         </div>
       </div>
@@ -599,6 +602,41 @@ This project is [describe project].
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+  <!-- Music Management Modal -->
+  <div id="music-modal" class="modal-overlay hidden">
+    <div class="modal music-manager-modal">
+      <div class="modal-header">
+        <span class="modal-icon">🎵</span>
+        <div class="modal-header-text">
+          <h3 style="margin: 0;">Music Management</h3>
+          <p style="margin: 0; font-size: 11px; opacity: 0.7;">Add or remove ambient YouTube tracks</p>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="music-list" class="music-list">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div class="music-add-form" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-subtle);">
+          <div class="input-group">
+            <label style="font-size: 11px; font-weight: 800; color: var(--accent-primary);">ADD NEW TRACK</label>
+            <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+              <input type="text" id="music-url-input" placeholder="Paste YouTube URL or ID..." style="flex: 1;">
+              <div id="music-preview-thumb" class="music-preview-small">
+                <span>PREVIEW</span>
+              </div>
+            </div>
+          </div>
+          <button id="music-add-btn" class="btn btn-primary" style="width: 100%; margin-top: 12px;">Add to Playlist</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="music-close-btn" class="btn btn-ghost">Close</button>
+        <button id="music-save-btn" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="main.js"></script>
 </body>
 
