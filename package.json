@@ -25,7 +25,7 @@
     "compression": "maximum",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "public/assets/icon/nova-icon.icns",
+      "icon": "public/assets/icon/nova-icon.png",
       "target": [
         {
           "target": "dmg",
