@@ -91,10 +91,18 @@ function refit(t) {
     if (!t || !t.fitAddon || !t.term) return;
     try {
         t.fitAddon.fit();
-        if (t.ws && t.ws.readyState === WebSocket.OPEN) {
-            t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
-        }
-        t.term.refresh(0, t.term.rows - 1);
+        
+        // Secondary refit after a short delay to account for CSP/Rendering settling
+        setTimeout(() => {
+            if (!t || !t.fitAddon || !t.term) return;
+            try {
+                t.fitAddon.fit();
+                if (t.ws && t.ws.readyState === WebSocket.OPEN) {
+                    t.ws.send(JSON.stringify({ type: 'resize', cols: t.term.cols, rows: t.term.rows }));
+                }
+                t.term.refresh(0, t.term.rows - 1);
+            } catch(e) {}
+        }, 50);
     } catch (e) {}
 }
 
@@ -517,6 +525,7 @@ function bindWindowEvents(pName, panel, tState) {
             panel.style.width = r.width + 'px'; panel.style.height = r.height + 'px';
             panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px';
             tState.isMaximized = false;
+            panel.classList.remove('maximized');
         } else {
             tState.prevRect = panel.getBoundingClientRect();
             panel.style.left = '20px'; panel.style.top = '20px';
@@ -524,6 +533,7 @@ function bindWindowEvents(pName, panel, tState) {
             panel.style.height = (window.innerHeight - 40) + 'px';
             panel.style.transform = 'none';
             tState.isMaximized = true;
+            panel.classList.add('maximized');
         }
         setTimeout(() => refit(tState), 300);
     });
