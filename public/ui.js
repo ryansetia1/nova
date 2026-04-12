@@ -367,9 +367,18 @@ export async function preloadAllAssets() {
     ]);
 }
 
+import { CONFIG } from './config.js';
+
 let isYouTubePlaying = false;
 export function initYouTubePlayer() {
     if (!dom.youtubeLoadBtn || !dom.youtubeUrlInput || !dom.youtubePlayer) return;
+
+    // Set initial random video from playlist
+    if (CONFIG.YOUTUBE_PLAYLIST && CONFIG.YOUTUBE_PLAYLIST.length > 0) {
+        const randomIndex = Math.floor(Math.random() * CONFIG.YOUTUBE_PLAYLIST.length);
+        const videoId = CONFIG.YOUTUBE_PLAYLIST[randomIndex];
+        dom.youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
+    }
 
     function sendCommand(func, args = '') {
         if (dom.youtubePlayer && dom.youtubePlayer.contentWindow) {
