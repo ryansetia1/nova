@@ -5,10 +5,10 @@ const path = require('path');
 // In production, use userData path for writable files
 if (app.isPackaged) {
   const userDataPath = app.getPath('userData');
-  
+
   // Set environment variable so server.js can use the correct paths
   process.env.NOVA_DATA_PATH = userDataPath;
-  
+
   // Copy default files to userData if they don't exist yet
   const filesToInit = ['walkable_path.json', 'anchor_config.json'];
   filesToInit.forEach(file => {
@@ -36,8 +36,8 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: 1600,
+    height: 1200,
     minWidth: 1024,
     minHeight: 600,
     titleBarStyle: 'hidden', // macOS native traffic lights
