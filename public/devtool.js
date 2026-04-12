@@ -229,8 +229,46 @@ function renderDevSidebar() {
                 </div>
             `).join('')}
             ${entities.length === 0 ? '<div style="font-size:11px; opacity:0.3; text-align:center; margin-top:20px;">No entities found</div>' : ''}
+            
+            <button id="dev-sidebar-add-btn" class="dev-sidebar-main-btn" style="margin-top: 12px; height: 36px; gap: 10px;">
+                <span style="font-size: 18px; font-weight: 400; line-height: 1;">+</span>
+                <span>${isPositions ? 'Add Position' : (isLayout ? 'Add Object' : 'Add Iframe')}</span>
+            </button>
         </div>
     `;
+
+    const addBtn = sidebar.querySelector('#dev-sidebar-add-btn');
+    if (addBtn) {
+        addBtn.onclick = () => {
+            if (isPositions) {
+                const id = 'pos_' + Date.now();
+                const name = getNextDefaultName('position');
+                state.breakPositions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
+                dev.editingPosition = state.breakPositions.length - 1;
+                showPositionConfig(state.breakPositions.length - 1);
+            } else if (isLayout) {
+                const id = 'obj_' + Date.now();
+                const asset = state.objectAssets[0] || 'dispenser';
+                const name = getNextDefaultName('object', asset);
+                state.foregroundObjects.push({ id, name, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
+                dev.editingObject = state.foregroundObjects.length - 1;
+                showLayoutConfig(state.foregroundObjects.length - 1);
+                import('./ui.js').then(m => m.renderForegroundObjects());
+            } else if (isTheatre) {
+                const id = 'ambient_' + Date.now();
+                const name = getNextDefaultName('ambient');
+                state.ambientObjects.push({ 
+                    id, name, url: '', x: 50, y: 50, 
+                    width: 300, height: 180, rotation: 0, scale: 1, skewX: 0, skewY: 0
+                });
+                dev.editingAmbient = state.ambientObjects.length - 1;
+                showAmbientConfig(state.ambientObjects.length - 1);
+                import('./ui.js').then(m => m.renderAmbientObjects());
+            }
+            renderDevSidebar();
+            renderActivePath();
+        };
+    }
 
     sidebar.querySelectorAll('.dev-entity-item').forEach(item => {
         item.onclick = (e) => {
@@ -338,9 +376,6 @@ function showDevToolbar() {
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
         <button id="dev-btn-layout" style="${btnStyle} ${dev.mode === 'layout' ? 'background:#10b981; border-color:#10b981;' : ''}">📐 Layout</button>
         <button id="dev-btn-theatre" style="${btnStyle} ${dev.mode === 'theatre' ? 'background:#d97706; border-color:#d97706;' : ''}">🎬 Theatre</button>
-        ${dev.mode === 'layout' ? `<button id="dev-btn-add-obj" style="${btnStyle} background:rgba(16,185,129,0.2); border-color:#10b981; color:#10b981;">➕ Add Object</button>` : ''}
-        ${dev.mode === 'positions' ? `<button id="dev-btn-add-pos" style="${btnStyle} background:rgba(99,102,241,0.2); border-color:#6366f1; color:#a5b4fc;">➕ Add Pos</button>` : ''}
-        ${dev.mode === 'theatre' ? `<button id="dev-btn-add-ambient" style="${btnStyle} background:rgba(217,119,6,0.2); border-color:#d97706; color:#fbbf24;">➕ Add Iframe</button>` : ''}
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
         <button id="dev-btn-cancel" style="${btnStyle}">❌ Cancel</button>
@@ -357,54 +392,6 @@ function showDevToolbar() {
     const theatreBtn = dev.toolbar.querySelector('#dev-btn-theatre');
     if (theatreBtn) theatreBtn.onclick = (e) => { e.stopPropagation(); setDevMode('theatre'); };
     
-    const addObjBtn = dev.toolbar.querySelector('#dev-btn-add-obj');
-    if (addObjBtn) {
-        addObjBtn.onclick = () => {
-            const id = 'obj_' + Date.now();
-            const asset = state.objectAssets[0] || 'dispenser';
-            const name = getNextDefaultName('object', asset);
-            state.foregroundObjects.push({ id, name, x: 50, y: 50, rotation: 0, scale: 0.4, asset, layer: 'behind' });
-            dev.editingObject = state.foregroundObjects.length - 1;
-            showLayoutConfig(state.foregroundObjects.length - 1);
-            renderDevSidebar();
-            import('./ui.js').then(m => m.renderForegroundObjects());
-            renderActivePath();
-        };
-    }
-
-    const addPosBtn = dev.toolbar.querySelector('#dev-btn-add-pos');
-    if (addPosBtn) {
-        addPosBtn.onclick = () => {
-            const id = 'pos_' + Date.now();
-            const name = getNextDefaultName('position');
-            state.breakPositions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
-            dev.editingPosition = state.breakPositions.length - 1;
-            showPositionConfig(state.breakPositions.length - 1);
-            renderDevSidebar();
-            renderActivePath();
-        };
-    }
-
-    const addAmbientBtn = dev.toolbar.querySelector('#dev-btn-add-ambient');
-    if (addAmbientBtn) {
-        addAmbientBtn.onclick = () => {
-            const id = 'ambient_' + Date.now();
-            const name = getNextDefaultName('ambient');
-            state.ambientObjects.push({ 
-                id, 
-                name,
-                url: '', // Default empty follow playlist
-                x: 50, y: 50, 
-                width: 300, height: 180,
-                rotation: 0, scale: 1, skewX: 0, skewY: 0
-            });
-            dev.editingAmbient = state.ambientObjects.length - 1;
-            showAmbientConfig(state.ambientObjects.length - 1);
-            renderDevSidebar();
-            import('./ui.js').then(m => m.renderAmbientObjects());
-        };
-    }
-
     dev.toolbar.querySelector('#dev-btn-clear').onclick = () => { 
         if (dev.mode === 'positions') state.breakPositions = [];
         else if (dev.mode === 'layout') { state.foregroundObjects = []; import('./ui.js').then(m => m.renderForegroundObjects()); }

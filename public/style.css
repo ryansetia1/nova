@@ -4066,6 +4066,29 @@ body.dev-mode-layout #dev-svg-layer g {
   opacity: 0.8;
 }
 
+.dev-sidebar-main-btn {
+  width: 100%;
+  flex-shrink: 0;
+  padding: 10px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dev-sidebar-main-btn:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
 .dev-entity-list {
   display: flex;
   flex-direction: column;
