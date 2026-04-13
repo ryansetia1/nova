@@ -251,46 +251,12 @@ wss.on('connection', (ws, req) => {
 
   const commonEnv = { ...process.env, ANTHROPIC_API_KEY: apiKey, ANTHROPIC_BASE_URL: baseUrl, LANG: 'en_US.UTF-8' };
   const initMarker = path.join(projectPath, '.nova_init');
-  const hasBeenInitialized = fs.existsSync(initMarker);
-  let agentProc, isPty = false;
+  
+  let agentProc = null, isPty = false;
 
-  if (uiMode === 'chat') {
-    const args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose"]; 
-    console.log(`[ChatProxy] Attempting: ollama ${args.join(' ')} (CWD: ${actualCwd})`);
-    
-    ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', message: `🚀 Starting agent for ${projectName}...` }) }));
-
-    agentProc = spawn('ollama', args, { cwd: actualCwd, env: commonEnv });
-    
-    agentProc.on('error', (err) => {
-        console.warn(`[ChatProxy] ollama failed, trying direct 'claude' fallback: ${err.message}`);
-        const claudeArgs = ["--model", model, "--output-format", "stream-json", "--verbose"];
-        agentProc = spawn('claude', claudeArgs, { cwd: actualCwd, env: commonEnv });
-        
-        agentProc.on('error', (f) => {
-             ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: `Failed to start agent. Ensure 'ollama' or 'claude' is installed: ${f.message}` }) }));
-        });
-        setupAgentHandlers(agentProc);
-    });
-
-    const setupAgentHandlers = (proc) => {
-        proc.stdout.on('data', (d) => {
-            if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: d.toString() }));
-        });
-        proc.stderr.on('data', (d) => {
-            console.error(`[ChatProxy Err] ${d}`);
-        });
-        proc.on('close', (code) => {
-            console.log(`[ChatProxy] Closed with code ${code}`);
-            terminals.delete(sessionKey);
-        });
-    }
-
-    if (agentProc) {
-        setupAgentHandlers(agentProc);
-        terminals.set(sessionKey, agentProc);
-    }
-  } else {
+  // For chat mode, we defer spawning until there's an actual input from the user.
+  // Claude CLI in -p (print) mode expects stdin immediately and exits when done.
+  if (uiMode !== 'chat') {
     isPty = true;
     agentProc = pty.spawn('/bin/zsh', ['--login'], { name: 'xterm-256color', cols: 120, rows: 30, cwd: actualCwd, env: { ...commonEnv, SHELL: '/bin/zsh', TERM: 'xterm-256color' } });
     terminals.set(sessionKey, agentProc);
@@ -301,8 +267,12 @@ wss.on('connection', (ws, req) => {
     agentProc.onExit(() => {
         terminals.delete(sessionKey);
     });
-    const cmd = (service === 'ollama') ? `ollama launch claude --model ${model} ${hasBeenInitialized ? '-- --continue' : ''}` : `claude ${hasBeenInitialized ? '--continue' : `--model ${model}`}`;
+    const binName = service === 'claude' ? 'claude' : service;
+    const cmd = (service === 'ollama') ? `ollama launch claude --model ${model} ${hasBeenInitialized ? '-- --continue' : ''}` : `${binName} ${hasBeenInitialized ? '--continue' : `--model ${model}`}`;
     setTimeout(() => { agentProc.write(cmd + '\r'); if (!hasBeenInitialized) fs.writeFileSync(initMarker, ''); }, 1000);
+  } else {
+      // Just notify frontend that we're connected
+      ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', message: `🚀 Agent '${projectName}' connected in chat mode...` }) }));
   }
 
   ws.on('message', (m) => {
@@ -311,34 +281,79 @@ wss.on('connection', (ws, req) => {
       if (p.type === 'input') {
         let dataToSend = p.data;
         
-        // If we are in Terminal (PTY) mode, we MUST NOT send JSON to the shell.
-        // If the incoming data is a string that looks like our structured JSON, extract the text.
-        if (isPty && typeof dataToSend === 'string' && dataToSend.trim().startsWith('{')) {
-          try {
-            const parsed = JSON.parse(dataToSend.trim());
-            if (parsed.type === 'user' && parsed.message && parsed.message.content) {
-               dataToSend = parsed.message.content[0].text + '\r';
-               console.log(`[PTY Proxy] Extracted text from JSON payload: ${dataToSend.trim()}`);
+        if (isPty) {
+            // Extract text from JSON payload if necessary (PTY shouldn't receive stream-json envelopes)
+            if (typeof dataToSend === 'string' && dataToSend.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(dataToSend.trim());
+                if (parsed.type === 'user' && parsed.message && parsed.message.content) {
+                   dataToSend = parsed.message.content[0].text + '\r';
+                }
+              } catch(e) {}
             }
-          } catch(e) {
-            // Not a valid JSON or not our format, send as-is
-          }
-        }
-        
-        if (agentProc) {
-            if (isPty) {
-                agentProc.write(dataToSend);
+            if (agentProc) agentProc.write(dataToSend);
+        } else {
+            // -- CHAT MODE: Spawn process per-interaction --
+            // Claude with -p exits after producing a final result.
+            if (agentProc) {
+               // Kill any lingering process for this chat before starting a new one
+               try { agentProc.kill(); } catch(e) {}
+            }
+
+            let cmd, args;
+            const didInit = fs.existsSync(initMarker);
+            if (service === 'ollama') {
+                cmd = 'ollama';
+                args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose"];
+                if (didInit) args.push("--continue");
             } else {
-                console.log(`[ChatProxy -> Agent] ${dataToSend.trim()}`);
-                agentProc.stdin.write(dataToSend);
+                const binName = service === 'claude' ? 'claude' : service;
+                const binPath = path.join(os.homedir(), '.local', 'bin', binName);
+                cmd = fs.existsSync(binPath) ? binPath : binName;
+                args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"];
+                if (didInit) args.push("--continue");
             }
+
+            const chatEnv = { ...commonEnv, PATH: `${path.join(os.homedir(), '.local', 'bin')}:/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || ''}` };
+            console.log(`[ChatProxy] Spawning per-msg: ${cmd} ${args.join(' ')} (CWD: ${actualCwd})`);
+            
+            agentProc = spawn(cmd, args, { cwd: actualCwd, env: chatEnv });
+            terminals.set(sessionKey, agentProc);
+            
+            agentProc.stdout.on('data', (d) => { if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: d.toString() })); });
+            agentProc.stderr.on('data', (d) => { console.error(`[ChatProxy Err] ${d}`); });
+            agentProc.on('close', (code) => { 
+               console.log(`[ChatProxy] Closed with code ${code}`); 
+               if (!didInit && code === 0) fs.writeFileSync(initMarker, '');
+               terminals.delete(sessionKey); 
+               agentProc = null;
+            });
+            agentProc.on('error', (err) => {
+               if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: `Execution failed: ${err.message}` }) }));
+            });
+
+            // Format input as stream-json envelope
+            const rawText = dataToSend.replace(/\n$/, '').replace(/\r$/, '');
+            const jsonMsg = JSON.stringify({
+                type: "user",
+                message: {
+                    role: "user",
+                    content: [{ type: "text", text: rawText }]
+                }
+            });
+            
+            console.log(`[ChatProxy -> Agent] ${jsonMsg}`);
+            agentProc.stdin.write(jsonMsg + '\n');
+            agentProc.stdin.end(); // Important: signal EOF so Claude knows input is complete
         }
       } else if (p.type === 'resize' && isPty) {
-        agentProc.resize(p.cols, p.rows);
+        if (agentProc) agentProc.resize(p.cols, p.rows);
       }
-    } catch(e) {}
+    } catch(e) {
+      console.error('[ChatProxy Exception]', e);
+    }
   });
-  ws.on('close', () => { try { agentProc.kill(); } catch(e) {} terminals.delete(projectName); });
+  ws.on('close', () => { try { if(agentProc) agentProc.kill(); } catch(e) {} terminals.delete(projectName); terminals.delete(sessionKey); });
 });
 
 const PORT = 3000;
