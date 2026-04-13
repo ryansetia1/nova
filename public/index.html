@@ -258,6 +258,10 @@
               <span class="terminal-folder"></span>
             </div>
             <div class="terminal-header-right">
+              <div class="terminal-mode-toggle">
+                <button class="mode-btn mode-chat active" title="Chat Mode">💬</button>
+                <button class="mode-btn mode-term" title="Terminal Mode">💻</button>
+              </div>
               <span class="terminal-project-badge"></span>
               <div class="terminal-menu-container">
                 <button class="terminal-menu-btn" title="More Options">
@@ -280,6 +284,18 @@
             </div>
           </div>
           <div class="terminal-container"></div>
+          <div class="chat-container hidden">
+            <div class="chat-messages">
+              <!-- Chat bubbles will go here -->
+              <div class="chat-empty-state">No messages yet. Start chatting!</div>
+            </div>
+            <div class="chat-input-row">
+              <textarea class="chat-input" placeholder="Type a message... (Shift+Enter for newline)"></textarea>
+              <button class="chat-send-btn" title="Send (Enter)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+          </div>
           <div class="terminal-footer">
             <div class="terminal-activity-bar"></div>
           </div>
@@ -667,6 +683,7 @@ This project is [describe project].
   </div>
 
   <div id="global-tooltip" class="global-tooltip"></div>
+  <script type="module" src="terminal.js?v=2026-04-13-14-08"></script>
   <script type="module" src="main.js"></script>
 </body>
 

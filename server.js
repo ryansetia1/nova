@@ -5,7 +5,7 @@ const pty = require('node-pty');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -20,12 +20,10 @@ const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
 const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
 const AMBIENT_OBJECTS_FILE = path.join(DATA_PATH, 'ambient_objects.json');
 
-// Ensure projects directory exists
 if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
 }
 
-// Simplified logging: exclude static assets (images, css, etc.) to keep terminal clean
 app.use((req, res, next) => {
   const isStatic = req.url.match(/\.(png|jpg|jpeg|gif|css|js|ico|svg|woff2?|ttf|png\.map)$/i);
   if (!isStatic) {
@@ -38,902 +36,310 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// API: List available models from Ollama
 app.get('/api/models', (req, res) => {
   const cmd = 'export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH" && ollama list';
   exec(cmd, (error, stdout) => {
-    const models = ['qwen3.5:cloud']; // Specific requested extra model
+    const models = ['qwen3.5:cloud'];
     if (!error) {
-      const lines = stdout.split('\n').slice(1); // Skip header row
+      const lines = stdout.split('\n').slice(1);
       lines.forEach(line => {
         const parts = line.trim().split(/\s+/);
         if (parts[0]) models.push(parts[0]);
       });
     }
-    // De-duplicate and return
     res.json([...new Set(models.filter(m => m))]);
   });
 });
 
 app.get('/api/claude-models', (req, res) => {
-  res.json([
-    'claude-opus-4-6',
-    'claude-sonnet-4-6', 
-    'claude-haiku-4-5-20251001',
-  ]);
+  res.json(['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']);
 });
 
-// API: List available animations for all character folders
 app.get('/api/character-animations', (req, res) => {
   const charsPath = path.join(__dirname, 'public', 'assets', 'characters');
   if (!fs.existsSync(charsPath)) return res.json({});
-
   try {
-    const charFolders = fs.readdirSync(charsPath, { withFileTypes: true })
-      .filter(e => e.isDirectory() && !e.name.startsWith('.'));
-    
+    const charFolders = fs.readdirSync(charsPath, { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.'));
     const animationMap = {};
     charFolders.forEach(folder => {
       const p = path.join(charsPath, folder.name);
       const entries = fs.readdirSync(p, { withFileTypes: true });
-      const animations = entries
-        .filter(e => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'avatar')
-        .map(e => {
-          const animPath = path.join(p, e.name);
-          const frameCount = fs.readdirSync(animPath).filter(f => !f.startsWith('.')).length;
-          return { name: e.name, count: frameCount };
-        });
-      
-      // Also add standard ones if not detected or to normalize
+      const animations = entries.filter(e => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'avatar').map(e => {
+        const animPath = path.join(p, e.name);
+        const frameCount = fs.readdirSync(animPath).filter(f => !f.startsWith('.')).length;
+        return { name: e.name, count: frameCount };
+      });
       const finalAnims = {};
       animations.forEach(a => { finalAnims[a.name] = a.count; });
       if (!finalAnims.Walk) finalAnims.Walk = 42;
       if (!finalAnims.Idle) finalAnims.Idle = 80;
-      
       animationMap[folder.name] = finalAnims;
     });
     res.json(animationMap);
-  } catch (err) {
-    res.json({});
-  }
+  } catch (err) { res.json({}); }
 });
 
-// API: List available foreground object assets
 app.get('/api/object-assets', (req, res) => {
   const objectsPath = path.join(__dirname, 'public', 'assets', 'office', 'day', 'objects');
   if (!fs.existsSync(objectsPath)) return res.json([]);
-
   try {
-    const files = fs.readdirSync(objectsPath)
-      .filter(f => f.endsWith('_day.png'))
-      .map(f => f.replace('_day.png', ''));
+    const files = fs.readdirSync(objectsPath).filter(f => f.endsWith('_day.png')).map(f => f.replace('_day.png', ''));
     res.json(files);
-  } catch (err) {
-    res.json([]);
-  }
+  } catch (err) { res.json([]); }
 });
 
-// API: Create a new project folder with metadata
 app.post('/api/projects', (req, res) => {
   const { name, model, nickname, customPath, emoji, parentAgent, service, apiKey, baseUrl, type } = req.body;
-  console.log(`[${new Date().toLocaleTimeString()}] 🚀 API: Create Project request:`, { name, nickname, parentAgent, customPath, type });
-  
-  if (type !== 'pet' && (!name || !name.trim())) {
-    return res.status(400).json({ error: 'Project name is required' });
-  }
-
+  if (type !== 'pet' && (!name || !name.trim())) return res.status(400).json({ error: 'Project name is required' });
   const isCaptain = type === 'captain' || name === 'Captain';
   const isPet = type === 'pet';
-
-  // Sanitize folder name
   const safeName = isCaptain ? 'Captain' : (isPet ? `pet-${Date.now()}` : name.trim().replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '-'));
   const projectPath = path.join(PROJECTS_DIR, safeName);
-
-  if (fs.existsSync(projectPath) && !isPet) {
-    // Check if it is an orphaned NOVA project
-    const metaPathNew = path.join(projectPath, '.nova-meta.json');
-    const metaPathOld = path.join(projectPath, '.nova_meta.json');
-    const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
-
-    if (metaPath) {
-      try {
-        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        if (meta.active === true || meta.active === "true") {
-          return res.status(409).json({ error: 'Agent already active for this folder' });
-        }
-        console.log(`♻️  Re-activating orphaned project: ${safeName}`);
-      } catch (e) {}
-    }
-  }
-
   try {
-    const os = require('os');
     let actualPath = projectPath;
-    let metaStoragePath = projectPath; // Where .nova-meta.json lives
-    
+    let metaStoragePath = projectPath;
     if (isCaptain) {
       actualPath = os.homedir();
-      if (!fs.existsSync(projectPath)) {
-        fs.mkdirSync(projectPath, { recursive: true });
-      }
-      metaStoragePath = projectPath; // Write meta to the project folder, not home!
+      if (!fs.existsSync(projectPath)) fs.mkdirSync(projectPath, { recursive: true });
+      metaStoragePath = projectPath;
     } else if (isPet) {
-      if (!fs.existsSync(projectPath)) {
-        fs.mkdirSync(projectPath, { recursive: true });
-      }
+      if (!fs.existsSync(projectPath)) fs.mkdirSync(projectPath, { recursive: true });
       actualPath = projectPath;
       metaStoragePath = projectPath;
     } else if (parentAgent && parentAgent.trim()) {
-      // Logic for nesting inside an existing agent
-      const parentName = parentAgent.trim();
-      const parentProjectPath = path.join(PROJECTS_DIR, parentName);
-      
-      if (!fs.existsSync(parentProjectPath) || parentName === '.' || parentName === '..') {
-        return res.status(404).json({ error: `Parent agent "${parentName}" not found` });
-      }
-
-      // Ensure parent is NOT a captain
-      const parentMetaPathNew = path.join(parentProjectPath, '.nova-meta.json');
-      const parentMetaPathOld = path.join(parentProjectPath, '.nova_meta.json');
-      const parentMetaPath = fs.existsSync(parentMetaPathNew) ? parentMetaPathNew : (fs.existsSync(parentMetaPathOld) ? parentMetaPathOld : null);
-      if (parentMetaPath) {
-        try {
-          const parentMeta = JSON.parse(fs.readFileSync(parentMetaPath, 'utf8'));
-          if (parentMeta.type === 'captain') {
-            return res.status(400).json({ error: 'Agents cannot be nested inside a Captain' });
-          }
-        } catch (e) {}
-      }
-
-      const resolvedParentPath = fs.realpathSync(parentProjectPath);
-      const nestedFolderPath = path.join(resolvedParentPath, safeName);
-      
-      if (fs.existsSync(projectPath) && !fs.lstatSync(projectPath).isSymbolicLink()) {
-        if (!fs.existsSync(nestedFolderPath)) {
-          fs.renameSync(projectPath, nestedFolderPath);
-        }
-      }
-
-      if (!fs.existsSync(nestedFolderPath)) {
-        fs.mkdirSync(nestedFolderPath, { recursive: true });
-      }
-      
+      const parentProjectPath = path.join(PROJECTS_DIR, parentAgent.trim());
+      if (!fs.existsSync(parentProjectPath)) return res.status(404).json({ error: 'Parent not found' });
+      const nestedFolderPath = path.join(fs.realpathSync(parentProjectPath), safeName);
+      if (!fs.existsSync(nestedFolderPath)) fs.mkdirSync(nestedFolderPath, { recursive: true });
       actualPath = nestedFolderPath;
       metaStoragePath = nestedFolderPath;
-
-      if (!fs.existsSync(projectPath)) {
-        fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
-      }
+      if (!fs.existsSync(projectPath)) fs.symlinkSync(nestedFolderPath, projectPath, 'dir');
     } else if (customPath && customPath.trim()) {
-      let resolvedCustom = customPath.trim();
-      if (resolvedCustom === '~') resolvedCustom = os.homedir();
-
-      actualPath = resolvedCustom;
-      if (!path.isAbsolute(actualPath)) {
-         return res.status(400).json({ error: 'Custom path must be an absolute path or ~' });
-      }
-
-      const resolvedCustomAbs = path.resolve(actualPath);
-      const resolvedNova = path.resolve(__dirname);
-
-      const isNovaRoot = resolvedCustomAbs === resolvedNova;
-      const criticalFolders = ['public', 'node_modules', 'projects', 'dist'];
-      const isCriticalSubfolder = criticalFolders.some(folder =>
-        resolvedCustomAbs === path.join(resolvedNova, folder) ||
-        resolvedCustomAbs.startsWith(path.join(resolvedNova, folder) + path.sep)
-      );
-
-      if (isNovaRoot || isCriticalSubfolder) {
-        return res.status(400).json({ 
-          error: 'Cannot use this folder as a project path — it conflicts with NOVA system folders'
-        });
-      }
-      if (!fs.existsSync(actualPath)) {
-         fs.mkdirSync(actualPath, { recursive: true });
-      }
-      if (!fs.existsSync(projectPath)) {
-        fs.symlinkSync(actualPath, projectPath, 'dir');
-      }
+      actualPath = customPath.trim() === '~' ? os.homedir() : customPath.trim();
+      if (!fs.existsSync(actualPath)) fs.mkdirSync(actualPath, { recursive: true });
+      if (!fs.existsSync(projectPath)) fs.symlinkSync(actualPath, projectPath, 'dir');
       metaStoragePath = actualPath;
     } else {
-      if (!fs.existsSync(projectPath)) {
-        fs.mkdirSync(projectPath, { recursive: true });
-      }
+      if (!fs.existsSync(projectPath)) fs.mkdirSync(projectPath, { recursive: true });
       metaStoragePath = projectPath;
     }
-
-    // Initialize git ONLY for regular agents, NOT for Captain (home dir) or Pets
-    if (!isCaptain && !isPet && actualPath !== os.homedir()) {
-      try {
-        const { execSync } = require('child_process');
-        execSync('git init', { cwd: actualPath });
-      } catch (gitErr) {
-        console.warn(`⚠️  Failed to initialize git in ${actualPath}:`, gitErr.message);
-      }
-    }
-
-    // Store metadata
-    const meta = {
-      name: safeName,
-      nickname: nickname || (isCaptain ? 'Captain' : (isPet ? 'Pet' : safeName)),
-      model: model || (isPet ? undefined : 'qwen3.5:cloud'),
-      service: service || (isPet ? undefined : 'ollama'),
-      apiKey: apiKey || undefined,
-      baseUrl: baseUrl || undefined,
-      emoji: emoji || '🪐',
-      customPath: (customPath || isCaptain) ? actualPath : undefined,
-      parentAgent: parentAgent || undefined,
-      type: type || 'agent',
-      createdAt: new Date().toISOString(),
-      active: true
-    };
+    const meta = { name: safeName, nickname: nickname || (isCaptain ? 'Captain' : (isPet ? 'Pet' : safeName)), model: model || (isPet ? undefined : 'qwen3.5:cloud'), service: service || (isPet ? undefined : 'ollama'), apiKey, baseUrl, emoji: emoji || '🪐', customPath: (customPath || isCaptain) ? actualPath : undefined, parentAgent, type: type || 'agent', createdAt: new Date().toISOString(), active: true };
     fs.writeFileSync(path.join(metaStoragePath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
-    console.log(`✅ Created ${meta.type}: ${safeName} (Nickname: ${meta.nickname})`);
     res.json(meta);
-  } catch (err) {
-    console.error(`❌ Error creating project:`, err);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-  app.get('/api/projects', (req, res) => {
-  console.log(`[${new Date().toLocaleTimeString()}] 📊 API: Fetching project list for client`);
+app.get('/api/projects', (req, res) => {
   try {
-    if (!fs.existsSync(PROJECTS_DIR)) return res.json([]);
     const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
-    const projects = entries
-      .filter(e => {
-         if (e.name.startsWith('.')) return false;
-         if (e.isDirectory()) return true;
-         if (e.isSymbolicLink()) {
-             try { return fs.statSync(path.join(PROJECTS_DIR, e.name)).isDirectory(); }
-             catch(err) { return false; }
-         }
-         return false;
-      })
-      .map(e => {
-        const projectPath = path.join(PROJECTS_DIR, e.name);
-        const metaPathNew = path.join(projectPath, '.nova-meta.json');
-        const metaPathOld = path.join(projectPath, '.nova_meta.json');
-        
-        let meta = { name: e.name, nickname: e.name, model: 'qwen3.5:cloud', active: false };
-        
-        const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
-        
-        if (metaPath) {
-          try {
-            const saved = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-            const wasActiveDefined = saved.active !== undefined;
-            meta = { ...meta, ...saved };
-            // Auto-activate older projects or Force Captain to be active
-            if (!wasActiveDefined || meta.type === 'captain' || meta.name === 'Captain') {
-                meta.active = true;
-            }
-          } catch(err) {}
-        } else {
-           meta.active = (e.name === 'Captain');
-        }
-        
-        if (e.isSymbolicLink() && !meta.active) return null;
-        
-        return meta;
-      })
-      .filter(m => m !== null);
+    const projects = entries.filter(e => !e.name.startsWith('.')).map(e => {
+      const p = path.join(PROJECTS_DIR, e.name);
+      const metaP = path.join(p, '.nova-meta.json');
+      if (fs.existsSync(metaP)) return JSON.parse(fs.readFileSync(metaP, 'utf8'));
+      return { name: e.name, nickname: e.name, active: e.name === 'Captain' };
+    });
     res.json(projects);
-  } catch (err) {
-    res.json([]);
-  }
+  } catch (err) { res.json([]); }
 });
 
-// API: Update a project's metadata
 app.post('/api/update-emoji', (req, res) => {
-  const { name, emoji, nickname, model, service, apiKey, baseUrl } = req.body;
-  
+  const { name, emoji, nickname, model, service, apiKey, baseUrl, uiMode, isDocked, isOpen } = req.body;
   const projectPath = path.join(PROJECTS_DIR, name);
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
-  const metaPathNew = path.join(projectPath, '.nova-meta.json');
-  const metaPathOld = path.join(projectPath, '.nova_meta.json');
-  const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : metaPathNew);
-
+  const metaPath = path.join(projectPath, '.nova-meta.json');
   try {
-    let meta = {};
-    if (fs.existsSync(metaPath)) {
-      meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-    }
-    
+    let meta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, 'utf8')) : { name };
     if (emoji) meta.emoji = emoji;
     if (nickname) meta.nickname = nickname;
     if (model) meta.model = model;
     if (service) meta.service = service;
     if (apiKey !== undefined) meta.apiKey = apiKey;
     if (baseUrl !== undefined) meta.baseUrl = baseUrl;
-    if (req.body.isDocked !== undefined) meta.isDocked = !!req.body.isDocked;
-    if (req.body.isOpen !== undefined) meta.isOpen = !!req.body.isOpen;
-    
-    // Always save as new format for consistency
-    fs.writeFileSync(metaPathNew, JSON.stringify(meta, null, 2));
-    // Remove old format if it exists and we're switching
-    if (metaPath === metaPathOld && fs.existsSync(metaPathOld)) {
-      fs.unlinkSync(metaPathOld);
-    }
-    
-    console.log(`✨ Updated metadata for ${name}:`, meta);
+    if (uiMode !== undefined) meta.uiMode = uiMode;
+    if (isDocked !== undefined) meta.isDocked = isDocked;
+    if (isOpen !== undefined) meta.isOpen = isOpen;
+    fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
     res.json(meta);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update metadata' });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// API: Ping to check server status
-app.get('/api/ping', (req, res) => res.json({ status: 'alive', time: new Date() }));
-
-// API: Get/Save Walkable Path
 app.get('/api/walkable-path', (req, res) => {
-  if (fs.existsSync(WALKABLE_PATH_FILE)) {
-    try {
-      const data = fs.readFileSync(WALKABLE_PATH_FILE, 'utf8');
-      return res.json(JSON.parse(data));
-    } catch (e) {
-      return res.status(500).json({ error: 'Failed to read path file' });
-    }
-  }
-  res.json([]); // Return empty if not found
+  try { res.json(fs.existsSync(WALKABLE_PATH_FILE) ? JSON.parse(fs.readFileSync(WALKABLE_PATH_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
 });
-
 app.post('/api/walkable-path', (req, res) => {
-  const { path: newPath } = req.body;
-  if (!Array.isArray(newPath)) {
-    return res.status(400).json({ error: 'Path must be an array of points' });
-  }
-  try {
-    fs.writeFileSync(WALKABLE_PATH_FILE, JSON.stringify(newPath, null, 2));
-    console.log(`🗺️  Walkable path updated: ${newPath.length} points`);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to save path' });
-  }
+  fs.writeFileSync(WALKABLE_PATH_FILE, JSON.stringify(req.body.path, null, 2));
+  res.json({ success: true });
 });
 
-// API: Get/Save Anchor Config
 app.get('/api/anchor', (req, res) => {
-  const defaultAnchors = { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } };
-  if (fs.existsSync(ANCHOR_CONFIG_FILE)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8'));
-      // Migrate old format (single object) to new format (map)
-      if (typeof data.x === 'number') {
-        return res.json({ Char1: data, Char2: { x: 50, y: 85 } });
-      }
-      return res.json(data);
-    } catch (e) {
-      return res.status(500).json({ error: 'Failed to read anchor file' });
-    }
-  }
-  res.json(defaultAnchors);
+  try { res.json(fs.existsSync(ANCHOR_CONFIG_FILE) ? JSON.parse(fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8')) : { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } }); } catch (e) { res.json({ Char1: { x: 50, y: 85 } }); }
 });
-
 app.post('/api/anchor', (req, res) => {
-  const anchors = req.body;
-  if (typeof anchors !== 'object') {
-    return res.status(400).json({ error: 'Invalid anchor data' });
-  }
-  try {
-    fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify(anchors, null, 2));
-    console.log(`⚓  Anchors updated for: ${Object.keys(anchors).join(', ')}`);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to save anchor' });
-  }
+  fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify(req.body, null, 2));
+  res.json({ success: true });
 });
 
-// API: Get/Save Break Positions
-app.get('/api/break-positions', (req, res) => {
-  if (fs.existsSync(BREAK_POSITIONS_FILE)) {
-    try {
-      const data = fs.readFileSync(BREAK_POSITIONS_FILE, 'utf8');
-      return res.json(JSON.parse(data));
-    } catch (e) {
-      return res.status(500).json({ error: 'Failed to read break positions file' });
-    }
-  }
-  res.json([]);
-});
-
-app.post('/api/break-positions', (req, res) => {
-  const { positions } = req.body;
-  if (!Array.isArray(positions)) {
-    return res.status(400).json({ error: 'Positions must be an array' });
-  }
-  try {
-    fs.writeFileSync(BREAK_POSITIONS_FILE, JSON.stringify(positions, null, 2));
-    console.log(`☕  Break positions updated: ${positions.length} spots`);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to save break positions' });
-  }
-});
-
-// API: Get/Save Foreground Objects
 app.get('/api/foreground-objects', (req, res) => {
-  if (fs.existsSync(FOREGROUND_OBJECTS_FILE)) {
-    try {
-      const data = fs.readFileSync(FOREGROUND_OBJECTS_FILE, 'utf8');
-      return res.json(JSON.parse(data));
-    } catch (e) {
-      return res.status(500).json({ error: 'Failed to read foreground objects file' });
-    }
-  }
-  res.json([]);
+  try { res.json(fs.existsSync(FOREGROUND_OBJECTS_FILE) ? JSON.parse(fs.readFileSync(FOREGROUND_OBJECTS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
 });
-
 app.post('/api/foreground-objects', (req, res) => {
-  const { objects } = req.body;
-  if (!Array.isArray(objects)) {
-    return res.status(400).json({ error: 'Objects must be an array' });
-  }
-  try {
-    fs.writeFileSync(FOREGROUND_OBJECTS_FILE, JSON.stringify(objects, null, 2));
-    console.log(`🖼️  Foreground objects updated: ${objects.length} items`);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to save foreground objects' });
-  }
+  fs.writeFileSync(FOREGROUND_OBJECTS_FILE, JSON.stringify(req.body.objects, null, 2));
+  res.json({ success: true });
 });
 
-// API: Get/Save Ambient Objects (Iframes)
 app.get('/api/ambient-objects', (req, res) => {
-  if (fs.existsSync(AMBIENT_OBJECTS_FILE)) {
-    try {
-      const data = fs.readFileSync(AMBIENT_OBJECTS_FILE, 'utf8');
-      return res.json(JSON.parse(data));
-    } catch (e) {
-      return res.status(500).json({ error: 'Failed to read ambient objects file' });
-    }
-  }
-  res.json([]);
+  try { res.json(fs.existsSync(AMBIENT_OBJECTS_FILE) ? JSON.parse(fs.readFileSync(AMBIENT_OBJECTS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
 });
-
 app.post('/api/ambient-objects', (req, res) => {
-  const { objects } = req.body;
-  console.log('🎬  Received ambient objects save request:', (objects || []).length, 'items');
-  if (!Array.isArray(objects)) {
-    return res.status(400).json({ error: 'Objects must be an array' });
-  }
-  try {
-    fs.writeFileSync(AMBIENT_OBJECTS_FILE, JSON.stringify(objects, null, 2));
-    console.log('✅  Ambient objects written to disk');
-    res.json({ success: true });
-  } catch (e) {
-    console.error('❌  Failed to save ambient objects:', e);
-    res.status(500).json({ error: 'Failed to save ambient objects' });
-  }
+  fs.writeFileSync(AMBIENT_OBJECTS_FILE, JSON.stringify(req.body.objects, null, 2));
+  res.json({ success: true });
 });
 
-// API: Delete a project
 app.delete('/api/projects/:name', (req, res) => {
   const { name } = req.params;
   const projectPath = path.join(PROJECTS_DIR, name);
-
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
+  if (terminals.has(name)) { terminals.get(name).kill(); terminals.delete(name); }
   try {
-    // Kill existing terminal if running
-    if (terminals.has(name)) {
-      try { terminals.get(name).kill(); } catch(e) {}
-      terminals.delete(name);
-    }
-
-    const isSymlink = fs.lstatSync(projectPath).isSymbolicLink();
-    const deleteFiles = req.query.deleteFiles === 'true';
-    const os = require('os');
-    const homeDir = os.homedir();
-
-    const isPathSafeToDelete = (p) => {
-      if (!p) return false;
-      const rp = path.resolve(p);
-      if (rp === homeDir || rp === '/' || rp === PROJECTS_DIR || rp === __dirname) return false;
-      return true;
-    };
-
-    // Get metadata to check if it's a nested agent
-    let meta = null;
-    const metaPathNew = path.join(projectPath, '.nova-meta.json');
-    const metaPathOld = path.join(projectPath, '.nova_meta.json');
-    const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
-    if (metaPath) {
-      try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch(e) {}
-    }
-
-    if (isSymlink) {
-      // If it's a nested agent (has parentAgent), we might want to delete the actual folder
-      if (meta && meta.parentAgent && meta.nestedPath) {
-        if (deleteFiles && isPathSafeToDelete(meta.nestedPath)) {
-          if (fs.existsSync(meta.nestedPath)) {
-            fs.rmSync(meta.nestedPath, { recursive: true, force: true });
-            console.log(`🗑️  Deleted nested project folder: ${meta.nestedPath}`);
-          }
-        } else if (deleteFiles) {
-          console.warn(`🛑 Blocked deletion of unsafe path: ${meta.nestedPath}`);
-        } else {
-          // Keep folder, but set active: false so it can be resumed
-          meta.active = false;
-          fs.writeFileSync(path.join(meta.nestedPath, '.nova-meta.json'), JSON.stringify(meta, null, 2));
-          console.log(`💼 Nested agent marked as inactive (orphaned): ${name}`);
-        }
-      }
-      
-      // Always remove the symlink from /projects
-      fs.unlinkSync(projectPath);
-      console.log(`🗑️  Removed symlink: ${name}`);
-      return res.json({ success: true, message: 'Agent removed', type: 'symlink' });
+    if (req.query.deleteFiles === 'true' && !fs.lstatSync(projectPath).isSymbolicLink()) {
+       fs.rmSync(projectPath, { recursive: true, force: true });
     } else {
-      // 2. If real directory
-      if (deleteFiles) {
-        if (isPathSafeToDelete(projectPath)) {
-          fs.rmSync(projectPath, { recursive: true, force: true });
-          console.log(`🗑️  Deleted project folder entirely: ${name}`);
-          return res.json({ success: true, message: 'Agent and files deleted', type: 'full' });
-        } else {
-          return res.status(403).json({ error: 'Cannot delete system-protected directory' });
-        }
-      } else {
-        // Just remove agent status, keep folder orphaned
-        if (metaPath) {
-          try {
-            if (meta) {
-              meta.active = false;
-              fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
-            }
-          } catch(e) {
-            console.error(`Failed to update meta for orphan: ${name}`, e);
-          }
-        } else {
-           // create a basic meta to mark as inactive
-           const newMeta = { name, active: false };
-           fs.writeFileSync(metaPathNew, JSON.stringify(newMeta, null, 2));
-        }
-        console.log(`💼 Agent removed, folder kept (orphaned): ${name}`);
-        return res.json({ success: true, message: 'Agent removed, project files kept', type: 'orphaned' });
-      }
+       const metaP = path.join(projectPath, '.nova-meta.json');
+       if (fs.existsSync(metaP)) {
+         const m = JSON.parse(fs.readFileSync(metaP, 'utf8'));
+         m.active = false;
+         fs.writeFileSync(metaP, JSON.stringify(m, null, 2));
+       }
+       if (fs.lstatSync(projectPath).isSymbolicLink()) fs.unlinkSync(projectPath);
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to process deletion' });
-  }
-});
-
-// API: Upload file to a project (drag and drop support)
-app.post('/api/projects/:name/upload', (req, res) => {
-  const { name } = req.params;
-  const { filename, filedata, isText, textContent } = req.body;
-
-  if (!filename || (!isText && !filedata)) {
-    return res.status(400).json({ error: 'Filename and filedata are required' });
-  }
-
-  const projectPath = path.join(PROJECTS_DIR, name);
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
-  // For text files, no need to save — just return success
-  // The frontend already has the text content
-  if (isText) {
-    return res.json({ 
-      success: true, 
-      type: 'text',
-      filename: filename,
-      textContent: textContent 
-    });
-  }
-
-  // For binary files, save directly to project root
-  try {
-    const base64Data = filedata.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
-    const safeFilename = filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
-    
-    // Save to _uploads/ subdirectory to keep project root clean
-    const resolvedProjectPath = fs.realpathSync(projectPath);
-    const uploadsDir = path.join(resolvedProjectPath, '_uploads');
-    
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    const resolvedTargetPath = path.join(uploadsDir, safeFilename);
-    fs.writeFileSync(resolvedTargetPath, base64Data, 'base64');
-    
-    res.json({ 
-      success: true, 
-      type: 'binary',
-      absolutePath: resolvedTargetPath, 
-      filename: safeFilename 
-    });
-  } catch (err) {
-    console.error('File Upload Error:', err);
-    res.status(500).json({ error: 'Failed to save file' });
-  }
-});
-
-app.delete('/api/projects/:name/uploads/:filename', (req, res) => {
-  const { name, filename } = req.params;
-
-  const projectPath = path.join(PROJECTS_DIR, name);
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
-  try {
-    const resolvedProjectPath = fs.realpathSync(projectPath);
-    const uploadsDir = path.join(resolvedProjectPath, '_uploads');
-    
-    // Sanitize filename to prevent path traversal
-    const safeFilename = path.basename(filename);
-    const targetPath = path.join(uploadsDir, safeFilename);
-
-    // Ensure the file is actually inside _uploads/
-    if (!targetPath.startsWith(uploadsDir)) {
-      return res.status(400).json({ error: 'Invalid filename' });
-    }
-
-    if (!fs.existsSync(targetPath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    fs.unlinkSync(targetPath);
-    console.log(`🗑️  Deleted upload: ${safeFilename} from ${name}`);
-    res.json({ success: true, filename: safeFilename });
-  } catch (err) {
-    console.error('Delete upload error:', err);
-    res.status(500).json({ error: 'Failed to delete file' });
-  }
-});
-
-// API: Get CLAUDE.md content
-app.get('/api/projects/:name/claude-md', (req, res) => {
-  const { name } = req.params;
-  const projectPath = path.join(PROJECTS_DIR, name);
-
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
-  try {
-    const resolvedPath = fs.realpathSync(projectPath);
-    const claudeMdPath = path.join(resolvedPath, 'CLAUDE.md');
-
-    if (!fs.existsSync(claudeMdPath)) {
-      return res.json({ exists: false, content: '' });
-    }
-
-    const content = fs.readFileSync(claudeMdPath, 'utf8');
-    res.json({ exists: true, content });
-  } catch (err) {
-    console.error('CLAUDE.md read error:', err);
-    res.status(500).json({ error: 'Failed to read CLAUDE.md' });
-  }
-});
-
-// API: Save CLAUDE.md content
-app.post('/api/projects/:name/claude-md', (req, res) => {
-  const { name } = req.params;
-  const { content } = req.body;
-
-  if (content === undefined || content === null) {
-    return res.status(400).json({ error: 'Content is required' });
-  }
-
-  const projectPath = path.join(PROJECTS_DIR, name);
-  if (!fs.existsSync(projectPath)) {
-    return res.status(404).json({ error: 'Project not found' });
-  }
-
-  try {
-    const resolvedPath = fs.realpathSync(projectPath);
-    const claudeMdPath = path.join(resolvedPath, 'CLAUDE.md');
-
-    fs.writeFileSync(claudeMdPath, content, 'utf8');
-    console.log(`📋 CLAUDE.md saved for project: ${name}`);
     res.json({ success: true });
-  } catch (err) {
-    console.error('CLAUDE.md write error:', err);
-    res.status(500).json({ error: 'Failed to save CLAUDE.md' });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// WebSocket: Terminal sessions
+app.get('/api/projects/:name/claude-md', (req, res) => {
+  const p = path.join(fs.realpathSync(path.join(PROJECTS_DIR, req.params.name)), 'CLAUDE.md');
+  res.json(fs.existsSync(p) ? { exists: true, content: fs.readFileSync(p, 'utf8') } : { exists: false });
+});
+app.post('/api/projects/:name/claude-md', (req, res) => {
+  fs.writeFileSync(path.join(fs.realpathSync(path.join(PROJECTS_DIR, req.params.name)), 'CLAUDE.md'), req.body.content);
+  res.json({ success: true });
+});
+
 const terminals = new Map();
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const projectName = url.searchParams.get('project');
-
-  if (!projectName) {
-    ws.close(1008, 'Project name required');
-    return;
-  }
+  if (!projectName) return ws.close();
 
   const projectPath = path.join(PROJECTS_DIR, projectName);
-  if (!fs.existsSync(projectPath)) {
-    ws.close(1008, 'Project not found');
-    return;
-  }
+  const metaPath = path.join(projectPath, '.nova-meta.json');
+  let model = 'qwen3.5:cloud', service = 'ollama', apiKey = '', baseUrl = '', uiMode = url.searchParams.get('uiMode') || 'chat', projectType = 'agent', actualCwd = projectPath;
 
-  const metaPathNew = path.join(projectPath, '.nova-meta.json');
-  const metaPathOld = path.join(projectPath, '.nova_meta.json');
-  const metaPath = fs.existsSync(metaPathNew) ? metaPathNew : (fs.existsSync(metaPathOld) ? metaPathOld : null);
-
-  let model = 'qwen3.5:cloud';
-  let service = 'ollama'; // default
-  let apiKey = '';
-  let baseUrl = '';
-  let projectType = 'agent';
-  let actualCwd = projectPath;
-
-  if (metaPath) {
+  if (fs.existsSync(metaPath)) {
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      model = meta.model || model;
-      service = meta.service || 'ollama';
-      apiKey = meta.apiKey || '';
-      baseUrl = meta.baseUrl || '';
+      model = meta.model || model; service = meta.service || service; apiKey = meta.apiKey || ''; baseUrl = meta.baseUrl || '';
+      if (meta.uiMode !== undefined && !url.searchParams.has('uiMode')) uiMode = meta.uiMode;
       projectType = meta.type || 'agent';
-      if (meta.type === 'captain') {
-        actualCwd = os.homedir();
-      } else if (meta.customPath) {
-        actualCwd = meta.customPath;
-      }
-    } catch(err) {}
-  }
-
-  // If it's a pet, we don't spawn a PTY
-  if (projectType === 'pet') {
-    ws.send(JSON.stringify({ type: 'output', data: '\r\n🐾 \x1b[1;36mThis is a decorative pet.\x1b[0m No terminal interaction available.\r\n' }));
-    return;
-  }
-
-  console.log(`🖥️  Terminal opened for ${projectType}: ${projectName} using model: ${model} in ${actualCwd}`);
-
-  // Fix 2: Kill existing PTY if it exists for this project to avoid zombie processes
-  if (terminals.has(projectName)) {
-    try { 
-      terminals.get(projectName).kill(); 
-      console.log(`🔄 Killed existing PTY for ${projectName} before reconnect`);
+      actualCwd = (projectType === 'captain') ? os.homedir() : (meta.customPath || projectPath);
     } catch(e) {}
-    terminals.delete(projectName);
   }
 
-  const shell = '/bin/zsh';
-  let ptyProcess;
-  try {
-    ptyProcess = pty.spawn(shell, ['--login'], {
-      name: 'xterm-256color',
-      cols: 120,
-      rows: 30,
-      cwd: actualCwd,
-      env: {
-        HOME: process.env.HOME || os.homedir(),
-        PATH: [
-          '/usr/local/bin',
-          '/usr/bin', 
-          '/bin',
-          '/usr/sbin',
-          '/sbin',
-          '/opt/homebrew/bin',
-          process.env.PATH || ''
-        ].filter(Boolean).join(':'),
-        SHELL: shell,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-        LANG: 'en_US.UTF-8',
-        USER: process.env.USER || os.userInfo().username,
-        ANTHROPIC_API_KEY: (service === 'sumo' || service === 'custom') ? apiKey : (process.env.ANTHROPIC_API_KEY || ''),
-        ANTHROPIC_BASE_URL: service === 'sumo' ? 'https://ai.sumopod.com' : (service === 'custom' ? baseUrl : (process.env.ANTHROPIC_BASE_URL || '')),
-      }
-    });
-  } catch (err) {
-    console.error(`❌ Failed to spawn terminal:`, err.message);
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'output', data: `\r\n❌ Failed to spawn terminal: ${err.message}\r\n` }));
-      ws.close();
-    }
-    return;
-  }
+  if (projectType === 'pet') { ws.send(JSON.stringify({ type: 'output', data: '🐾 Pet session started.' })); return; }
 
-  terminals.set(projectName, ptyProcess);
+  const sessionKey = `${projectName}-${uiMode}`;
+  if (terminals.has(sessionKey)) { terminals.get(sessionKey).kill(); terminals.delete(sessionKey); }
 
-  // --- Auto-execute Agent Command ---
+  const commonEnv = { ...process.env, ANTHROPIC_API_KEY: apiKey, ANTHROPIC_BASE_URL: baseUrl, LANG: 'en_US.UTF-8' };
   const initMarker = path.join(projectPath, '.nova_init');
   const hasBeenInitialized = fs.existsSync(initMarker);
-  
-  let agentCommand;
-  if (service === 'claude' || service === 'sumo' || service === 'custom') {
-    agentCommand = hasBeenInitialized
-      ? `claude --continue`
-      : `claude --model ${model}`;
+  let agentProc, isPty = false;
+
+  if (uiMode === 'chat') {
+    const args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose"]; 
+    console.log(`[ChatProxy] Attempting: ollama ${args.join(' ')} (CWD: ${actualCwd})`);
+    
+    ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', message: `🚀 Starting agent for ${projectName}...` }) }));
+
+    agentProc = spawn('ollama', args, { cwd: actualCwd, env: commonEnv });
+    
+    agentProc.on('error', (err) => {
+        console.warn(`[ChatProxy] ollama failed, trying direct 'claude' fallback: ${err.message}`);
+        const claudeArgs = ["--model", model, "--output-format", "stream-json", "--verbose"];
+        agentProc = spawn('claude', claudeArgs, { cwd: actualCwd, env: commonEnv });
+        
+        agentProc.on('error', (f) => {
+             ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: `Failed to start agent. Ensure 'ollama' or 'claude' is installed: ${f.message}` }) }));
+        });
+        setupAgentHandlers(agentProc);
+    });
+
+    const setupAgentHandlers = (proc) => {
+        proc.stdout.on('data', (d) => {
+            if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: d.toString() }));
+        });
+        proc.stderr.on('data', (d) => {
+            console.error(`[ChatProxy Err] ${d}`);
+        });
+        proc.on('close', (code) => {
+            console.log(`[ChatProxy] Closed with code ${code}`);
+            terminals.delete(sessionKey);
+        });
+    }
+
+    if (agentProc) {
+        setupAgentHandlers(agentProc);
+        terminals.set(sessionKey, agentProc);
+    }
   } else {
-    // default: ollama
-    agentCommand = hasBeenInitialized
-      ? `ollama launch claude --model ${model} -- --continue`
-      : `ollama launch claude --model ${model}`;
+    isPty = true;
+    agentProc = pty.spawn('/bin/zsh', ['--login'], { name: 'xterm-256color', cols: 120, rows: 30, cwd: actualCwd, env: { ...commonEnv, SHELL: '/bin/zsh', TERM: 'xterm-256color' } });
+    terminals.set(sessionKey, agentProc);
+    
+    agentProc.onData((data) => {
+        if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data }));
+    });
+    agentProc.onExit(() => {
+        terminals.delete(sessionKey);
+    });
+    const cmd = (service === 'ollama') ? `ollama launch claude --model ${model} ${hasBeenInitialized ? '-- --continue' : ''}` : `claude ${hasBeenInitialized ? '--continue' : `--model ${model}`}`;
+    setTimeout(() => { agentProc.write(cmd + '\r'); if (!hasBeenInitialized) fs.writeFileSync(initMarker, ''); }, 1000);
   }
 
-  setTimeout(() => {
-    console.log(`🚀 Executing for ${projectName}: ${agentCommand}`);
-    ptyProcess.write(agentCommand + '\r');
-    if (!hasBeenInitialized) {
-      try { fs.writeFileSync(initMarker, new Date().toISOString()); } catch (e) {}
-    }
-  }, 1200);
-
-  ptyProcess.onData((data) => {
+  ws.on('message', (m) => {
     try {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data }));
-
-      // --- Auto-Recovery Logic ---
-      // If we see "No conversation found", it means the --continue flag failed.
-      // We should instantly fallback to a fresh start.
-      const errorMarkers = [
-        "No conversation found", 
-        "no conversation matching",
-        "Invalid model name"
-      ];
-      const hasError = errorMarkers.some(marker => data.includes(marker));
-      
-      if (hasError && !ptyProcess._hasRecovered) {
-          ptyProcess._hasRecovered = true; // Prevent infinite loops
-          console.log(`⚠️  Detected missing conversation for ${projectName}. Rescuing...`);
-          
-          // Clear the init marker so next cold start is also fresh
-          try { if (fs.existsSync(initMarker)) fs.unlinkSync(initMarker); } catch(e) {}
-
-          // If the agent wrapper exited, we are likely in raw zsh. 
-          // Re-running the full command without --continue is the safest recovery.
-          const fallbackCmd = (service === 'claude' || service === 'sumo' || service === 'custom')
-            ? `claude --model ${model}`
-            : `ollama launch claude --model ${model}`;
-
-          setTimeout(() => {
-              ptyProcess.write('\x03'); // Send Ctrl+C to clear any stuck prompt
-              setTimeout(() => {
-                  ptyProcess.write(fallbackCmd + '\r');
-                  console.log(`♻️  Restarted agent for ${projectName} using: ${fallbackCmd}`);
-              }, 800);
-          }, 400);
+      const p = JSON.parse(m);
+      if (p.type === 'input') {
+        let dataToSend = p.data;
+        
+        // If we are in Terminal (PTY) mode, we MUST NOT send JSON to the shell.
+        // If the incoming data is a string that looks like our structured JSON, extract the text.
+        if (isPty && typeof dataToSend === 'string' && dataToSend.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(dataToSend.trim());
+            if (parsed.type === 'user' && parsed.message && parsed.message.content) {
+               dataToSend = parsed.message.content[0].text + '\r';
+               console.log(`[PTY Proxy] Extracted text from JSON payload: ${dataToSend.trim()}`);
+            }
+          } catch(e) {
+            // Not a valid JSON or not our format, send as-is
+          }
+        }
+        
+        if (agentProc) {
+            if (isPty) {
+                agentProc.write(dataToSend);
+            } else {
+                console.log(`[ChatProxy -> Agent] ${dataToSend.trim()}`);
+                agentProc.stdin.write(dataToSend);
+            }
+        }
+      } else if (p.type === 'resize' && isPty) {
+        agentProc.resize(p.cols, p.rows);
       }
-    } catch (e) {}
+    } catch(e) {}
   });
-
-  ptyProcess.onExit(({ exitCode }) => {
-    console.log(`🔚 Terminal exited for ${projectName} with code ${exitCode}`);
-    terminals.delete(projectName);
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
-      ws.close();
-    }
-  });
-
-  ws.on('message', (msg) => {
-    try {
-      const parsed = JSON.parse(msg);
-      if (parsed.type === 'input') ptyProcess.write(parsed.data);
-      else if (parsed.type === 'resize') ptyProcess.resize(parsed.cols, parsed.rows);
-    } catch (e) {}
-  });
-
-  ws.on('close', () => {
-    console.log(`🔌 WebSocket closed for ${projectName}`);
-    try { ptyProcess.kill(); } catch (e) {}
-    terminals.delete(projectName);
-  });
+  ws.on('close', () => { try { agentProc.kill(); } catch(e) {} terminals.delete(projectName); });
 });
 
 const PORT = 3000;
-server.listen(PORT, () => {
-  console.log(`\n🪐 NOVA server running at http://localhost:${PORT}\n`);
-});
+server.listen(PORT, () => console.log(`🪐 NOVA server on http://localhost:${PORT}`));

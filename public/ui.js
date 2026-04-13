@@ -729,7 +729,7 @@ export function initYouTubePlayer() {
     }
 }
 
-export function fireAgentNotification(pName, nickname) {
+export function fireAgentNotification(pName, nickname, customMsg) {
     // Check feature support
     if (!('Notification' in window)) return;
     
@@ -743,9 +743,10 @@ export function fireAgentNotification(pName, nickname) {
     if (Notification.permission !== 'granted') return;
 
     const displayName = nickname || pName;
+    const bodyText = customMsg || `${displayName} has finished working`;
 
     const notification = new Notification('🪐 NOVA — Agent Ready', {
-        body: `${displayName} has finished working`,
+        body: bodyText,
         tag: `nova-agent-${pName}`,  // prevents duplicate notifs for same agent
         renotify: false               // don't re-notify if same tag already shown
     });
