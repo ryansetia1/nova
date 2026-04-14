@@ -1141,22 +1141,73 @@ window.copyBubbleText = function(event, pName, msgIdx) {
     const content = t.chatMessages[msgIdx].content || '';
     if (!content) return;
     
-    navigator.clipboard.writeText(content).then(() => {
-        showToast('success', '📋', 'Copied to clipboard');
-        
-        // Visual feedback on the button itself
-        const btn = event.currentTarget;
+    const btn = event.currentTarget;
+    console.log('Copy button clicked:', btn); // Debug log
+    
+    // Function to show success animation
+    const showSuccessAnimation = () => {
         if (btn) {
+            console.log('Adding is-copied class to button'); // Debug log
+            
+            // Force reflow to ensure CSS transitions work properly
+            btn.offsetHeight;
+            
             btn.classList.add('is-copied');
+            
+            // Add a small delay to ensure the animation is visible
             setTimeout(() => { 
+                console.log('Removing is-copied class from button'); // Debug log
                 btn.classList.remove('is-copied');
             }, 2000);
         }
-    }).catch(err => {
-        console.error('Copy failed:', err);
-        showToast('error', '❌', 'Failed to copy');
-    });
+    };
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(content).then(() => {
+            console.log('Clipboard write successful'); // Debug log
+            showToast('success', '📋', 'Copied to clipboard');
+            showSuccessAnimation();
+        }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            // Fallback to execCommand
+            fallbackCopy(content, showSuccessAnimation);
+        });
+    } else {
+        console.log('Using fallback copy method'); // Debug log
+        // Fallback for non-secure contexts or older browsers
+        fallbackCopy(content, showSuccessAnimation);
+    }
 };
+
+// Fallback copy method using execCommand
+function fallbackCopy(text, onSuccess) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    
+    try {
+        textArea.select();
+        textArea.setSelectionRange(0, 99999); // For mobile devices
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            console.log('Fallback copy successful'); // Debug log
+            showToast('success', '📋', 'Copied to clipboard');
+            onSuccess();
+        } else {
+            throw new Error('execCommand copy failed');
+        }
+    } catch (err) {
+        document.body.removeChild(textArea);
+        console.error('All copy methods failed:', err);
+        showToast('error', '❌', 'Failed to copy');
+    }
+}
 
 export function handleChatJsonEvent(t, pName, parsed) {
     if (!parsed) return;
