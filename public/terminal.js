@@ -1038,6 +1038,29 @@ export function renderChatMessages(pName) {
     }
     
     msgContainer.innerHTML = t.chatMessages.map((m, msgIdx) => {
+        // Render thinking pill
+        if (m.role === 'thinking') {
+            const escapedContent = (m.content || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/\n/g, '<br>');
+            const isCollapsed = m.collapsed === true;
+            const contentHtml = !isCollapsed
+                ? `<div class="thinking-pill-content">${escapedContent}</div>`
+                : '';
+            return `<div class="chat-bubble assistant thinking-bubble ${isCollapsed ? 'collapsed' : 'expanded'}" onclick="window.toggleThinkingPill('${pName}', ${msgIdx})"><div class="thinking-pill-header"><span class="thinking-pill-icon">💭</span><span class="thinking-pill-label">Thought process</span><span class="thinking-pill-toggle">${isCollapsed ? '▶' : '▼'}</span></div>${contentHtml}</div>`;
+        }
+
+        // Render system pill (Thinking..., Processing...) with animated dots
+        if (m.role === 'system') {
+            const isAnimated = m.content === 'Thinking...' || m.content === 'Processing...';
+            const baseText = m.content.replace('...', '');
+            const content = isAnimated 
+                ? `${baseText}<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span>`
+                : m.content;
+            return `<div class="chat-bubble system">${content}</div>`;
+        }
+
         let text = (m.content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
         
         // Basic Markdown-ish formatting for Bubbles: Bold, Italic, Code
@@ -1068,8 +1091,30 @@ export function renderChatMessages(pName) {
 
 function saveChatHistory(pName, messages) {
     // Never persist temporary system states
-    const filtered = messages.filter(m => m.role !== 'system' || (m.content !== 'Thinking...' && m.content !== 'Processing...'));
+    const filtered = messages.filter(m => 
+        (m.role !== 'system' || (m.content !== 'Thinking...' && m.content !== 'Processing...'))
+    );
     localStorage.setItem('nova-chat-' + pName, JSON.stringify(filtered));
+}
+
+window.toggleThinkingPill = function(pName, msgIdx) {
+    const t = state.terminals[pName];
+    if (!t || !t.chatMessages[msgIdx]) return;
+    const msg = t.chatMessages[msgIdx];
+    // Treat undefined as collapsed (true), then toggle
+    msg.collapsed = msg.collapsed !== false ? false : true;
+    
+    renderChatMessages(pName);
+    
+    // Auto-scroll after expansion to keep the content in view
+    if (!msg.collapsed) {
+        setTimeout(() => {
+            const msgContainer = t.panel.querySelector('.chat-messages');
+            if (msgContainer) {
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+            }
+        }, 50);
+    }
 };
 
 export function handleChatJsonEvent(t, pName, parsed) {
@@ -1101,6 +1146,10 @@ export function handleChatJsonEvent(t, pName, parsed) {
     
     // 1. Handle Assistant Messages (Text & Thinking Fragments)
     if (parsed.type === "assistant" && parsed.message && parsed.message.content) {
+        // Clear "Thinking..." status pills before processing real assistant content
+        // to ensure message indices stay consistent for interactive elements.
+        clearStatusPills();
+        
         const content = parsed.message.content;
         const textBlock = content.find(c => c.type === "text");
         const thinkingBlock = content.find(c => c.type === "thinking");
@@ -1108,15 +1157,34 @@ export function handleChatJsonEvent(t, pName, parsed) {
         // Sync Robot Thinking Animation
         const robot = state.walkingRobots[pName];
         if (robot) {
-            if (thinkingBlock) robot.isThinking = true;
-            else if (textBlock) robot.isThinking = false;
+            if (thinkingBlock) {
+                robot.isThinking = true;
+                robot.hasUpdate = false; // Clear any stale done state
+            }
+            else if (textBlock) {
+                robot.isThinking = false;
+            }
             renderRobots();
         }
 
-        if (textBlock && textBlock.text) {
-            if (clearStatusPills()) {
-                lastMsg = t.chatMessages[t.chatMessages.length - 1]; // Re-evaluate pointer
+        // Store thinking content as a collapsible pill
+        if (thinkingBlock && thinkingBlock.thinking) {
+            // Accumulate thinking into the last thinking pill or create a new one
+            const lastThinking = t.chatMessages[t.chatMessages.length - 1];
+            if (lastThinking && lastThinking.role === 'thinking') {
+                lastThinking.content += thinkingBlock.thinking;
+            } else {
+                t.chatMessages.push({ 
+                    role: 'thinking', 
+                    content: thinkingBlock.thinking,
+                    collapsed: true  // collapsed by default
+                });
             }
+            renderChatMessages(pName);
+        }
+
+        if (textBlock && textBlock.text) {
+            lastMsg = t.chatMessages[t.chatMessages.length - 1]; // Re-evaluate pointer
             
             const textFragment = textBlock.text;
             if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.isDone) {
@@ -1152,7 +1220,9 @@ export function handleChatJsonEvent(t, pName, parsed) {
                 showToast('success', '✓', `Agent ${pName} finished task`);
             }
             saveChatHistory(pName, t.chatMessages);
-            renderChatMessages(pName);
+            
+            // Allow a small delay before rendering to ensure DOM updates properly
+            setTimeout(() => renderChatMessages(pName), 50);
             return;
         }
         else if (parsed.subtype === "error") {
