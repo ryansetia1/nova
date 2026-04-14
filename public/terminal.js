@@ -1469,7 +1469,41 @@ export function bindChatEvents(pName, panel, t) {
         
         // Initial resize
         setTimeout(autoResize, 100);
-        
+
+        // Custom top-right resize handle: drag UP to grow
+        const resizeHandle = panel.querySelector('.chat-input-resize-handle');
+        if (resizeHandle) {
+            let isResizingInput = false;
+            let resizeStartY = 0;
+            let resizeStartH = 0;
+
+            resizeHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isResizingInput = true;
+                resizeStartY = e.clientY;
+                resizeStartH = chatInput.offsetHeight;
+                chatInput.style.transition = 'none';
+                document.addEventListener('mousemove', onInputResize);
+                document.addEventListener('mouseup', stopInputResize);
+            });
+
+            function onInputResize(e) {
+                if (!isResizingInput) return;
+                const dy = resizeStartY - e.clientY;
+                const newH = Math.min(200, Math.max(40, resizeStartH + dy));
+                chatInput.style.height = newH + 'px';
+                chatInput.style.overflowY = newH >= 200 ? 'auto' : 'hidden';
+            }
+
+            function stopInputResize() {
+                isResizingInput = false;
+                chatInput.style.transition = '';
+                document.removeEventListener('mousemove', onInputResize);
+                document.removeEventListener('mouseup', stopInputResize);
+            }
+        }
+
         // Resize on window resize to maintain proportions
         const handleWindowResize = () => debouncedAutoResize();
         window.addEventListener('resize', handleWindowResize);
@@ -1477,7 +1511,7 @@ export function bindChatEvents(pName, panel, t) {
         // Store cleanup function
         t.cleanupInputResize = () => {
             window.removeEventListener('resize', handleWindowResize);
-            clearTimeout(resizeTimer); // Use the correct timer variable
+            clearTimeout(resizeTimer);
         };
 
         // Periodically update send button state
