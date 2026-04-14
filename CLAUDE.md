@@ -60,8 +60,9 @@ nova/
 
 - Panels are `.terminal-panel` instances cloned from `#terminal-template` in `index.html`.
 - **Move**: drag the header (not when docked or maximized).
-- **Resize**: corner handle (`nwse-resize`) plus **edge strips** on all four sides when floating; docked panels use the left-edge width handle only (`--docked-width`).
-- Logic lives in `bindWindowEvents` in `public/terminal.js`; styles in `public/style.css` (`.terminal-resize-edge`, `.terminal-resizer`, `.terminal-left-resizer`).
+- **Maximize**: double-click header to toggle maximize/restore state.
+- **Resize**: **All four corner handles** (`ne`, `nw`, `se`, `sw`) plus **edge strips** on all four sides when floating; docked panels use the left-edge width handle only (`--docked-width`).
+- Logic lives in `bindWindowEvents` in `public/terminal.js`; styles in `public/style.css` (`.terminal-resize-edge`, `.terminal-resize-corner`, `.terminal-left-resizer`).
 
 ### Chat mode & Claude streaming
 
@@ -75,7 +76,7 @@ nova/
 - **Activity stream**: `handleToolActivityStream` / related helpers surface tool calls and results as in-chat “activity” rows so long-running work (e.g. web search) is visible before the final reply.
 - **Processing gaps**: `showProcessingIndicator` / `monitorResponseGaps` (and related) cover quiet periods between streamed chunks so the window does not look frozen.
 - **Cancel**: While the agent is busy, the send control becomes a **stop** control; **Escape** also cancels — see `cancelOperation`, `isAgentBusy`, and `updateSendButton` in `bindChatEvents` (`terminal.js`).
-- **Chat input**: Textarea **auto-resizes** up to a max height, then scrolls; manual vertical resize is allowed within CSS bounds (`style.css` + `autoResize` / listeners in `bindChatEvents`).
+- **Chat input**: Textarea **auto-resizes** up to a max height, then scrolls; manual vertical resize via **top-right handle** (drag up to expand) with custom implementation replacing native browser resize (`style.css` + `autoResize` / listeners in `bindChatEvents`).
 - **Copy on bubbles**: Copy button uses clipboard API with fallback; SVG paths in templates must stay valid (broken paths break the icon / animation).
 
 ### Terminal Docking System
@@ -91,6 +92,24 @@ nova/
 ### Agent movement
 
 - Walkable polygons, foreground collision, actions — `walkable_path.json`, `foreground_objects.json`, `actions.json`; logic in `walking.js` and related.
+
+### User-driven scheduling system
+
+- **Custom schedules**: Users create schedules from scratch (no templates) via `schedule-ui.js` with form-based creation.
+- **Precise timing**: Uses `setTimeout` chaining for exact execution (not polling) — see `scheduleNextOccurrence` in `scheduler.js`.
+- **Two modes**: **Broadcast** (all eligible agents) or **Per Agent** (specific agent selection).
+- **Timing options**: Specific times with day selection (AM/PM format) or custom intervals (e.g. "2h30m").
+- **Action selection**: Custom dropdown with **avatar images** for sprite characters, emoji display for emoji agents.
+- **Persistence**: Stored in `schedules.json`, loaded on server boot with full CRUD operations via `/api/schedules`.
+- **Duration management**: Actions run for specified duration, then agents resume random walking via `clearForcedTarget`.
+- **Collision handling**: New schedules cancel active ones; broadcast mode applies visual offsets to prevent agent stacking.
+
+### Folder path navigation
+
+- **Clickable paths**: Terminal header folder paths are clickable with hover indication.
+- **System integration**: Popover with "Open in Finder" (macOS), "Open in Explorer" (Windows), or system file manager (Linux).
+- **Server endpoint**: `/api/open-in-finder` handles cross-platform directory opening via `exec` commands.
+- **Copy functionality**: Path copying to clipboard with visual feedback.
 
 ### Ambient & weather
 
@@ -114,6 +133,13 @@ Key configuration files:
 
 ## Development Patterns
 
+### Custom dropdown components
+
+- **Avatar dropdowns**: Replace native `<select>` with custom implementation when images are needed (e.g. agent selection).
+- **Structure**: Wrapper div → selected display area → options list with click handlers.
+- **Avatar rendering**: Uses `getAppearanceHtml` from `ui.js` to handle SPRITE: vs emoji agent appearances.
+- **CSS styling**: `.custom-dropdown`, `.dropdown-option`, `.dropdown-option-avatar` classes with proper z-indexing and animations.
+
 ### Adding new agent-facing UI in chat
 
 1. Extend `handleChatJsonEvent` only with clear event types; keep `IGNORED_TYPES` intentional — dropping `tool_*` types hides the activity stream.
@@ -129,6 +155,23 @@ Key configuration files:
 - Agent positions and project metadata sync to the server where implemented; terminals are largely in-memory.
 
 ## Common Tasks
+
+### Create agent schedules
+
+1. Right-click in office area → **Manage Schedules**.
+2. Choose **Broadcast** (all agents) or **Per Agent** (specific agent).
+3. Set timing: **Specific time** (with AM/PM and day selection) or **Interval** (preset or custom).
+4. Select **Action** from dropdown (with avatar previews).
+5. Set **Duration** (30s to 5 minutes).
+6. **Save & Activate** or save inactive for later.
+
+### Create actions for scheduling
+
+1. Enable **Dev Mode** (`Ctrl+D`).
+2. Click **Actions** tab in dev panel.
+3. Click on office floor to place action point.
+4. Configure: **Name**, **Emoji**, **Animation**, optionally link to **Object**.
+5. **Save** — action becomes available for scheduling.
 
 ### Configure character-specific anchor
 
@@ -147,3 +190,11 @@ Key configuration files:
 1. DevTools → Network / console for WebSocket and JSON parse errors (`terminal.js` logs malformed lines in places).
 2. Confirm server Claude/Ollama launch flags include partial streaming if you need live tool events (`server.js`).
 3. For PTY-only issues: `server.log`, `node-pty`, and the troubleshooting guide.
+
+### Debug scheduling issues
+
+1. Check **Console** → `window.novaScheduler` object for active timers and schedule state.
+2. Verify **Actions** exist in Dev Mode before creating schedules.
+3. **Schedule timing**: Logs show "will fire in Xh Ym Zs" for precise countdown verification.
+4. **Agent eligibility**: Broadcast schedules filter agents by animation compatibility (emoji agents always eligible).
+5. **File system**: Check `schedules.json` for persistence and `/api/schedules` endpoint for CRUD operations.

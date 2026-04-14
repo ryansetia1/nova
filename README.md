@@ -11,8 +11,10 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 - **Chat + terminal per agent**: Each agent has **chat mode** (streamed Claude-style CLI output over WebSockets) and classic **terminal mode** (`xterm.js` + `node-pty`). Tool use and partial streams can surface in the UI while the model works.
 - **Chat UX**: WhatsApp-style typing indicator, optional processing-gap hints so quiet periods do not look like a freeze, and an **activity stream** for tool calls (e.g. web search) before the final answer. **Copy** on assistant bubbles includes a clear success state.
 - **Cancel while busy**: When an agent is thinking or streaming, the send button becomes **stop**; **Escape** cancels the in-flight chat operation (similar spirit to terminal interrupt).
-- **Comfortable input**: Chat input **grows with content** up to a sensible limit, supports **vertical resize**, then **scrolls** for very long messages.
-- **Floating window controls**: Drag the panel header to move; resize from the **bottom-right corner** or from **any edge** when the panel is floating. Up to **three** panels can **dock** to the right; docked width is adjustable from the left edge of the dock.
+- **Comfortable input**: Chat input **grows with content** up to a sensible limit, supports **vertical resize** via **top-right handle** (drag up to expand), then **scrolls** for very long messages.
+- **Advanced window controls**: **Double-click header** to maximize/restore; drag header to move; resize from **all four corners** plus **any edge** when floating. Up to **three** panels can **dock** to the right; docked width is adjustable from the left edge of the dock.
+- **User-driven scheduling**: Create custom schedules for agents with **precise timing** (specific times or intervals), **broadcast** or **per-agent** targeting, and **visual action** selection with avatar previews.
+- **Smart folder navigation**: Click folder path in terminal headers to **open in Finder** (or system file manager) with convenient copy-path option.
 - **Multi-service LLM support**: Switch between **Ollama (local)**, **Claude**, **Sumo**, and **custom** endpoints from the UI (model badge / settings flows).
 - **Integrated `CLAUDE.md` editor**: Open from the terminal header menu to edit agent instructions in place.
 - **Day / night & weather**: Office theme follows time of day; weather-style ambience can follow real location (Open-Meteo) when enabled.
@@ -62,13 +64,17 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 
 - **Spawn agent**: Use the spawn flow; pick name, appearance (emoji or character), and project path as prompted.
 - **Chat vs terminal**: Use the 💬 / 💻 toggle on the panel header.
+- **Maximize/restore**: **Double-click** anywhere on the header to maximize or restore window.
 - **Dock**: Yellow header dot pins the panel to the right stack (max three).
-- **Resize**: Corner or edge handles when floating; docked panels — drag the **left** strip to change shared dock width.
+- **Resize**: All **four corner** handles plus **edge handles** when floating; docked panels — drag the **left** strip to change shared dock width.
+- **Chat input resize**: Drag the **top-right handle** upward to expand input area.
+- **Folder navigation**: Click folder path in header for "Open in Finder" options.
+- **Scheduling**: Right-click → **Manage Schedules** to create agent schedules with precise timing and actions.
 - **Switch model / service**: Click the model badge in the header.
 - **Edit rules**: Header menu → **Edit CLAUDE.md**.
 - **Cancel reply**: While the agent is busy, click **stop** or press **Escape**.
 - **Sidebar eye icon**: Hide or show an entity on the floor.
-- **Dev mode (`Ctrl+D`)**: Layout and position tools for the office (see on-screen hints).
+- **Dev mode (`Ctrl+D`)**: Layout and position tools for the office — create **actions** for scheduling.
 - **Visualize mode** (settings gear): Adjust per-character foot anchors.
 
 ## Troubleshooting
@@ -84,7 +90,7 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
 | `server.js` | HTTP + WebSockets, process spawn for chat/terminal |
 | `electron.js` | Desktop shell (optional) |
 | `projects/` | Agent project directories |
-| `walkable_path.json`, `foreground_objects.json`, `break_positions.json`, `anchor_config.json` | Office / agent layout data |
+| `walkable_path.json`, `foreground_objects.json`, `actions.json`, `schedules.json`, `anchor_config.json` | Office / agent layout data and scheduling |
 
 Agent-oriented implementation details for contributors and coding agents are summarized in **[CLAUDE.md](CLAUDE.md)**.
 
