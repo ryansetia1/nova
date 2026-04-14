@@ -1048,7 +1048,18 @@ export function renderChatMessages(pName) {
             const contentHtml = !isCollapsed
                 ? `<div class="thinking-pill-content">${escapedContent}</div>`
                 : '';
-            return `<div class="chat-bubble assistant thinking-bubble ${isCollapsed ? 'collapsed' : 'expanded'}" onclick="window.toggleThinkingPill('${pName}', ${msgIdx})"><div class="thinking-pill-header"><span class="thinking-pill-icon">💭</span><span class="thinking-pill-label">Thought process</span><span class="thinking-pill-toggle">${isCollapsed ? '▶' : '▼'}</span></div>${contentHtml}</div>`;
+            const copyBtn = `<button class="bubble-copy-btn" onclick="window.copyBubbleText(event, '${pName}', ${msgIdx})" title="Copy thought process">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>`;
+            return `<div class="chat-bubble assistant thinking-bubble ${isCollapsed ? 'collapsed' : 'expanded'}" onclick="window.toggleThinkingPill('${pName}', ${msgIdx})">
+                ${copyBtn}
+                <div class="thinking-pill-header">
+                    <span class="thinking-pill-icon">💭</span>
+                    <span class="thinking-pill-label">Thought process</span>
+                    <span class="thinking-pill-toggle">${isCollapsed ? '▶' : '▼'}</span>
+                </div>
+                ${contentHtml}
+            </div>`;
         }
 
         // Render system pill (Thinking..., Processing...) with animated dots
@@ -1081,7 +1092,10 @@ export function renderChatMessages(pName) {
         }
 
         const isDone = m.isDone ? '<span class="bubble-check-mark">✓</span>' : '';
-        return `<div class="chat-bubble ${m.role}">${text}${optionsHtml}${isDone}</div>`;
+        const copyBtn = `<button class="bubble-copy-btn" onclick="window.copyBubbleText(event, '${pName}', ${msgIdx})" title="Copy message">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>`;
+        return `<div class="chat-bubble ${m.role}">${copyBtn}${text}${optionsHtml}${isDone}</div>`;
     }).join('');
     
     setTimeout(() => {
@@ -1115,6 +1129,34 @@ window.toggleThinkingPill = function(pName, msgIdx) {
             }
         }, 50);
     }
+};
+
+window.copyBubbleText = function(event, pName, msgIdx) {
+    if (event) event.stopPropagation();
+    const t = state.terminals[pName];
+    if (!t || !t.chatMessages[msgIdx]) return;
+    
+    const content = t.chatMessages[msgIdx].content || '';
+    if (!content) return;
+    
+    navigator.clipboard.writeText(content).then(() => {
+        showToast('success', '📋', 'Copied to clipboard');
+        
+        // Visual feedback on the button itself
+        const btn = event.currentTarget;
+        if (btn) {
+            btn.classList.add('success');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            setTimeout(() => { 
+                btn.classList.remove('success');
+                btn.innerHTML = originalHtml; 
+            }, 2000);
+        }
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('error', '❌', 'Failed to copy');
+    });
 };
 
 export function handleChatJsonEvent(t, pName, parsed) {

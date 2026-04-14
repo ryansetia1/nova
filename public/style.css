@@ -4401,8 +4401,8 @@ body.dev-mode-theatre .ambient-iframe-container {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  padding-bottom: 90px; /* Increased to ensure content is never hidden behind the input row */
+  padding: 16px 45px; /* Increased side padding to accommodate external copy buttons */
+  padding-bottom: 90px;
   display: flex;
   flex-direction: column;
   gap: 16px; 
@@ -4426,6 +4426,7 @@ body.dev-mode-theatre .ambient-iframe-container {
   line-height: 1.5;
   word-break: break-word;
   animation: modalEnter 0.2s ease-out;
+  position: relative; /* Critical: needed for copy button positioning */
 }
 
 .chat-bubble.user {
@@ -4445,6 +4446,60 @@ body.dev-mode-theatre .ambient-iframe-container {
   position: relative;
   transition: all 0.3s ease;
 }
+
+.chat-bubble:hover .bubble-copy-btn,
+.chat-bubble.user:hover .bubble-copy-btn {
+  opacity: 1 !important;
+  visibility: visible;
+}
+
+.bubble-copy-btn {
+  position: absolute;
+  top: 0;
+  right: -36px;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f1f5f9; /* Brighter color for better visibility */
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100; /* Ensure it's above everything */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.chat-bubble.user .bubble-copy-btn {
+  right: auto;
+  left: -38px;
+}
+
+.bubble-copy-btn:hover {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.bubble-copy-btn.success {
+  border-color: #10b981 !important;
+}
+
+.bubble-copy-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.bubble-copy-btn:active svg {
+  transform: scale(0.9);
+}
+
 
 .chat-bubble.assistant b { color: var(--accent-primary); font-weight: 700; }
 .chat-bubble.assistant i { opacity: 0.9; }
