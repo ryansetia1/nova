@@ -1075,6 +1075,18 @@ function saveChatHistory(pName, messages) {
 export function handleChatJsonEvent(t, pName, parsed) {
     if (!parsed) return;
     
+    // Silently ignore events that should never render as chat bubbles
+    const IGNORED_TYPES = ['user', 'tool_result', 'tool_use', 'tool_call', 'permission'];
+    if (IGNORED_TYPES.includes(parsed.type)) return;
+
+    // Also ignore if content contains raw JSON-looking tool results
+    if (parsed.type === 'assistant' && parsed.message?.content) {
+        const hasOnlyToolUse = parsed.message.content.every(
+            c => c.type === 'tool_use' || c.type === 'tool_result'
+        );
+        if (hasOnlyToolUse) return;
+    }
+
     // DEBUG: Log all events to help diagnose 'no reply' issues
     console.log(`[Agent:${pName}] Event:`, parsed);
 
@@ -1184,7 +1196,10 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
     // 3. Fallback for flat schema
     const flatText = parsed.text || parsed.content || parsed.message;
-    if (flatText && typeof flatText === 'string' && !parsed.type?.includes('thinking')) {
+    if (flatText && typeof flatText === 'string' && 
+        !parsed.type?.includes('thinking') &&
+        !flatText.trim().startsWith('{') &&  // ignore raw JSON strings
+        !flatText.trim().startsWith('[')) {   // ignore raw JSON arrays
         lastMsg = t.chatMessages[t.chatMessages.length - 1];
         if (!lastMsg || lastMsg.role !== 'assistant') {
             t.chatMessages.push({ role: 'assistant', content: flatText });
@@ -1212,7 +1227,10 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
     // 5. Catch-all Fallback for other schemas or raw prompts
     const catchAll = parsed.text || parsed.content || parsed.message || parsed.output || (typeof parsed === 'string' ? parsed : null);
-    if (catchAll && !parsed.type?.includes('thinking')) {
+    if (catchAll && typeof catchAll === 'string' && 
+        !parsed.type?.includes('thinking') &&
+        !catchAll.trim().startsWith('{') && 
+        !catchAll.trim().startsWith('[')) {
         const textToDisplay = typeof catchAll === 'string' ? catchAll : JSON.stringify(catchAll);
         t.chatMessages.push({ role: 'assistant', content: textToDisplay });
         saveChatHistory(pName, t.chatMessages);
