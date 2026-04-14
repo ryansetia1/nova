@@ -842,8 +842,143 @@ export function bindChatEvents(pName, panel, t) {
         modeTermBtn.addEventListener('click', (e) => { e.stopPropagation(); window.switchUiMode(pName, 'terminal'); });
     }
     
+    // Function to check if agent is currently processing
+    const isAgentBusy = () => {
+        const robot = state.walkingRobots[pName];
+        return (robot && robot.isThinking) || 
+               (t.activityStream && t.activityStream.isActive) ||
+               (t.chatMessages && t.chatMessages.some(m => 
+                   (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) ||
+                   m.isProcessingGap
+               ));
+    };
+
+    // Function to update send button and input row based on agent state
+    const updateSendButton = () => {
+        if (!chatSendBtn) return; // Safety check
+        
+        const chatInputRow = panel.querySelector('.chat-input-row');
+        const isBusy = isAgentBusy();
+        
+        if (isBusy) {
+            chatSendBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            `;
+            chatSendBtn.title = "Stop (Esc)";
+            chatSendBtn.classList.add('is-stop-button');
+            if (chatInputRow) chatInputRow.classList.add('agent-busy');
+            
+            // Update input placeholder to show cancel hint
+            if (chatInput) {
+                chatInput.placeholder = "Agent is working... Press Esc or click Stop to cancel";
+            }
+        } else {
+            chatSendBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            `;
+            chatSendBtn.title = "Send (Enter)";
+            chatSendBtn.classList.remove('is-stop-button');
+            if (chatInputRow) chatInputRow.classList.remove('agent-busy');
+            
+            // Restore normal placeholder
+            if (chatInput) {
+                chatInput.placeholder = "Type a message... (Shift+Enter for newline)";
+            }
+        }
+    };
+
+    // Function to cancel/stop current operation
+    const cancelOperation = () => {
+        console.log(`🛑 Canceling operation for ${pName}`);
+        
+        // Close WebSocket connection to stop current process
+        if (t.chatWs && t.chatWs.readyState === WebSocket.OPEN) {
+            t.chatWs.close();
+            // Reconnect after short delay
+            setTimeout(() => {
+                t.setupModeWs('chat');
+            }, 500);
+        }
+        
+        // Clear thinking/processing states
+        const robot = state.walkingRobots[pName];
+        if (robot) {
+            robot.isThinking = false;
+            robot.hasUpdate = false;
+            robot.hasError = false;
+            renderRobots();
+        }
+        
+        // Clear processing indicators and activity stream
+        window.hideProcessingIndicator(pName);
+        window.clearActivityStream(pName);
+        
+        // Remove thinking/processing pills
+        t.chatMessages = t.chatMessages.filter(m => {
+            if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
+            if (m.isProcessingGap) return false;
+            if (m.role === 'activity') return false;
+            return true;
+        });
+        
+        // Add cancellation message
+        t.chatMessages.push({ 
+            role: 'system', 
+            content: '⏹️ Operation cancelled by user' 
+        });
+        
+        saveChatHistory(pName, t.chatMessages);
+        renderChatMessages(pName);
+        updateSendButton();
+        
+        showToast('info', '⏹️', 'Operation cancelled');
+    };
+
+    // Auto-resize function
+    const autoResize = () => {
+        if (!chatInput) return;
+        
+        // Reset height to get accurate scrollHeight
+        chatInput.style.height = 'auto';
+        
+        // Calculate required height
+        const scrollHeight = chatInput.scrollHeight;
+        const minHeight = 40; // 2.5rem * 16px
+        const maxHeight = 200; // ~8 lines at 14px line-height
+        
+        const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+        
+        // Apply new height
+        chatInput.style.height = `${newHeight}px`;
+        
+        // Handle scrolling for content that exceeds max height
+        if (scrollHeight > maxHeight) {
+            chatInput.style.overflowY = 'auto';
+        } else {
+            chatInput.style.overflowY = 'hidden';
+        }
+    };
+
+    // Debounced version
+    let resizeTimer;
+    const debouncedAutoResize = () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(autoResize, 10);
+    };
+    
     if (chatSendBtn && chatInput) {
+
         const sendChat = () => {
+            // If agent is busy, cancel operation instead of sending
+            if (isAgentBusy()) {
+                cancelOperation();
+                return;
+            }
+
             const val = chatInput.value.trim();
             if (!val) return;
 
@@ -973,6 +1108,9 @@ export function bindChatEvents(pName, panel, t) {
                     const robot = state.walkingRobots[pName];
                     if (robot) { robot.isThinking = true; renderRobots(); }
                     t.chatWs.send(JSON.stringify({ type: 'input', data: val + '\n' }));
+                    
+                    // Update button to show stop state
+                    updateSendButton();
                 }
             }
 
@@ -1020,15 +1158,69 @@ export function bindChatEvents(pName, panel, t) {
                 } else if (e.key === 'Escape') {
                     menu.remove();
                 }
+            } else if (e.key === 'Escape') {
+                // ESC key cancels operation if agent is busy
+                if (isAgentBusy()) {
+                    e.preventDefault();
+                    cancelOperation();
+                }
             } else if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendChat();
             }
         });
+
+        // Setup auto-resize event listeners
+        chatInput.addEventListener('input', debouncedAutoResize);
+        chatInput.addEventListener('paste', () => setTimeout(debouncedAutoResize, 0));
+        chatInput.addEventListener('keydown', (e) => {
+            // Handle special keys that might change content
+            if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') {
+                setTimeout(debouncedAutoResize, 0);
+            }
+        });
+        
+        // Initial resize
+        setTimeout(autoResize, 100);
+        
+        // Resize on window resize to maintain proportions
+        const handleWindowResize = () => debouncedAutoResize();
+        window.addEventListener('resize', handleWindowResize);
+        
+        // Store cleanup function
+        t.cleanupInputResize = () => {
+            window.removeEventListener('resize', handleWindowResize);
+            clearTimeout(resizeTimer); // Use the correct timer variable
+        };
+
+        // Periodically update send button state
+        const updateButtonInterval = setInterval(() => {
+            if (document.contains(chatSendBtn)) {
+                updateSendButton();
+            } else {
+                clearInterval(updateButtonInterval);
+            }
+        }, 500);
+
     }
     
-    // Initial render
+    // Store references for cleanup and external access (always available now)
+    t.updateSendButton = updateSendButton;
+    t.cancelOperation = cancelOperation;
+    t.autoResize = autoResize;
+    t.isAgentBusy = isAgentBusy;
+    
+    // Initial render and button state
     renderChatMessages(pName);
+    if (chatSendBtn && typeof updateSendButton === 'function') {
+        setTimeout(() => {
+            try {
+                updateSendButton();
+            } catch (err) {
+                console.warn(`Failed to update send button for ${pName}:`, err);
+            }
+        }, 100);
+    }
 }
 
 export function renderChatMessages(pName) {
@@ -1315,6 +1507,93 @@ window.syncThinkingBubblesWithAgents = function() {
             }
         }
     });
+};
+
+// Test function for cancel functionality
+window.testCancelFeature = function(agentName = 'Ask-Me-Anything') {
+    console.log(`🧪 Testing cancel functionality for ${agentName}`);
+    
+    const t = state.terminals[agentName];
+    if (!t) {
+        console.warn(`Terminal ${agentName} not found`);
+        return;
+    }
+    
+    console.log('Current state:', {
+        isAgentBusy: t.updateSendButton ? (() => {
+            const robot = state.walkingRobots[agentName];
+            return (robot && robot.isThinking) || 
+                   (t.activityStream && t.activityStream.isActive) ||
+                   (t.chatMessages && t.chatMessages.some(m => 
+                       (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) ||
+                       m.isProcessingGap
+                   ));
+        })() : 'unknown',
+        hasUpdateFunction: !!t.updateSendButton,
+        hasCancelFunction: !!t.cancelOperation
+    });
+    
+    if (t.updateSendButton) {
+        t.updateSendButton();
+        console.log('✅ Send button state updated');
+    }
+    
+    console.log('💡 To test:');
+    console.log('1. Send a message that takes time (e.g., web search)');
+    console.log('2. Notice send button changes to stop button (🔴)');
+    console.log('3. Press ESC or click stop button to cancel');
+    console.log('4. Input placeholder changes during busy state');
+};
+
+// Test function for auto-resize
+window.testAutoResize = function(agentName = 'Ask-Me-Anything') {
+    console.log(`🧪 Testing auto-resize for ${agentName}`);
+    
+    const t = state.terminals[agentName];
+    if (!t || !t.panel) {
+        console.warn(`Terminal ${agentName} not found`);
+        return;
+    }
+    
+    const chatInput = t.panel.querySelector('.chat-input');
+    if (!chatInput) {
+        console.warn('Chat input not found');
+        return;
+    }
+    
+    console.log('Current textarea state:', {
+        height: chatInput.style.height,
+        scrollHeight: chatInput.scrollHeight,
+        hasAutoResize: !!t.autoResize,
+        resizeProperty: getComputedStyle(chatInput).resize
+    });
+    
+    // Test with long text
+    const testText = 'This is line 1\nThis is line 2\nThis is line 3\nThis is line 4\nThis is line 5\nThis is line 6\nThis is line 7\nThis is line 8\nThis should trigger scrolling';
+    chatInput.value = testText;
+    
+    if (t.autoResize) {
+        t.autoResize();
+        console.log('✅ Auto-resize triggered');
+    }
+    
+    setTimeout(() => {
+        console.log('After resize:', {
+            height: chatInput.style.height,
+            overflowY: chatInput.style.overflowY,
+            scrollHeight: chatInput.scrollHeight
+        });
+        
+        // Clear test text
+        chatInput.value = '';
+        if (t.autoResize) t.autoResize();
+    }, 100);
+    
+    console.log('💡 Manual testing:');
+    console.log('1. Type multiple lines using Shift+Enter');
+    console.log('2. Notice textarea auto-expands up to 8 lines');
+    console.log('3. After 8 lines, scroll appears inside textarea');
+    console.log('4. Drag resize handle (bottom-right corner) manually');
 };
 
 // Test function for debugging WhatsApp bubble integration
@@ -1997,6 +2276,15 @@ export function handleChatJsonEvent(t, pName, parsed) {
                 robot.isThinking = false;
             }
             renderRobots();
+            
+            // Update send button state (with safety check)
+            if (t && typeof t.updateSendButton === 'function') {
+                try {
+                    t.updateSendButton();
+                } catch (err) {
+                    console.warn(`Failed to update send button for ${pName}:`, err);
+                }
+            }
         }
 
         // Store thinking content as a collapsible pill
@@ -2068,6 +2356,15 @@ export function handleChatJsonEvent(t, pName, parsed) {
                 renderRobots(); 
                 fireAgentNotification(pName, null, '✓ Task Done');
                 showToast('success', '✓', `Agent ${pName} finished task`);
+                
+                // Update send button state
+                if (t && typeof t.updateSendButton === 'function') {
+                    try {
+                        t.updateSendButton();
+                    } catch (err) {
+                        console.warn(`Failed to update send button for ${pName}:`, err);
+                    }
+                }
             }
             saveChatHistory(pName, t.chatMessages);
             
@@ -2086,6 +2383,15 @@ export function handleChatJsonEvent(t, pName, parsed) {
                 robot.hasError = true; 
                 renderRobots(); 
                 fireAgentNotification(`❌ Error: ${errMsg}`, pName);
+                
+                // Update send button state
+                if (t && typeof t.updateSendButton === 'function') {
+                    try {
+                        t.updateSendButton();
+                    } catch (err) {
+                        console.warn(`Failed to update send button for ${pName}:`, err);
+                    }
+                }
             }
         }
         else if (parsed.type === "thinking") {

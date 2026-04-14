@@ -5322,3 +5322,111 @@ body.dev-mode-theatre .ambient-iframe-container {
   0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-3px); }
 }
+
+/* Auto-resize chat input with manual resize capability */
+.chat-input {
+  min-height: 40px;
+  max-height: 200px;
+  resize: vertical;
+  transition: height 0.1s ease;
+  overflow-y: hidden;
+  word-wrap: break-word;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Custom resize handle styling */
+.chat-input::-webkit-resizer {
+  background: linear-gradient(-45deg, 
+    transparent 0%, 
+    transparent 40%, 
+    var(--accent-primary) 40%, 
+    var(--accent-primary) 60%, 
+    transparent 60%);
+  border-radius: 0 0 4px 0;
+}
+
+/* Scrollbar styling when textarea becomes scrollable */
+.chat-input::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-input::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.chat-input::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.chat-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Send/Stop button states */
+.chat-send-btn {
+  transition: all 0.2s ease;
+}
+
+.chat-send-btn.is-stop-button {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #ef4444 !important;
+}
+
+.chat-send-btn.is-stop-button:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  transform: scale(1.05);
+}
+
+.chat-send-btn.is-stop-button:active {
+  transform: scale(0.95);
+}
+
+/* Pulsing animation for stop button to indicate it's active */
+.chat-send-btn.is-stop-button {
+  animation: stop-pulse 2s infinite ease-in-out;
+}
+
+@keyframes stop-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Chat input row adjustments for better visual flow */
+.chat-input-row {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+/* Visual indicator when agent is busy */
+.chat-input-row.agent-busy::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: busy-glow 2s infinite ease-in-out;
+}
+
+@keyframes busy-glow {
+  0%, 100% { 
+    border-color: rgba(251, 191, 36, 0.3);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.2);
+  }
+  50% { 
+    border-color: rgba(251, 191, 36, 0.6);
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);
+  }
+}
