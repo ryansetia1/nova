@@ -251,6 +251,7 @@ wss.on('connection', (ws, req) => {
 
   const commonEnv = { ...process.env, ANTHROPIC_API_KEY: apiKey, ANTHROPIC_BASE_URL: baseUrl, LANG: 'en_US.UTF-8' };
   const initMarker = path.join(projectPath, '.nova_init');
+  const hasBeenInitialized = fs.existsSync(initMarker);
   
   let agentProc = null, isPty = false;
 

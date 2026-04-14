@@ -493,7 +493,7 @@ export function updateThemeAssets() {
 
 export async function preloadAllAssets() {
     // 1. Fetch available animations map
-    let animationMap = { 'Char1': ['Walk', 'Idle'], 'Char2': ['Walk', 'Idle'] };
+    let animationMap = { 'Char1': { 'Walk': 31, 'Idle': 86 }, 'Char2': { 'Walk': 34, 'Idle': 240 } };
     try {
         const res = await fetch('/api/character-animations');
         animationMap = await res.json();
