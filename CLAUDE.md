@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-- **NOVA** - A visual office interface with Electron desktop app, featuring:
+- **NOVA** — A visual office interface with an optional Electron desktop app, featuring:
 - Interactive character agents that move around an office environment
-- Dockable terminal sidebar with WebSocket PTY streaming
+- **Chat mode** and **terminal mode** per agent, with WebSocket streaming to Claude CLI / PTY
+- Dockable terminal panels (up to 3) with WebSocket PTY streaming
 - LLM service switching (Ollama, Claude, Sumo, Custom)
-- Project & Entity management (Agents, Captains, Pets, and Workspace Objects)
-- Dedicated character anchor alignment & interaction modes
+- Project & entity management (Agents, Captains, Pets, and workspace objects)
+- Character anchor alignment, dev/layout tools, and ambient weather
 
 ## Quick Start
 
@@ -28,99 +29,120 @@ npm run build
 npm run dist
 ```
 
-### 🆘 Troubleshooting
+### Troubleshooting
+
 If you experience chat hangs, missing sprites, or server crashes, refer to:
+
 - **[Troubleshooting Overview](troubleshooting/GUIDE.md)**
-- **Repair Utility**: Run `./troubleshooting/repair.sh` to clear locks and hanging processes.
+- **Repair utility**: Run `./troubleshooting/repair.sh` to clear locks and hanging processes.
 
 ## Architecture
 
 ```
 nova/
-├── server.js           # Express server with WebSocket PTY terminal
-├── electron.js         # Electron desktop wrapper
-├── public/             # Frontend (vanilla JS ES modules)
-│   ├── index.html
-│   ├── js/
-│   │   ├── main.js
-│   │   ├── terminal.js
-│   │   ├── agent.js
-│   │   └── ...
-│   └── css/
-├── projects/           # Project configurations
-│   ├── agent/
-│   ├── captain/
-│   └── pet/
-└── dist/               # Built Electron app
+├── server.js              # Express + WebSockets (chat + PTY), Claude CLI spawn
+├── electron.js            # Electron desktop wrapper
+├── public/                # Frontend (vanilla JS ES modules)
+│   ├── index.html         # App shell + #terminal-template
+│   ├── main.js            # Boot, office UI, imports terminal helpers
+│   ├── terminal.js        # Panels, chat WebSocket, resize, activity UI
+│   ├── walking.js         # Agents, paths, robot state
+│   ├── state.js           # Shared state + DOM refs
+│   ├── style.css          # Global + chat + panel styles
+│   └── ...
+├── projects/              # Per-agent project folders + configs
+└── dist/                  # Built Electron output (after dist)
 ```
 
 ## Key Systems
 
+### Floating terminal / chat panels
+
+- Panels are `.terminal-panel` instances cloned from `#terminal-template` in `index.html`.
+- **Move**: drag the header (not when docked or maximized).
+- **Resize**: corner handle (`nwse-resize`) plus **edge strips** on all four sides when floating; docked panels use the left-edge width handle only (`--docked-width`).
+- Logic lives in `bindWindowEvents` in `public/terminal.js`; styles in `public/style.css` (`.terminal-resize-edge`, `.terminal-resizer`, `.terminal-left-resizer`).
+
+### Chat mode & Claude streaming
+
+- Chat uses a WebSocket (see `setupModeWs('chat')` in `public/terminal.js`).
+- The server spawns the Claude CLI with **`--include-partial-messages`** (and stream JSON) so tool use and partial assistant output can arrive incrementally — see `server.js` for the exact spawn args.
+- **`handleChatJsonEvent`** in `terminal.js` parses stream events (`content_block_start`, `content_block_delta`, `message_*`, tool-related payloads) and must not swallow events meant for text/thinking/tool UI.
+
+### Chat UX (thinking, activity, cancel, input)
+
+- **Thinking / typing**: WhatsApp-style typing bubble in the chat transcript; CSS uses longhand `animation-*` on `.typing-dot` so staggered delays are not reset by overrides. Avoid calling `syncThinkingBubblesWithAgents` on very tight animation loops (it was removed from the 42ms walk loop in `walking.js` for that reason).
+- **Activity stream**: `handleToolActivityStream` / related helpers surface tool calls and results as in-chat “activity” rows so long-running work (e.g. web search) is visible before the final reply.
+- **Processing gaps**: `showProcessingIndicator` / `monitorResponseGaps` (and related) cover quiet periods between streamed chunks so the window does not look frozen.
+- **Cancel**: While the agent is busy, the send control becomes a **stop** control; **Escape** also cancels — see `cancelOperation`, `isAgentBusy`, and `updateSendButton` in `bindChatEvents` (`terminal.js`).
+- **Chat input**: Textarea **auto-resizes** up to a max height, then scrolls; manual vertical resize is allowed within CSS bounds (`style.css` + `autoResize` / listeners in `bindChatEvents`).
+- **Copy on bubbles**: Copy button uses clipboard API with fallback; SVG paths in templates must stay valid (broken paths break the icon / animation).
+
 ### Terminal Docking System
-- Up to 3 terminals can be docked in the sidebar
-- WebSocket-based PTY streaming for real-time terminal output
-- Managed via `public/js/terminal.js`
 
-### LLM Service Switching
-- Support for multiple LLM backends
-- Configurable via UI settings
-- Services: Ollama (local), Claude (API), Sumo (custom), Custom endpoint
+- Up to three panels can be `.docked-right`; layout helper updates widths/heights.
+- WebSocket PTY streaming for terminal mode; refit via xterm `FitAddon` on resize (`refit`).
 
-### Agent Movement System
-- Characters move using walkable path polygons
-- Collision detection with foreground objects
-- Break positions for idle animations
-- Configurable via `walkable_path.json` and `foreground_objects.json`
+### LLM service switching
 
-### Ambient & Weather System
-- GPU-accelerated CSS particle system for rendering Starry and Rainy weather conditions.
-- Uses Open-Meteo API and HTML5 Geolocation to automatically sync the background weather with the user's real-world location in Auto mode.
-- Optimized rendering using `DocumentFragment` generation and CSS `will-change: transform`.
+- Configurable from the UI (model badge / modals).
+- Services: Ollama (local), Claude (API/CLI path used by server), Sumo, Custom.
 
-### Character Sprite Animation
-- Multi-frame sprite sheets for movement animations
-- Configurable directions and frame timing
-- Data stored in `break_positions.json`
+### Agent movement
+
+- Walkable polygons, foreground collision, break positions — `walkable_path.json`, `foreground_objects.json`, `break_positions.json`; logic in `walking.js` and related.
+
+### Ambient & weather
+
+- CSS-driven particles (e.g. Starry / Rainy), Open-Meteo + geolocation in auto mode; see existing weather modules in `public/`.
+
+### Character sprites
+
+- Multi-frame sheets, mapping in `character_mapping.json`, anchors in `anchor_config.json`.
 
 ## Data Persistence
 
 Key configuration files:
-- `anchor_config.json` - Character-specific sprite pivot points (Char1, Char2, etc.)
-- `break_positions.json` - Named break points for agent idling
-- `foreground_objects.json` - Named collision objects for agent movement
-- `walkable_path.json` - Floor area polygon vertices
-- `character_mapping.json` - Maps entity IDs to sprite assets and behavior profiles
+
+- `anchor_config.json` — Sprite pivot / alignment per character
+- `break_positions.json` — Named idle/break points
+- `foreground_objects.json` — Collision / layout objects
+- `walkable_path.json` — Floor polygons
+- `character_mapping.json` — Entity → sprite / behavior
+- Chat history — `localStorage` keys `nova-chat-<projectName>` (see `terminal.js`)
 
 ## Development Patterns
 
-### Adding New Agent Activities
-1. Define activity in project config under `projects/`
-2. Add sprite frames if new animations needed
-3. Update `public/js/agent.js` movement logic
+### Adding new agent-facing UI in chat
 
-### WebSocket Terminal Communication
-- Server creates PTY sessions via `node-pty`
-- Clients connect via WebSocket to `/terminal/:id`
-- Bidirectional stream for input/output
+1. Extend `handleChatJsonEvent` only with clear event types; keep `IGNORED_TYPES` intentional — dropping `tool_*` types hides the activity stream.
+2. Add styles beside existing chat blocks in `style.css` to preserve specificity rules (avoid resetting shorthand `animation` on children that rely on `animation-delay`).
 
-### State Persistence
-- Agent positions saved periodically
-- Terminal sessions stored in memory
-- Config files updated on changes
+### WebSocket terminal communication
+
+- Server: PTY via `node-pty`; clients attach per project/mode.
+- Resize messages may be sent after `fit` so the PTY column/row count matches the viewport.
+
+### State persistence
+
+- Agent positions and project metadata sync to the server where implemented; terminals are largely in-memory.
 
 ## Common Tasks
 
 ### Configure character-specific anchor
-- 1. Toggle **Visualize Mode** via Settings Gear
-- 2. Select character (Char1, Char2, etc.) in the Anchor Adjuster panel
-- 3. Adjust sliders and click **Save & Apply**
 
-### Modify Walkable Area
-1. Edit `walkable_path.json` with new polygons
-2. Ensure polygons don't overlap with `foreground_objects.json`
-3. Reload page to see changes
+1. Toggle **Visualize Mode** (settings gear).
+2. Select character in the Anchor Adjuster.
+3. Adjust and **Save & Apply**.
 
-### Debug Terminal Issues
-1. Check WebSocket connection in browser DevTools
-2. Verify `node-pty` is installed correctly
-3. Check `server.log` for PTY errors
+### Modify walkable area
+
+1. Edit `walkable_path.json`.
+2. Avoid impossible overlaps with `foreground_objects.json`.
+3. Reload the app.
+
+### Debug chat or stream issues
+
+1. DevTools → Network / console for WebSocket and JSON parse errors (`terminal.js` logs malformed lines in places).
+2. Confirm server Claude/Ollama launch flags include partial streaming if you need live tool events (`server.js`).
+3. For PTY-only issues: `server.log`, `node-pty`, and the troubleshooting guide.

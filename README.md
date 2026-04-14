@@ -1,82 +1,93 @@
 # NOVA — Agent Workspace 🪐
 
 **Nucleus Orchestrator for Virtual Agents**  
-A high-fidelity, interactive office environment for autonomous coding agents. NOVA provides a physical workspace for your AI agents, where they can roam, think, and execute tasks in dedicated persistent terminals.
+A high-fidelity, interactive office environment for autonomous coding agents. NOVA gives your AI agents a spatial workspace: they can roam the office, run shells, and hold **chat** or **terminal** sessions backed by real processes and WebSockets.
 
 ![NOVA Preview](public/assets/office/day/office_bg_day.png)
 
-## ✨ Features
+## Features
 
-- **Autonomous Agent Visuals**: Beautiful sprite-based character animations with support for walking, idling, and color-coded status chips in the sidebar (Thinking, Done, Error).
-- **Dynamic Multi-Service Support**: Switch seamlessly between **Ollama (local)**, **Claude (Anthropic)**, **Sumo**, and **Custom API** services directly from the terminal.
-- **Persistent Sidebar Docking**: Snap up to 3 terminal windows to the right sidebar. They automatically divide the screen height equally and maintain their state across page refreshes.
-- **Integrated Agent Editor**: Dedicated `CLAUDE.md` editor built into terminal headers for rapid documentation and agent rules management.
-- **Dynamic Day/Night & Weather System**: The office environment automatically transitions between Day and Night themes based on your local system time, featuring custom lighting (FX) and dimmed agent states. Includes a dynamic weather engine (Starry vs. Rainy) that tracks real-world geolocation via the Open-Meteo API.
-- **Persistent Terminals**: Every agent manages its own project folder with a real, integrated terminal (powered by `xterm.js` and `node-pty`).
-- **Dynamic Office Environment (NOVA HQ)**:
-    - **Depth Sorting**: Agents naturally overlap based on their vertical position, creating a 3D depth illusion.
-    - **Walkable Zones**: Precise pathing logic to keep agents within the office floor boundaries.
-    - **Universal Tooltip & Persistence**: Consistent, high-fidelity tooltips for all workspace entities in Dev Mode with automatic sequential naming (e.g., "Position 1", "Dispenser 2").
-- **Smart Persistence**: All floor paths, character-specific anchor settings, project metadata, and **UI docking states** are automatically synced to the server.
-- **Individual Visibility Control**: Toggle the visibility of any agent, captain, or pet individually using eye icons in the sidebar. Provides immediate visual decluttering while keeping background processes active.
-- **Specialized Agent Roles**: Support for **Captains** (global project managers) and **Pets** (companion entities) with tailored spawning interfaces and management rules.
-- **Safe Management Flows**: Intuitive confirmation dialogs for removing agents or dismissing pets, protecting against accidental workspace disruption.
-- **Enhanced Ambient Control**: Minimalist music control system that reveals video and volume sliders on hover only when active, keeping the sidebar focused.
+- **Autonomous agent visuals**: Sprite-based walking and idle animations, with status cues (thinking, done, error) tied to agent state.
+- **Chat + terminal per agent**: Each agent has **chat mode** (streamed Claude-style CLI output over WebSockets) and classic **terminal mode** (`xterm.js` + `node-pty`). Tool use and partial streams can surface in the UI while the model works.
+- **Chat UX**: WhatsApp-style typing indicator, optional processing-gap hints so quiet periods do not look like a freeze, and an **activity stream** for tool calls (e.g. web search) before the final answer. **Copy** on assistant bubbles includes a clear success state.
+- **Cancel while busy**: When an agent is thinking or streaming, the send button becomes **stop**; **Escape** cancels the in-flight chat operation (similar spirit to terminal interrupt).
+- **Comfortable input**: Chat input **grows with content** up to a sensible limit, supports **vertical resize**, then **scrolls** for very long messages.
+- **Floating window controls**: Drag the panel header to move; resize from the **bottom-right corner** or from **any edge** when the panel is floating. Up to **three** panels can **dock** to the right; docked width is adjustable from the left edge of the dock.
+- **Multi-service LLM support**: Switch between **Ollama (local)**, **Claude**, **Sumo**, and **custom** endpoints from the UI (model badge / settings flows).
+- **Integrated `CLAUDE.md` editor**: Open from the terminal header menu to edit agent instructions in place.
+- **Day / night & weather**: Office theme follows time of day; weather-style ambience can follow real location (Open-Meteo) when enabled.
+- **NOVA HQ office**: Depth sorting, walkable zones, dev-mode layout for objects and break positions, tooltips, and persistence for paths and anchors.
+- **Roles & visibility**: Agents, captains, and pets; per-entity visibility toggles in the sidebar without necessarily killing processes.
+- **Safe removals**: Confirmations for destructive actions (e.g. delete agent, dismiss pet).
+- **Ambient media**: Lightweight music / video controls that stay unobtrusive until needed.
 
-## 🚀 Tech Stack
+## Tech stack
 
-- **Frontend**: Vanilla JavaScript (ES Modules), CSS3 (Glassmorphism, CSS Variables, Modern Gradients), HTML5.
+- **Frontend**: Vanilla JavaScript (ES modules), CSS (variables, glass-style UI), HTML5.
 - **Backend**: Node.js, Express.
-- **Real-time**: WebSockets for terminal streaming and real-time state sync.
-- **Process Management**: `node-pty` for pseudo-terminal execution.
-- **Intelligence**: Native support for **Ollama** and **Anthropic Claude** (via official SDK or custom endpoints).
+- **Real-time**: WebSockets for chat streams, terminal I/O, and related sync.
+- **Terminal**: `node-pty` + `xterm.js` (with fit addon).
+- **Models**: Ollama and Anthropic Claude (via server-spawned CLI / configured paths — see `server.js` and project settings).
 
-## 🛠️ Installation
+## Installation
 
-1. **Prerequisites**:
-    - Node.js (v18 or higher)
-    - Ollama (Optional, for local agent intelligence)
+1. **Prerequisites**
+   - Node.js v18+ recommended  
+   - Ollama and/or Claude CLI setup as needed for your chosen backend  
 
-2. **Clone & Install**:
-    ```bash
-    git clone https://github.com/yourusername/nova.git
-    cd nova
-    npm install
-    ```
+2. **Clone and install**
 
-3. **Run the Workspace**:
-    ```bash
-    npm start
-    ```
-    Access the UI at `http://localhost:3000`.
+   ```bash
+   git clone https://github.com/ryansetia1/nova.git
+   cd nova
+   npm install
+   ```
 
-## 🎮 How to Use
+3. **Run**
 
-- **Spawn Agent**: Click the "Spawn Agent" button, name your project, and choose an appearance (Emoji or Character Sprite).
-- **Docking Mode**: Click the **Yellow Dot** in the terminal header to pin the terminal to the sidebar.
-- **Switch Service**: Click the model badge (pill) in any terminal header to change LLM providers or models on the fly.
-- **Edit Rules**: Click the 📋 icon to edit the agent's `CLAUDE.md` context.
-- **Visibility Control**: Toggle the eye icon next to an agent's name in the sidebar to hide it from the floor view without stopping its process.
-- **Manage Pets**: Spawn companion pets via the "Spawn" dropdown to populate your workspace; requires confirmation for removal.
-- **Dev Mode (`Ctrl + D`)**: 
-    - **Layout Mode**: Drag and drop foreground objects (e.g., Dispensers, Tables) with automatic sequential naming.
-    - **Positions Mode**: Manage specific agent break/idle positions.
-    - **Interaction Isolation**: Modes strictly isolate entity interactions to prevent accidental movement.
-- **Visualize Mode**: Toggle via the settings gear (top right) to see/adjust **character-specific foot anchors** (individual settings for Char1 vs Char2).
+   ```bash
+   npm start
+   ```
 
-## 🆘 Troubleshooting
+   Open `http://localhost:3000`.
 
-If you encounter issues like chat hangs, missing sprites, or server crashes, please refer to our dedicated guide:
-- **[Troubleshooting Guide](troubleshooting/GUIDE.md)**: Detailed solutions for known critical issues.
-- **Quick Repair**: Run `./troubleshooting/repair.sh` to clear hanging processes and lock files.
+4. **Electron (optional)**
 
-## 📂 Project Structure
+   ```bash
+   npm run electron:dev    # dev
+   npm run build && npm run dist   # macOS build
+   ```
 
-- `/public`: Frontend assets, styles, and logic.
-- `/projects`: The actual workspace folders for your agents.
-- `server.js`: Express server and terminal orchestrator.
-- `walkable_path.json`: Persistent floor configuration.
-- `anchor_config.json`: Persistent sprite alignment data.
+## How to use
 
-## 📜 License
+- **Spawn agent**: Use the spawn flow; pick name, appearance (emoji or character), and project path as prompted.
+- **Chat vs terminal**: Use the 💬 / 💻 toggle on the panel header.
+- **Dock**: Yellow header dot pins the panel to the right stack (max three).
+- **Resize**: Corner or edge handles when floating; docked panels — drag the **left** strip to change shared dock width.
+- **Switch model / service**: Click the model badge in the header.
+- **Edit rules**: Header menu → **Edit CLAUDE.md**.
+- **Cancel reply**: While the agent is busy, click **stop** or press **Escape**.
+- **Sidebar eye icon**: Hide or show an entity on the floor.
+- **Dev mode (`Ctrl+D`)**: Layout and position tools for the office (see on-screen hints).
+- **Visualize mode** (settings gear): Adjust per-character foot anchors.
+
+## Troubleshooting
+
+- **[Troubleshooting guide](troubleshooting/GUIDE.md)** — hangs, sprites, crashes, PTY issues.  
+- **Quick repair**: `./troubleshooting/repair.sh` — clears common lock / zombie issues.
+
+## Project structure
+
+| Path | Role |
+|------|------|
+| `public/` | Frontend: `main.js`, `terminal.js`, `walking.js`, `style.css`, assets |
+| `server.js` | HTTP + WebSockets, process spawn for chat/terminal |
+| `electron.js` | Desktop shell (optional) |
+| `projects/` | Agent project directories |
+| `walkable_path.json`, `foreground_objects.json`, `break_positions.json`, `anchor_config.json` | Office / agent layout data |
+
+Agent-oriented implementation details for contributors and coding agents are summarized in **[CLAUDE.md](CLAUDE.md)**.
+
+## License
+
 MIT
