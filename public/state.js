@@ -22,7 +22,7 @@ export const state = {
   draggingWindow: null, // the element being dragged
   dragOffset: { x: 0, y: 0 },
   resizingWindow: null,
-  resizeStart: { w: 0, h: 0, x: 0, y: 0 },
+  resizeStart: { w: 0, h: 0, x: 0, y: 0, left: 0, top: 0, edge: 'se' },
   topZIndex: 100000,
   selectedEmoji: '🪐',
   spawnType: 'agent', // 'agent', 'captain', 'pet'

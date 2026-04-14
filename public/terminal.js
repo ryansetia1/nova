@@ -528,26 +528,37 @@ function bindWindowEvents(pName, panel, tState) {
         if (t) refit(t);
     }
 
-    const resizer = panel.querySelector('.terminal-resizer');
-    resizer.addEventListener('mousedown', (e) => {
+    const MIN_PANEL_W = 300;
+    const MIN_PANEL_H = 200;
+
+    function startPanelResize(edge, e) {
         e.preventDefault();
         e.stopPropagation();
-        if (panel.classList.contains('docked-right')) return; // Disabled when docked
-        
+        if (panel.classList.contains('docked-right')) return;
+
         bringToFront(panel);
         state.resizingWindow = panel;
         panel.classList.add('resizing');
-        
+
         const rect = panel.getBoundingClientRect();
-        state.resizeStart = { 
-            w: rect.width, 
-            h: rect.height, 
-            x: e.clientX, 
-            y: e.clientY 
+        state.resizeStart = {
+            w: rect.width,
+            h: rect.height,
+            x: e.clientX,
+            y: e.clientY,
+            left: rect.left,
+            top: rect.top,
+            edge: edge || 'se'
         };
-        
+
         document.addEventListener('mousemove', onResizing);
         document.addEventListener('mouseup', stopResizing);
+    }
+
+    panel.querySelectorAll('[data-resize-edge]').forEach((el) => {
+        el.addEventListener('mousedown', (e) => {
+            startPanelResize(el.dataset.resizeEdge, e);
+        });
     });
 
     const leftResizer = panel.querySelector('.terminal-left-resizer');
@@ -587,15 +598,61 @@ function bindWindowEvents(pName, panel, tState) {
     function onResizing(e) {
         if (!state.resizingWindow) return;
         const panel = state.resizingWindow;
-        const dx = e.clientX - state.resizeStart.x;
-        const dy = e.clientY - state.resizeStart.y;
-        
-        const newW = Math.max(300, state.resizeStart.w + dx);
-        const newH = Math.max(200, state.resizeStart.h + dy);
-        
-        panel.style.width = newW + 'px';
-        panel.style.height = newH + 'px';
-        
+        const st = state.resizeStart;
+        const edge = st.edge || 'se';
+
+        if (edge === 'se') {
+            const dx = e.clientX - st.x;
+            const dy = e.clientY - st.y;
+            const newW = Math.max(MIN_PANEL_W, st.w + dx);
+            const newH = Math.max(MIN_PANEL_H, st.h + dy);
+            panel.style.width = newW + 'px';
+            panel.style.height = newH + 'px';
+        } else {
+            const right = st.left + st.w;
+            const bottom = st.top + st.h;
+
+            if (edge === 'e') {
+                let newW = e.clientX - st.left;
+                newW = Math.max(MIN_PANEL_W, Math.min(newW, window.innerWidth - st.left));
+                panel.style.left = st.left + 'px';
+                panel.style.top = st.top + 'px';
+                panel.style.width = newW + 'px';
+                panel.style.height = st.h + 'px';
+            } else if (edge === 'w') {
+                let newW = right - e.clientX;
+                newW = Math.max(MIN_PANEL_W, Math.min(newW, right));
+                let newLeft = right - newW;
+                if (newLeft < 0) {
+                    newW += newLeft;
+                    newLeft = 0;
+                }
+                panel.style.left = newLeft + 'px';
+                panel.style.top = st.top + 'px';
+                panel.style.width = newW + 'px';
+                panel.style.height = st.h + 'px';
+            } else if (edge === 's') {
+                let newH = e.clientY - st.top;
+                newH = Math.max(MIN_PANEL_H, Math.min(newH, window.innerHeight - st.top));
+                panel.style.left = st.left + 'px';
+                panel.style.top = st.top + 'px';
+                panel.style.width = st.w + 'px';
+                panel.style.height = newH + 'px';
+            } else if (edge === 'n') {
+                let newH = bottom - e.clientY;
+                newH = Math.max(MIN_PANEL_H, Math.min(newH, bottom));
+                let newTop = bottom - newH;
+                if (newTop < 0) {
+                    newH += newTop;
+                    newTop = 0;
+                }
+                panel.style.left = st.left + 'px';
+                panel.style.top = newTop + 'px';
+                panel.style.width = st.w + 'px';
+                panel.style.height = newH + 'px';
+            }
+        }
+
         const t = state.terminals[panel.dataset.project];
         if (t) refit(t);
     }

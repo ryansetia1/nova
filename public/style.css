@@ -1987,6 +1987,53 @@ emoji-picker.dark {
   pointer-events: none;
 }
 
+/* Edge resize strips (floating panels only — hidden when docked) */
+.terminal-resize-edge {
+  position: absolute;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.terminal-panel.docked-right .terminal-resize-edge {
+  display: none !important;
+}
+
+.terminal-resize-n {
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.terminal-resize-s {
+  bottom: 0;
+  left: 8px;
+  right: 16px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.terminal-resize-e {
+  top: 8px;
+  right: 0;
+  bottom: 16px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.terminal-resize-w {
+  top: 8px;
+  left: 0;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.terminal-resize-edge:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
 .terminal-resizer {
   position: absolute;
   bottom: 0;
