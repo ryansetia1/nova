@@ -447,6 +447,22 @@ function bindWindowEvents(pName, panel, tState) {
         });
     }
 
+    const clearChatBtn = panel.querySelector('.terminal-clear-chat-btn');
+    if (clearChatBtn) {
+        clearChatBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dropdown = panel.querySelector('.terminal-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            
+            if (confirm(`Clear chat history for ${pName}?`)) {
+                tState.chatMessages = [];
+                saveChatHistory(pName, tState.chatMessages);
+                renderChatMessages(pName);
+                showToast('success', '🧹', 'Chat history cleared');
+            }
+        });
+    }
+
     const headerEmoji = panel.querySelector('.terminal-header-emoji');
     if (headerEmoji) {
         headerEmoji.addEventListener('click', (e) => {
@@ -738,18 +754,21 @@ export function updateModeUI(pName) {
     const modeTermBtn = t.panel.querySelector('.mode-term');
     const footer = t.panel.querySelector('.terminal-footer');
     
+    const clearChatBtn = t.panel.querySelector('.terminal-clear-chat-btn');
     if (t.activeMode === 'chat') {
         if(chatContainer) chatContainer.classList.remove('hidden');
         if(termContainer) termContainer.classList.add('hidden');
         if(modeChatBtn) modeChatBtn.classList.add('active');
         if(modeTermBtn) modeTermBtn.classList.remove('active');
         if(footer) footer.classList.add('hidden'); // Hide activity bar in chat mode
+        if(clearChatBtn) clearChatBtn.classList.remove('hidden');
     } else {
         if(chatContainer) chatContainer.classList.add('hidden');
         if(termContainer) termContainer.classList.remove('hidden');
         if(modeTermBtn) modeTermBtn.classList.add('active');
         if(modeChatBtn) modeChatBtn.classList.remove('active');
         if(footer) footer.classList.remove('hidden');
+        if(clearChatBtn) clearChatBtn.classList.add('hidden');
     }
 }
 
@@ -1047,7 +1066,7 @@ export function renderChatMessages(pName) {
     }, 10);
 }
 
-const saveChatHistory = (pName, messages) => {
+function saveChatHistory(pName, messages) {
     // Never persist temporary system states
     const filtered = messages.filter(m => m.role !== 'system' || (m.content !== 'Thinking...' && m.content !== 'Processing...'));
     localStorage.setItem('nova-chat-' + pName, JSON.stringify(filtered));
