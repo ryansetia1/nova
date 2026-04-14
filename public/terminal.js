@@ -805,56 +805,67 @@ function bindWindowEvents(pName, panel, tState) {
         const st = state.resizeStart;
         const edge = st.edge || 'se';
 
+        const right = st.left + st.w;
+        const bottom = st.top + st.h;
+
         if (edge === 'se') {
-            const dx = e.clientX - st.x;
-            const dy = e.clientY - st.y;
-            const newW = Math.max(MIN_PANEL_W, st.w + dx);
-            const newH = Math.max(MIN_PANEL_H, st.h + dy);
+            panel.style.width = Math.max(MIN_PANEL_W, st.w + (e.clientX - st.x)) + 'px';
+            panel.style.height = Math.max(MIN_PANEL_H, st.h + (e.clientY - st.y)) + 'px';
+        } else if (edge === 'ne') {
+            let newW = e.clientX - st.left;
+            let newH = bottom - e.clientY;
+            newW = Math.max(MIN_PANEL_W, newW);
+            newH = Math.max(MIN_PANEL_H, newH);
+            let newTop = bottom - newH;
+            if (newTop < 0) { newH += newTop; newTop = 0; }
             panel.style.width = newW + 'px';
             panel.style.height = newH + 'px';
-        } else {
-            const right = st.left + st.w;
-            const bottom = st.top + st.h;
-
-            if (edge === 'e') {
-                let newW = e.clientX - st.left;
-                newW = Math.max(MIN_PANEL_W, Math.min(newW, window.innerWidth - st.left));
-                panel.style.left = st.left + 'px';
-                panel.style.top = st.top + 'px';
-                panel.style.width = newW + 'px';
-                panel.style.height = st.h + 'px';
-            } else if (edge === 'w') {
-                let newW = right - e.clientX;
-                newW = Math.max(MIN_PANEL_W, Math.min(newW, right));
-                let newLeft = right - newW;
-                if (newLeft < 0) {
-                    newW += newLeft;
-                    newLeft = 0;
-                }
-                panel.style.left = newLeft + 'px';
-                panel.style.top = st.top + 'px';
-                panel.style.width = newW + 'px';
-                panel.style.height = st.h + 'px';
-            } else if (edge === 's') {
-                let newH = e.clientY - st.top;
-                newH = Math.max(MIN_PANEL_H, Math.min(newH, window.innerHeight - st.top));
-                panel.style.left = st.left + 'px';
-                panel.style.top = st.top + 'px';
-                panel.style.width = st.w + 'px';
-                panel.style.height = newH + 'px';
-            } else if (edge === 'n') {
-                let newH = bottom - e.clientY;
-                newH = Math.max(MIN_PANEL_H, Math.min(newH, bottom));
-                let newTop = bottom - newH;
-                if (newTop < 0) {
-                    newH += newTop;
-                    newTop = 0;
-                }
-                panel.style.left = st.left + 'px';
-                panel.style.top = newTop + 'px';
-                panel.style.width = st.w + 'px';
-                panel.style.height = newH + 'px';
-            }
+            panel.style.top = newTop + 'px';
+        } else if (edge === 'nw') {
+            let newW = right - e.clientX;
+            let newH = bottom - e.clientY;
+            newW = Math.max(MIN_PANEL_W, newW);
+            newH = Math.max(MIN_PANEL_H, newH);
+            let newLeft = right - newW;
+            let newTop = bottom - newH;
+            if (newLeft < 0) { newW += newLeft; newLeft = 0; }
+            if (newTop < 0) { newH += newTop; newTop = 0; }
+            panel.style.width = newW + 'px';
+            panel.style.height = newH + 'px';
+            panel.style.left = newLeft + 'px';
+            panel.style.top = newTop + 'px';
+        } else if (edge === 'sw') {
+            let newW = right - e.clientX;
+            let newH = e.clientY - st.top;
+            newW = Math.max(MIN_PANEL_W, newW);
+            newH = Math.max(MIN_PANEL_H, newH);
+            let newLeft = right - newW;
+            if (newLeft < 0) { newW += newLeft; newLeft = 0; }
+            panel.style.width = newW + 'px';
+            panel.style.height = newH + 'px';
+            panel.style.left = newLeft + 'px';
+        } else if (edge === 'e') {
+            let newW = e.clientX - st.left;
+            newW = Math.max(MIN_PANEL_W, Math.min(newW, window.innerWidth - st.left));
+            panel.style.width = newW + 'px';
+        } else if (edge === 'w') {
+            let newW = right - e.clientX;
+            newW = Math.max(MIN_PANEL_W, Math.min(newW, right));
+            let newLeft = right - newW;
+            if (newLeft < 0) { newW += newLeft; newLeft = 0; }
+            panel.style.left = newLeft + 'px';
+            panel.style.width = newW + 'px';
+        } else if (edge === 's') {
+            let newH = e.clientY - st.top;
+            newH = Math.max(MIN_PANEL_H, Math.min(newH, window.innerHeight - st.top));
+            panel.style.height = newH + 'px';
+        } else if (edge === 'n') {
+            let newH = bottom - e.clientY;
+            newH = Math.max(MIN_PANEL_H, Math.min(newH, bottom));
+            let newTop = bottom - newH;
+            if (newTop < 0) { newH += newTop; newTop = 0; }
+            panel.style.top = newTop + 'px';
+            panel.style.height = newH + 'px';
         }
 
         const t = state.terminals[panel.dataset.project];
