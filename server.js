@@ -313,13 +313,13 @@ wss.on('connection', (ws, req) => {
             const didInit = fs.existsSync(initMarker);
             if (service === 'ollama') {
                 cmd = 'ollama';
-                args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose"];
+                args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
                 if (didInit) args.push("--continue");
             } else {
                 const binName = service === 'claude' ? 'claude' : service;
                 const binPath = path.join(os.homedir(), '.local', 'bin', binName);
                 cmd = fs.existsSync(binPath) ? binPath : binName;
-                args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"];
+                args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
                 if (didInit) args.push("--continue");
             }
 

@@ -234,7 +234,12 @@ export function setupTerminal(pName, showUI = false) {
                         t.jsonBuffer = lines.pop();
                         lines.forEach(line => {
                             if (!line.trim()) return;
-                            try { handleChatJsonEvent(t, pName, JSON.parse(line)); } catch(err) {}
+                            try {
+                                const parsed = JSON.parse(line);
+                                handleChatJsonEvent(t, pName, parsed);
+                            } catch(err) {
+                                console.warn(`[Chat:${pName}] Failed to parse/handle line:`, line.substring(0, 200), err.message);
+                            }
                         });
                     } else {
                         term.write(msg.data); 
@@ -1038,6 +1043,26 @@ export function renderChatMessages(pName) {
     }
     
     msgContainer.innerHTML = t.chatMessages.map((m, msgIdx) => {
+        // Render activity stream messages
+        if (m.role === 'activity') {
+            const typeIcons = {
+                'tool_start': '🔧',
+                'tool_complete': '✅',
+                'error': '❌',
+                'info': 'ℹ️'
+            };
+            const icon = typeIcons[m.type] || 'ℹ️';
+            const timeStr = m.timestamp || '';
+            
+            return `<div class="chat-bubble activity-stream ${m.type}" data-time="${timeStr}">
+                <div class="activity-stream-content">
+                    <span class="activity-icon">${icon}</span>
+                    <span class="activity-message">${m.content}</span>
+                    <span class="activity-timestamp">${timeStr}</span>
+                </div>
+            </div>`;
+        }
+
         // Render thinking pill
         if (m.role === 'thinking') {
             const escapedContent = (m.content || '')
@@ -1063,14 +1088,48 @@ export function renderChatMessages(pName) {
             </div>`;
         }
 
-        // Render system pill (Thinking..., Processing...) with animated dots
+        // Render system messages with WhatsApp-style thinking bubble
         if (m.role === 'system') {
             const isAnimated = m.content === 'Thinking...' || m.content === 'Processing...';
-            const baseText = m.content.replace('...', '');
-            const content = isAnimated 
-                ? `${baseText}<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span>`
-                : m.content;
-            return `<div class="chat-bubble system">${content}</div>`;
+            
+            // WhatsApp-style thinking bubble for animated states
+            if (isAnimated) {
+                const robot = state.walkingRobots && state.walkingRobots[pName];
+                const agentClass = robot ? `thinking-bubble-agent-${pName}` : '';
+                const thinkingType = m.content === 'Thinking...' ? 'thinking' : 'processing';
+                const isAgentThinking = robot && robot.isThinking;
+                const syncClass = isAgentThinking ? 'synced-with-agent' : '';
+                
+                // Check if this is a processing gap indicator
+                const isProcessingGap = m.isProcessingGap;
+                const processingGapClass = isProcessingGap ? 'processing-gap' : '';
+                const gapType = m.processingGapType || thinkingType;
+                
+                return `
+                    <div class="chat-bubble assistant thinking-bubble-whatsapp ${agentClass} ${syncClass} ${processingGapClass}" 
+                         data-agent="${pName}" 
+                         data-type="${gapType}"
+                         data-agent-thinking="${isAgentThinking}"
+                         data-processing-gap="${isProcessingGap}"
+                         title="${isProcessingGap ? 'Processing continues...' : `${pName} is ${thinkingType}`}">
+                        <div class="whatsapp-typing-indicator">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                        <div class="thinking-bubble-tail"></div>
+                        <div class="agent-sync-indicator" title="Synced with ${pName}">
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Regular system messages (non-animated)
+            return `<div class="chat-bubble system">${m.content}</div>`;
         }
 
         let text = (m.content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -1209,28 +1268,709 @@ function fallbackCopy(text, onSuccess) {
     }
 }
 
+// Sync WhatsApp thinking bubbles with agent state
+window.syncThinkingBubblesWithAgents = function() {
+    if (!state.walkingRobots) return;
+    
+    // Update all thinking bubbles based on current agent states
+    document.querySelectorAll('.thinking-bubble-whatsapp[data-agent]').forEach(bubble => {
+        const agentName = bubble.getAttribute('data-agent');
+        const robot = state.walkingRobots[agentName];
+        const t = state.terminals[agentName];
+        
+        if (robot) {
+            // Update sync status
+            const isThinking = robot.isThinking;
+            const hasActivity = t && t.activityStream && t.activityStream.isActive;
+            const wasThinking = bubble.getAttribute('data-agent-thinking') === 'true';
+            
+            bubble.setAttribute('data-agent-thinking', isThinking);
+            bubble.setAttribute('data-has-activity', hasActivity);
+            
+            // Debug logging
+            if (isThinking !== wasThinking) {
+                console.log(`Agent ${agentName} thinking state changed: ${wasThinking} → ${isThinking} (activity: ${hasActivity})`);
+            }
+            
+            if (isThinking || hasActivity) {
+                bubble.classList.add('synced-with-agent');
+                if (hasActivity) {
+                    bubble.classList.add('has-activity');
+                }
+            } else {
+                bubble.classList.remove('synced-with-agent', 'enhanced-sync', 'has-activity');
+            }
+            
+            // Add enhanced coordination effects
+            if ((isThinking || hasActivity) && !bubble.classList.contains('enhanced-sync')) {
+                bubble.classList.add('enhanced-sync');
+                
+                // Add subtle vibration effect for better user feedback
+                setTimeout(() => {
+                    const animation = hasActivity 
+                        ? 'bubble-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), subtle-pulse 2s infinite ease-in-out 0.3s, sync-vibrate 0.5s ease-in-out'
+                        : 'bubble-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), subtle-pulse 3s infinite ease-in-out 0.3s, sync-vibrate 0.5s ease-in-out';
+                    bubble.style.animation = animation;
+                }, 100);
+            }
+        }
+    });
+};
+
+// Test function for debugging WhatsApp bubble integration
+window.testWhatsAppBubble = function(agentName = 'AMA') {
+    console.log('🧪 Testing WhatsApp thinking bubble integration...');
+    
+    // Check if agent exists
+    if (!state.walkingRobots || !state.walkingRobots[agentName]) {
+        console.warn(`Agent ${agentName} not found in walkingRobots`);
+        return;
+    }
+    
+    const robot = state.walkingRobots[agentName];
+    console.log(`Current agent state:`, { isThinking: robot.isThinking, hasUpdate: robot.hasUpdate });
+    
+    // Find thinking bubbles for this agent
+    const bubbles = document.querySelectorAll(`.thinking-bubble-whatsapp[data-agent="${agentName}"]`);
+    console.log(`Found ${bubbles.length} thinking bubbles for agent ${agentName}`);
+    
+    bubbles.forEach((bubble, index) => {
+        console.log(`Bubble ${index + 1}:`, {
+            agentThinking: bubble.getAttribute('data-agent-thinking'),
+            syncClass: bubble.classList.contains('synced-with-agent'),
+            enhancedSync: bubble.classList.contains('enhanced-sync'),
+            type: bubble.getAttribute('data-type')
+        });
+    });
+    
+    // Test sync function
+    window.syncThinkingBubblesWithAgents();
+    console.log('✅ Sync function called');
+};
+
+// Debug function to simulate processing gaps for testing
+window.simulateProcessingGap = function(agentName = 'SUMO', duration = 3000) {
+    console.log(`🧪 Simulating processing gap for ${agentName} (${duration}ms)`);
+    
+    window.showProcessingIndicator(agentName, 'processing');
+    
+    setTimeout(() => {
+        console.log(`✅ Simulated gap complete for ${agentName}`);
+        window.hideProcessingIndicator(agentName);
+    }, duration);
+};
+
+// Agent Activity Streaming System
+window.handleToolActivityStream = function(pName, parsed) {
+    console.log(`🔧 Tool activity for ${pName}:`, parsed);
+    
+    const t = state.terminals[pName];
+    if (!t) return;
+    
+    // Initialize activity stream if not exists
+    if (!t.activityStream) {
+        t.activityStream = {
+            messages: [],
+            isActive: false,
+            startTime: null
+        };
+    }
+    
+    let activityMessage = '';
+    let activityType = '';
+    
+    if (parsed.type === 'tool_use' || parsed.type === 'tool_call') {
+        // Agent is using a tool
+        const toolName = parsed.name || parsed.tool_name || 'Unknown';
+        const toolInput = parsed.input || parsed.arguments || {};
+        
+        activityType = 'tool_start';
+        
+        // Get enhanced tool display info
+        const toolDisplay = window.getToolDisplayInfo(toolName, toolInput);
+        activityMessage = `${toolDisplay.icon} ${toolDisplay.message}`;
+        
+        // Show immediate activity
+        window.addActivityStreamMessage(pName, activityMessage, activityType);
+        
+        // Show processing indicator dengan activity context
+        window.showProcessingIndicator(pName, 'processing');
+        
+        // Update agent thinking state to show activity
+        const robot = state.walkingRobots && state.walkingRobots[pName];
+        if (robot) {
+            robot.isThinking = true;
+            robot.hasUpdate = true; // Add update indicator for activity
+            renderRobots();
+        }
+        
+    } else if (parsed.type === 'tool_result') {
+        // Tool completed
+        activityType = 'tool_complete';
+        
+        if (parsed.error) {
+            activityMessage = `❌ Tool error: ${typeof parsed.error === 'string' ? parsed.error.substring(0, 80) : 'Failed'}`;
+        } else {
+            // Summarize result size
+            const content = parsed.content || '';
+            const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+            const contentLength = contentStr.length;
+            
+            if (contentLength > 500) {
+                activityMessage = `✅ Received ${Math.round(contentLength / 1024)}KB of data`;
+            } else if (contentLength > 0) {
+                activityMessage = `✅ Result received (${contentLength} chars)`;
+            } else {
+                activityMessage = `✅ Completed`;
+            }
+        }
+        
+        window.addActivityStreamMessage(pName, activityMessage, activityType);
+        
+        // Hide processing indicator after a short delay
+        setTimeout(() => {
+            window.hideProcessingIndicator(pName);
+        }, 500);
+    }
+};
+
+// Add activity stream message to terminal
+window.addActivityStreamMessage = function(pName, message, type = 'info') {
+    const t = state.terminals[pName];
+    if (!t) return;
+    
+    // Initialize activity stream if not exists
+    if (!t.activityStream) {
+        t.activityStream = {
+            messages: [],
+            isActive: false,
+            startTime: null
+        };
+    }
+    
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    });
+    
+    const activityMsg = {
+        role: 'activity',
+        content: message,
+        type: type,
+        timestamp: timestamp,
+        time: Date.now()
+    };
+    
+    // Add to activity stream
+    t.activityStream.messages.push(activityMsg);
+    t.activityStream.isActive = true;
+    t.activityStream.startTime = t.activityStream.startTime || Date.now();
+    
+    // Add to chat messages for display
+    t.chatMessages.push(activityMsg);
+    
+    // Limit activity messages to prevent overflow
+    const maxActivityMessages = 10;
+    const activityMessages = t.chatMessages.filter(m => m.role === 'activity');
+    if (activityMessages.length > maxActivityMessages) {
+        // Remove oldest activity message
+        const oldestIdx = t.chatMessages.findIndex(m => m.role === 'activity');
+        if (oldestIdx !== -1) {
+            t.chatMessages.splice(oldestIdx, 1);
+        }
+    }
+    
+    renderChatMessages(pName);
+    
+    // Sync thinking bubbles when activity changes
+    window.syncThinkingBubblesWithAgents();
+    
+    console.log(`📡 Activity stream [${pName}]: ${message}`);
+};
+
+// Clear activity stream when response is complete
+window.clearActivityStream = function(pName) {
+    const t = state.terminals[pName];
+    if (!t || !t.activityStream) return;
+    
+    // Add completion summary if there were activities
+    if (t.activityStream.messages.length > 0 && t.activityStream.startTime) {
+        const duration = Math.round((Date.now() - t.activityStream.startTime) / 1000);
+        const toolCount = t.activityStream.messages.filter(m => m.type === 'tool_start').length;
+        
+        if (toolCount > 0) {
+            const summaryMsg = {
+                role: 'activity',
+                content: `📊 Task completed - Used ${toolCount} tool${toolCount > 1 ? 's' : ''} in ${duration}s`,
+                type: 'summary',
+                timestamp: new Date().toLocaleTimeString('en-US', { 
+                    hour12: false, 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                }),
+                time: Date.now()
+            };
+            
+            t.chatMessages.push(summaryMsg);
+            renderChatMessages(pName);
+        }
+    }
+    
+    // Fade out activity messages after showing summary
+    setTimeout(() => {
+        // Remove activity messages from chat
+        t.chatMessages = t.chatMessages.filter(m => m.role !== 'activity');
+        
+        // Reset activity stream
+        t.activityStream = {
+            messages: [],
+            isActive: false,
+            startTime: null
+        };
+        
+        renderChatMessages(pName);
+        console.log(`🧹 Cleared activity stream for ${pName}`);
+    }, 1500);
+};
+
+// Enhanced activity streaming with better tool detection
+window.getToolDisplayInfo = function(toolName, toolInput) {
+    const toolDisplayMap = {
+        'WebSearch': {
+            icon: '🔍',
+            action: 'Searching',
+            getDetails: (input) => `"${input.search_term || input.query || 'web search'}"`
+        },
+        'web_search': {
+            icon: '🔍',
+            action: 'Searching',
+            getDetails: (input) => `"${input.search_term || input.query || 'web search'}"`
+        },
+        'WebFetch': {
+            icon: '📥',
+            action: 'Fetching',
+            getDetails: (input) => {
+                const url = input.url || '';
+                return url.length > 50 ? `${url.substring(0, 50)}...` : url;
+            }
+        },
+        'web_fetch': {
+            icon: '📥',
+            action: 'Fetching',
+            getDetails: (input) => {
+                const url = input.url || '';
+                return url.length > 50 ? `${url.substring(0, 50)}...` : url;
+            }
+        },
+        'Read': {
+            icon: '📄',
+            action: 'Reading',
+            getDetails: (input) => input.path || input.file_path || 'file'
+        },
+        'Write': {
+            icon: '✏️',
+            action: 'Writing',
+            getDetails: (input) => input.path || input.file_path || 'file'
+        },
+        'Shell': {
+            icon: '⚡',
+            action: 'Running',
+            getDetails: (input) => input.command || 'command'
+        },
+        'Grep': {
+            icon: '🔎',
+            action: 'Searching',
+            getDetails: (input) => `for "${input.pattern || 'pattern'}"`
+        },
+        'SemanticSearch': {
+            icon: '🧠',
+            action: 'Searching',
+            getDetails: (input) => `"${input.query || 'semantic search'}"`
+        }
+    };
+    
+    const toolInfo = toolDisplayMap[toolName];
+    if (toolInfo) {
+        return {
+            icon: toolInfo.icon,
+            message: `${toolInfo.action} ${toolInfo.getDetails(toolInput)}`
+        };
+    }
+    
+    // Default fallback
+    return {
+        icon: '🔧',
+        message: `Using ${toolName}`
+    };
+};
+
+// Test function for activity streaming
+window.testActivityStream = function(agentName = 'SUMO') {
+    console.log(`🧪 Testing activity stream for ${agentName}`);
+    
+    // Simulate web search activity
+    setTimeout(() => {
+        window.handleToolActivityStream(agentName, {
+            type: 'tool_use',
+            name: 'WebSearch',
+            input: { search_term: 'latest gaming news non-esports' }
+        });
+    }, 100);
+    
+    setTimeout(() => {
+        window.handleToolActivityStream(agentName, {
+            type: 'tool_result',
+            content: 'Search completed successfully'
+        });
+    }, 2000);
+    
+    setTimeout(() => {
+        window.handleToolActivityStream(agentName, {
+            type: 'tool_use',
+            name: 'WebFetch',
+            input: { url: 'https://example.com/gaming-news' }
+        });
+    }, 2500);
+    
+    setTimeout(() => {
+        window.handleToolActivityStream(agentName, {
+            type: 'tool_result',
+            content: 'Content fetched successfully'
+        });
+    }, 4000);
+    
+    // Complete the test
+    setTimeout(() => {
+        window.clearActivityStream(agentName);
+        console.log('✅ Activity stream test completed');
+    }, 6000);
+};
+
+// Show current activity stream status
+window.getActivityStreamStatus = function(agentName) {
+    const t = state.terminals[agentName];
+    if (!t) return null;
+    
+    if (!t.activityStream) return { active: false };
+    
+    return {
+        active: t.activityStream.isActive,
+        messageCount: t.activityStream.messages.length,
+        startTime: t.activityStream.startTime,
+        duration: t.activityStream.startTime ? Date.now() - t.activityStream.startTime : 0,
+        messages: t.activityStream.messages.map(m => ({
+            type: m.type,
+            content: m.content,
+            timestamp: m.timestamp
+        }))
+    };
+};
+
+// Enhanced processing gap detection and thinking bubble management
+window.showProcessingIndicator = function(pName, type = 'processing') {
+    const t = state.terminals[pName];
+    if (!t) return;
+    
+    // Check if there's already a processing indicator
+    const hasProcessingIndicator = t.chatMessages.some(m => m.isProcessingGap);
+    if (hasProcessingIndicator) return;
+    
+    console.log(`🔄 Showing processing indicator for ${pName} (type: ${type})`);
+    
+    // Add a temporary processing message
+    const processingMsg = {
+        role: 'system',
+        content: type === 'thinking' ? 'Thinking...' : 'Processing...',
+        isProcessingGap: true,
+        processingGapType: type,
+        timestamp: Date.now()
+    };
+    
+    t.chatMessages.push(processingMsg);
+    renderChatMessages(pName);
+    
+    // Sync with agent state
+    const robot = state.walkingRobots && state.walkingRobots[pName];
+    if (robot && !robot.isThinking) {
+        robot.isThinking = true;
+        renderRobots();
+    }
+    
+    // Set timeout to auto-remove if no new content arrives
+    setTimeout(() => {
+        const lastMsg = t.chatMessages[t.chatMessages.length - 1];
+        if (lastMsg && lastMsg.isProcessingGap && lastMsg.timestamp === processingMsg.timestamp) {
+            t.chatMessages.pop();
+            renderChatMessages(pName);
+            console.log(`⏰ Auto-removed processing indicator for ${pName}`);
+            
+            // Reset robot state if this was our indicator
+            if (robot) {
+                robot.isThinking = false;
+                renderRobots();
+            }
+        }
+    }, 10000); // Remove after 10 seconds if still there
+};
+
+window.hideProcessingIndicator = function(pName) {
+    const t = state.terminals[pName];
+    if (!t) return;
+    
+    // Check if there were processing gap indicators
+    const hasProcessingGaps = t.chatMessages.some(m => m.isProcessingGap);
+    
+    // Remove any processing gap indicators
+    const initialLength = t.chatMessages.length;
+    t.chatMessages = t.chatMessages.filter(m => !m.isProcessingGap);
+    
+    if (t.chatMessages.length !== initialLength) {
+        renderChatMessages(pName);
+        console.log(`🚫 Removed processing indicator for ${pName}`);
+        
+        // Reset robot thinking state if we removed processing gaps
+        if (hasProcessingGaps) {
+            const robot = state.walkingRobots && state.walkingRobots[pName];
+            if (robot && robot.isThinking) {
+                // Only reset if there are no real thinking blocks currently active
+                const hasActiveThinking = t.chatMessages.some(m => 
+                    m.role === 'system' && 
+                    (m.content === 'Thinking...' || m.content === 'Processing...') &&
+                    !m.isProcessingGap
+                );
+                
+                if (!hasActiveThinking) {
+                    robot.isThinking = false;
+                    renderRobots();
+                }
+            }
+        }
+    }
+};
+
+// Monitor response gaps and show processing indicators
+window.monitorResponseGaps = function(pName) {
+    const t = state.terminals[pName];
+    if (!t) return;
+    
+    // Clear existing gap timer
+    if (t.gapTimer) {
+        clearTimeout(t.gapTimer);
+    }
+    
+    // Set new timer to detect processing gaps
+    t.gapTimer = setTimeout(() => {
+        const robot = state.walkingRobots && state.walkingRobots[pName];
+        
+        // Check if agent is still active/thinking or if there's ongoing processing
+        const shouldShowIndicator = robot && (
+            robot.isThinking || 
+            robot.hasUpdate ||
+            // Check if the last message was incomplete (no isDone flag)
+            (t.chatMessages.length > 0 && 
+             t.chatMessages[t.chatMessages.length - 1].role === 'assistant' && 
+             !t.chatMessages[t.chatMessages.length - 1].isDone)
+        );
+        
+        if (shouldShowIndicator) {
+            console.log(`⏳ Detected processing gap for ${pName}, showing indicator`);
+            window.showProcessingIndicator(pName, 'processing');
+        }
+    }, 1500); // Show indicator after 1.5 second gap
+};
+
 export function handleChatJsonEvent(t, pName, parsed) {
     if (!parsed) return;
     
     // Silently ignore events that should never render as chat bubbles
-    const IGNORED_TYPES = ['user', 'tool_result', 'tool_use', 'tool_call', 'permission'];
+    const IGNORED_TYPES = ['permission'];
     if (IGNORED_TYPES.includes(parsed.type)) return;
+    
+    // Handle user events - they carry tool_result after tool_use
+    if (parsed.type === 'user' && parsed.message?.content) {
+        const toolResults = Array.isArray(parsed.message.content)
+            ? parsed.message.content.filter(c => c.type === 'tool_result')
+            : [];
+        
+        if (toolResults.length > 0) {
+            toolResults.forEach(result => {
+                window.handleToolActivityStream(pName, {
+                    type: 'tool_result',
+                    content: typeof result.content === 'string' 
+                        ? result.content 
+                        : JSON.stringify(result.content || ''),
+                    error: result.is_error ? result.content : null
+                });
+            });
+        }
+        // Don't render user messages as chat bubbles
+        return;
+    }
+    
+    // Handle tool use and results for activity streaming
+    if (['tool_use', 'tool_call', 'tool_result'].includes(parsed.type)) {
+        window.handleToolActivityStream(pName, parsed);
+        return;
+    }
+    
+    // Handle stream_event for real-time streaming (from --include-partial-messages)
+    if (parsed.type === 'stream_event') {
+        const event = parsed.event || parsed;
+        const subtype = event.subtype || event.type || '';
+        
+        // content_block_start with tool_use → agent is starting a tool
+        if (subtype === 'content_block_start' && event.content_block?.type === 'tool_use') {
+            window.handleToolActivityStream(pName, {
+                type: 'tool_use',
+                name: event.content_block.name,
+                input: event.content_block.input || {}
+            });
+            return;
+        }
+        
+        // content_block_start with thinking → thinking started
+        if (subtype === 'content_block_start' && event.content_block?.type === 'thinking') {
+            const robot = state.walkingRobots[pName];
+            if (robot) { robot.isThinking = true; renderRobots(); }
+            // Show thinking bubble
+            if (!t.chatMessages.some(m => m.role === 'system' && m.content === 'Thinking...')) {
+                t.chatMessages.push({ role: 'system', content: 'Thinking...' });
+                renderChatMessages(pName);
+            }
+            return;
+        }
+        
+        // content_block_delta with text_delta → STREAM TEXT in real time
+        if (subtype === 'content_block_delta' && event.delta?.type === 'text_delta') {
+            const textFragment = event.delta.text || '';
+            if (!textFragment) return;
+            
+            // Clear thinking/processing pills when text starts arriving
+            const hadPills = t.chatMessages.some(m => 
+                (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) ||
+                m.isProcessingGap
+            );
+            if (hadPills) {
+                t.chatMessages = t.chatMessages.filter(m => {
+                    if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
+                    if (m.isProcessingGap) return false;
+                    return true;
+                });
+            }
+            
+            // Append to current assistant message or create a new one
+            let lastMsg = t.chatMessages[t.chatMessages.length - 1];
+            if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.isDone) {
+                t.chatMessages.push({ role: 'assistant', content: textFragment });
+            } else {
+                lastMsg.content += textFragment;
+            }
+            
+            // Update robot state
+            const robot = state.walkingRobots[pName];
+            if (robot && robot.isThinking) {
+                robot.isThinking = false;
+                renderRobots();
+            }
+            
+            // Hide processing indicators
+            window.hideProcessingIndicator(pName);
+            
+            saveChatHistory(pName, t.chatMessages);
+            renderChatMessages(pName);
+            return;
+        }
+        
+        // content_block_delta with thinking_delta → accumulate thinking
+        if (subtype === 'content_block_delta' && event.delta?.type === 'thinking_delta') {
+            const thinkingFragment = event.delta.thinking || '';
+            if (!thinkingFragment) return;
+            
+            let lastMsg = t.chatMessages[t.chatMessages.length - 1];
+            if (lastMsg && lastMsg.role === 'thinking') {
+                lastMsg.content += thinkingFragment;
+            } else {
+                // Clear thinking pills first
+                t.chatMessages = t.chatMessages.filter(m => 
+                    !(m.role === 'system' && m.content === 'Thinking...')
+                );
+                t.chatMessages.push({ 
+                    role: 'thinking', 
+                    content: thinkingFragment,
+                    collapsed: true
+                });
+            }
+            renderChatMessages(pName);
+            return;
+        }
+        
+        // input_json_delta → tool input is being streamed
+        if (subtype === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
+            return;
+        }
+        
+        // content_block_stop → block finished
+        if (subtype === 'content_block_stop') {
+            return;
+        }
+        
+        // message_start → new message beginning
+        if (subtype === 'message_start') {
+            return;
+        }
+        
+        // message_delta / message_stop → message lifecycle
+        if (subtype === 'message_delta' || subtype === 'message_stop') {
+            return;
+        }
+        
+        // Unknown stream_event - log for debugging, don't swallow
+        console.log(`[Agent:${pName}] Unhandled stream_event subtype="${subtype}"`, event);
+        return;
+    }
 
-    // Also ignore if content contains raw JSON-looking tool results
+    // Extract tool usage info from assistant messages before filtering
     if (parsed.type === 'assistant' && parsed.message?.content) {
         const hasOnlyToolUse = parsed.message.content.every(
             c => c.type === 'tool_use' || c.type === 'tool_result'
         );
+        
+        // Stream tool_use blocks as activity BEFORE filtering
+        parsed.message.content.forEach(block => {
+            if (block.type === 'tool_use') {
+                window.handleToolActivityStream(pName, {
+                    type: 'tool_use',
+                    name: block.name,
+                    input: block.input || {}
+                });
+            }
+        });
+        
         if (hasOnlyToolUse) return;
     }
 
-    // DEBUG: Log all events to help diagnose 'no reply' issues
-    console.log(`[Agent:${pName}] Event:`, parsed);
+    // DEBUG: Log all events to help diagnose issues
+    console.log(`[Agent:${pName}] Event type="${parsed.type}" subtype="${parsed.subtype || ''}"`, parsed);
 
-    // helper to remove temporary status pills
+    // helper to remove temporary status pills and processing indicators
     const clearStatusPills = () => {
         const countBefore = t.chatMessages.length;
-        t.chatMessages = t.chatMessages.filter(m => m.role !== 'system' || (m.content !== 'Thinking...' && m.content !== 'Processing...'));
+        t.chatMessages = t.chatMessages.filter(m => {
+            // Remove system pills and processing gap indicators
+            if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
+            if (m.isProcessingGap) return false;
+            return true;
+        });
+        
+        // Clear gap timer when clearing pills
+        if (t.gapTimer) {
+            clearTimeout(t.gapTimer);
+            delete t.gapTimer;
+        }
+        
         return t.chatMessages.length !== countBefore;
     };
 
@@ -1261,6 +2001,9 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
         // Store thinking content as a collapsible pill
         if (thinkingBlock && thinkingBlock.thinking) {
+            // Hide processing indicators since we got thinking content
+            window.hideProcessingIndicator(pName);
+            
             // Accumulate thinking into the last thinking pill or create a new one
             const lastThinking = t.chatMessages[t.chatMessages.length - 1];
             if (lastThinking && lastThinking.role === 'thinking') {
@@ -1286,6 +2029,12 @@ export function handleChatJsonEvent(t, pName, parsed) {
             }
             saveChatHistory(pName, t.chatMessages);
             renderChatMessages(pName);
+            
+            // Hide any existing processing indicators since we got new content
+            window.hideProcessingIndicator(pName);
+            
+            // Start monitoring for potential gaps after this response
+            window.monitorResponseGaps(pName);
         }
         return;
     }
@@ -1299,6 +2048,15 @@ export function handleChatJsonEvent(t, pName, parsed) {
                 t.lastCost = parsed.total_cost_usd;
             }
             clearStatusPills();
+            
+            // Clear any remaining processing indicators
+            window.hideProcessingIndicator(pName);
+            
+            // Clear activity stream when response is complete
+            setTimeout(() => {
+                window.clearActivityStream(pName);
+            }, 2000); // Keep activity visible for 2 seconds before clearing
+            
             lastMsg = t.chatMessages[t.chatMessages.length - 1];
             if (lastMsg && lastMsg.role === 'assistant') lastMsg.isDone = true;
             
@@ -1339,8 +2097,34 @@ export function handleChatJsonEvent(t, pName, parsed) {
             text = "Processing...";
             const robot = state.walkingRobots[pName];
             if (robot) { robot.isThinking = true; renderRobots(); }
+            
+            // Extract tool details from call events
+            const toolName = parsed.tool_name || parsed.name || parsed.tool || '';
+            const toolInput = parsed.input || parsed.arguments || parsed.tool_input || {};
+            
+            if (toolName) {
+                window.handleToolActivityStream(pName, {
+                    type: 'tool_use',
+                    name: toolName,
+                    input: toolInput
+                });
+            } else if (parsed.message) {
+                // Fallback: use message as activity description
+                window.addActivityStreamMessage(pName, `🔧 ${parsed.message}`, 'tool_start');
+            }
         }
-        else if (parsed.type === "result") text = "Task completed";
+        else if (parsed.type === "result") {
+            text = "Task completed";
+            
+            // Stream tool result as activity
+            if (parsed.subtype !== 'success' && parsed.subtype !== 'error') {
+                window.handleToolActivityStream(pName, {
+                    type: 'tool_result',
+                    content: parsed.content || parsed.message || '',
+                    error: parsed.error
+                });
+            }
+        }
         else if (parsed.message) text = parsed.message;
 
         if (text) {
