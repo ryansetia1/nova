@@ -144,10 +144,16 @@ export function renderSidebar() {
       });
       const sortedAgents = [...captains, ...sortedRest];
 
-      dom.activeAgentList.innerHTML = sortedAgents.map(p => {
+      // Categorize agents by type
+      const captainAgents = sortedAgents.filter(p => isCaptainRole(p));
+      const petAgents = sortedAgents.filter(p => p.type === 'pet');
+      const regularAgents = sortedAgents.filter(p => !isCaptainRole(p) && p.type !== 'pet');
+
+      const renderAgentItem = (p, includeNestedIndicator = true) => {
         const isNested = !!p.parentAgent;
-        const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
+        const prefix = (isNested && includeNestedIndicator) ? '<span class="nested-indicator">↳ </span>' : '';
         const captainMark = isCaptainRole(p) ? '<span class="sidebar-captain-star" aria-hidden="true">⭐</span>' : '';
+        const petPrefix = p.type === 'pet' ? '🐾 ' : '';
         
         const r = state.walkingRobots[p.name];
         let statusChip = '';
@@ -165,12 +171,13 @@ export function renderSidebar() {
           `<span class="sidebar-item-dismiss" title="Dismiss" onclick="event.stopPropagation(); window.nova.openDeleteAgentModalByName('${p.name}')">✕</span>` : '';
 
         const captainCls = isCaptainRole(p) ? 'sidebar-item-captain' : '';
+        const petCls = p.type === 'pet' ? 'sidebar-item-pet' : '';
 
         return `
-        <div class="sidebar-item ${captainCls} ${isNested ? 'nested' : ''} ${isHidden ? 'is-hidden' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
+        <div class="sidebar-item ${captainCls} ${petCls} ${isNested ? 'nested' : ''} ${isHidden ? 'is-hidden' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
-            <div class="sidebar-item-name">${prefix}${captainMark}${p.nickname || p.name}${statusChip}</div>
+            <div class="sidebar-item-name">${prefix}${captainMark}${petPrefix}${p.nickname || p.name}${statusChip}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
           <div class="sidebar-item-actions">
@@ -178,7 +185,63 @@ export function renderSidebar() {
             ${dismissBtn}
           </div>
         </div>
-      `;}).join('');
+      `;
+      };
+
+      // Get collapsed states from localStorage
+      const collapsedState = JSON.parse(localStorage.getItem('nova-sidebar-collapsed') || '{}');
+      
+      let sidebarHTML = '';
+      
+      if (captainAgents.length > 0) {
+        const isCollapsed = collapsedState.captain || false;
+        const toggleIcon = isCollapsed ? '▶' : '▼';
+        const statusText = isCollapsed ? ' (hidden)' : '';
+        sidebarHTML += `
+          <div class="sidebar-subsection ${isCollapsed ? 'collapsed' : ''}">
+            <div class="sidebar-subsection-label clickable" onclick="window.nova.toggleSidebarSection('captain')" title="Click to ${isCollapsed ? 'show' : 'hide'} in workspace">
+              <span class="toggle-icon">${toggleIcon}</span> ⭐ CAPTAIN<span class="status-text">${statusText}</span>
+            </div>
+            <div class="sidebar-subsection-content">
+              ${captainAgents.map(p => renderAgentItem(p, false)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (regularAgents.length > 0) {
+        const isCollapsed = collapsedState.agents || false;
+        const toggleIcon = isCollapsed ? '▶' : '▼';
+        const statusText = isCollapsed ? ' (hidden)' : '';
+        sidebarHTML += `
+          <div class="sidebar-subsection ${isCollapsed ? 'collapsed' : ''}">
+            <div class="sidebar-subsection-label clickable" onclick="window.nova.toggleSidebarSection('agents')" title="Click to ${isCollapsed ? 'show' : 'hide'} in workspace">
+              <span class="toggle-icon">${toggleIcon}</span> 🤖 AGENTS<span class="status-text">${statusText}</span>
+            </div>
+            <div class="sidebar-subsection-content">
+              ${regularAgents.map(p => renderAgentItem(p)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (petAgents.length > 0) {
+        const isCollapsed = collapsedState.pets || false;
+        const toggleIcon = isCollapsed ? '▶' : '▼';
+        const statusText = isCollapsed ? ' (hidden)' : '';
+        sidebarHTML += `
+          <div class="sidebar-subsection ${isCollapsed ? 'collapsed' : ''}">
+            <div class="sidebar-subsection-label clickable" onclick="window.nova.toggleSidebarSection('pets')" title="Click to ${isCollapsed ? 'show' : 'hide'} in workspace">
+              <span class="toggle-icon">${toggleIcon}</span> 🐾 PETS<span class="status-text">${statusText}</span>
+            </div>
+            <div class="sidebar-subsection-content">
+              ${petAgents.map(p => renderAgentItem(p, false)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      dom.activeAgentList.innerHTML = sidebarHTML;
     }
 
     // Render Orphaned Folders
@@ -200,6 +263,10 @@ export function renderSidebar() {
 export function renderRobots() {
     if (state.projects.length === 0) { dom.emptyState.classList.remove('hidden'); dom.robotCards.innerHTML = ''; return; }
     dom.emptyState.classList.add('hidden');
+    
+    // Get collapsed categories from localStorage
+    const collapsedState = JSON.parse(localStorage.getItem('nova-sidebar-collapsed') || '{}');
+    
     const fallbackEmojis = ['🪐', '🦾', '🧠', '⚙️', '🔧', '🛠️', '💡', '🎯'];
     dom.robotCards.innerHTML = state.projects.map((p, i) => {
         const rawAppearance = p.emoji || fallbackEmojis[i % fallbackEmojis.length];
@@ -213,6 +280,17 @@ export function renderRobots() {
         const isIllegal = r?.isIllegal;
         
         if (!p.active) {
+            return '';
+        }
+
+        // Category filtering - hide collapsed categories from workspace
+        const isCaptain = p.type === 'captain' || p.name === 'Captain';
+        const isPetType = p.type === 'pet';
+        const isRegularAgent = !isCaptain && !isPetType;
+        
+        if ((isCaptain && collapsedState.captain) || 
+            (isPetType && collapsedState.pets) || 
+            (isRegularAgent && collapsedState.agents)) {
             return '';
         }
 
@@ -245,11 +323,11 @@ export function renderRobots() {
         const isNested = !!p.parentAgent;
         const isCaptainRole = p.type === 'captain' || p.name === 'Captain';
         const captainStar = isCaptainRole ? '<span class="sidebar-captain-star" aria-hidden="true">⭐</span>' : '';
-        const topLabel = (isNested ? '↳ ' : '') + captainStar + (p.nickname || p.name);
-
         const charId = isSprite ? rawAppearance.split(':')[1] : 'emoji';
 
         const isPet = p.type === 'pet';
+        const petPrefix = isPet ? '🐾 ' : '';
+        const topLabel = (isNested ? '↳ ' : '') + captainStar + petPrefix + (p.nickname || p.name);
         const clickHandler = isPet ? '' : `onclick="window.nova.openTerminal('${p.name}')"`;
 
         return `
@@ -1049,6 +1127,29 @@ export function toggleAgentVisibility(pName) {
     renderSidebar(); // Refresh icons
     
     if (window.lucide) window.lucide.createIcons();
+}
+
+export function toggleSidebarSection(sectionName) {
+    // Get current collapsed state
+    const collapsedState = JSON.parse(localStorage.getItem('nova-sidebar-collapsed') || '{}');
+    
+    // Toggle the specific section
+    const wasCollapsed = collapsedState[sectionName] || false;
+    collapsedState[sectionName] = !wasCollapsed;
+    
+    // Save back to localStorage
+    localStorage.setItem('nova-sidebar-collapsed', JSON.stringify(collapsedState));
+    
+    // Show toast to indicate what happened
+    const categoryNames = { captain: 'Captain', agents: 'Agents', pets: 'Pets' };
+    const categoryName = categoryNames[sectionName] || sectionName;
+    const isNowCollapsed = collapsedState[sectionName];
+    
+    showToast('info', isNowCollapsed ? '🔽' : '🔼', `${categoryName} ${isNowCollapsed ? 'hidden' : 'shown'} in workspace`);
+    
+    // Re-render both sidebar and workspace
+    renderSidebar();
+    renderRobots(); // This will now respect the collapsed states
 }
 
 export function hideTooltip() {

@@ -3031,6 +3031,73 @@ body.dev-mode-layout #dev-svg-layer g {
   margin-bottom: 30px;
 }
 
+.sidebar-subsection {
+  margin-bottom: 20px;
+}
+
+.sidebar-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-subsection-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding: 4px 12px;
+  opacity: 0.6;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-subsection-label.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-subsection-label.clickable:hover {
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 0.8;
+}
+
+.sidebar-subsection-label .toggle-icon {
+  display: inline-block;
+  font-size: 8px;
+  margin-right: 4px;
+  transition: transform 0.2s ease;
+  color: var(--text-muted);
+}
+
+.sidebar-subsection-label .status-text {
+  font-size: 8px;
+  opacity: 0.5;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.sidebar-subsection-content {
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.sidebar-subsection.collapsed .sidebar-subsection-content {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+}
+
+.sidebar-subsection.collapsed .sidebar-subsection-label {
+  margin-bottom: 0;
+}
+
+.sidebar-item-pet {
+  /* Optional: Add specific styling for pet items if needed */
+}
+
 .section-label {
   font-size: 10px;
   font-weight: 700;

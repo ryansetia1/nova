@@ -21,7 +21,8 @@ import {
     showTooltip,
     hideTooltip,
     initWeatherControl,
-    toggleAgentVisibility
+    toggleAgentVisibility,
+    toggleSidebarSection
 } from './ui.js';
 import { 
     loadWalkablePath, 
@@ -434,6 +435,7 @@ window.nova = {
     },
     openDeleteAgentModalByName,
     toggleAgentVisibility,
+    toggleSidebarSection,
     showTooltip,
     hideTooltip
 };
