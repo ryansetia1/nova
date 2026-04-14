@@ -178,6 +178,14 @@ app.post('/api/anchor', (req, res) => {
   res.json({ success: true });
 });
 
+app.get('/api/break-positions', (req, res) => {
+  try { res.json(fs.existsSync(BREAK_POSITIONS_FILE) ? JSON.parse(fs.readFileSync(BREAK_POSITIONS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+});
+app.post('/api/break-positions', (req, res) => {
+  fs.writeFileSync(BREAK_POSITIONS_FILE, JSON.stringify(req.body.positions, null, 2));
+  res.json({ success: true });
+});
+
 app.get('/api/foreground-objects', (req, res) => {
   try { res.json(fs.existsSync(FOREGROUND_OBJECTS_FILE) ? JSON.parse(fs.readFileSync(FOREGROUND_OBJECTS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
 });
