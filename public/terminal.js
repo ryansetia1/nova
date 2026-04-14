@@ -579,14 +579,64 @@ function bindWindowEvents(pName, panel, tState) {
         });
     }
 
+    // Helper function to toggle maximize
+    function toggleMaximize() {
+        if (panel.classList.contains('docked-right')) return; // Disabled when docked
+        
+        bringToFront(panel);
+        
+        if (tState.isMaximized) {
+            const r = tState.prevRect || {width: 500, height: 500, left: window.innerWidth/2 - 250, top: 100};
+            panel.style.width = r.width + 'px'; 
+            panel.style.height = r.height + 'px';
+            panel.style.left = r.left + 'px'; 
+            panel.style.top = r.top + 'px';
+            tState.isMaximized = false;
+            panel.classList.remove('maximized');
+        } else {
+            tState.prevRect = panel.getBoundingClientRect();
+            panel.style.left = '20px'; 
+            panel.style.top = '20px';
+            panel.style.width = (window.innerWidth - 40) + 'px';
+            panel.style.height = (window.innerHeight - 40) + 'px';
+            panel.style.transform = 'none';
+            tState.isMaximized = true;
+            panel.classList.add('maximized');
+        }
+        setTimeout(() => refit(tState), 300);
+    }
+
+    // Double-click header to maximize/restore - broader area
+    header.addEventListener('dblclick', (e) => {
+        // Only exclude interactive elements that should not trigger maximize
+        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container')) return;
+        
+        e.stopPropagation();
+        toggleMaximize();
+    });
+    
+    // Also allow double-click on specific areas (for better UX)
+    const titleArea = panel.querySelector('.terminal-title');
+    const folderArea = panel.querySelector('.terminal-folder');
+    const modeToggle = panel.querySelector('.terminal-mode-toggle');
+    
+    [titleArea, folderArea, modeToggle].forEach(element => {
+        if (element) {
+            element.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                toggleMaximize();
+            });
+        }
+    });
+
     header.addEventListener('mousedown', (e) => {
         if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-header-emoji')) return;
         if (tState.isMaximized || panel.classList.contains('docked-right')) return;
-        
+
         bringToFront(panel);
         state.draggingWindow = panel;
         panel.classList.add('dragging');
-        
+
         const rect = panel.getBoundingClientRect();
         panel.style.transform = 'none';
         panel.style.left = rect.left + 'px';
