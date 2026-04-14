@@ -6,6 +6,31 @@ import { state, dom } from './state.js';
 import { showToast, bringToFront, getAppearanceHtml, renderRobots, fireAgentNotification } from './ui.js';
 import { openDeleteAgentModal, openEmojiUpdateModal, openClaudeMdModal, openSwitchServiceModal } from './modals.js';
 
+// Loading overlay state tracked per terminal via t._termLoading flag
+function showTerminalLoading(panel, pName) {
+    const overlay = panel.querySelector('.terminal-loading-overlay');
+    if (!overlay) return;
+    
+    const text = overlay.querySelector('.terminal-loading-text');
+    const subtext = overlay.querySelector('.terminal-loading-subtext');
+    if (text) text.textContent = 'Preparing terminal...';
+    if (subtext) subtext.textContent = 'Setting up workspace';
+    
+    overlay.classList.remove('hidden');
+    
+    // Track loading state on terminal state object
+    const t = state.terminals[pName];
+    if (t) t._termLoading = true;
+}
+
+function hideTerminalLoading(panel, pName) {
+    const overlay = panel.querySelector('.terminal-loading-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    
+    const t = state.terminals[pName];
+    if (t) t._termLoading = false;
+}
+
 export function openTerminal(pName) {
     if (!state.terminals[pName] || !state.terminals[pName].ready) return showToast('info', '⏳', 'Warming up...');
     
@@ -134,6 +159,7 @@ export function setupTerminal(pName, showUI = false) {
         } else if (targetMode === 'terminal' && !existing.termWs) {
             existing.panel.classList.remove('hidden');
             updateModeUI(pName);
+            showTerminalLoading(existing.panel, pName);
             existing.setupModeWs('terminal');
         }
         
@@ -141,6 +167,21 @@ export function setupTerminal(pName, showUI = false) {
             existing.panel.classList.remove('hidden');
             bringToFront(existing.panel);
             updateModeUI(pName);
+
+            // Terminal mode: if buffer is dirty (user hasn't seen it clean), show overlay then reset
+            if (targetMode === 'terminal' && !existing._termClean && !existing._termLoading) {
+                showTerminalLoading(existing.panel, pName);
+                const waitMs = existing.ready ? 500 : 3500;
+                setTimeout(() => {
+                    existing.term.reset();
+                    existing._termClean = true;
+                    hideTerminalLoading(existing.panel, pName);
+                    refit(existing);
+                }, waitMs);
+            } else if (existing.ready && !existing._termLoading) {
+                hideTerminalLoading(existing.panel, pName);
+            }
+
             refit(existing);
             setTimeout(() => {
                 refit(existing);
@@ -196,9 +237,14 @@ export function setupTerminal(pName, showUI = false) {
         term, fitAddon: fit, chatWs: null, termWs: null,
         panel, container, ready: false, 
         uploads: [], activeMode: targetMode, chatMessages: [], jsonBuffer: '',
-        lastCost: null
+        lastCost: null, _termLoading: false, _termClean: false
     };
     state.terminals[pName] = t;
+
+    // Show loading overlay for terminal mode only if user will see it now
+    if (targetMode === 'terminal' && showUI) {
+        showTerminalLoading(panel, pName);
+    }
     
     // Load History
     try {
@@ -222,6 +268,19 @@ export function setupTerminal(pName, showUI = false) {
         ws.onopen = () => { 
             t.ready = true; renderRobots(); renderActivityBar(pName);
             if (t.activeMode === mode) refit(t);
+            
+            // For terminal mode: wait for init commands then reveal
+            if (mode === 'terminal') {
+                setTimeout(() => {
+                    t._termClean = true;
+                    if (t._termLoading) {
+                        t.term.reset();
+                        hideTerminalLoading(t.panel, pName);
+                    }
+                }, 3500);
+            }
+            
+            // Chat mode: never manages the overlay
         };
 
         ws.onmessage = (e) => { 
@@ -821,6 +880,22 @@ window.switchUiMode = function(pName, newMode) {
     const t = state.terminals[pName];
     if (!t) return;
     if (t.activeMode === newMode) return;
+    
+    // Show loading overlay when switching to terminal mode
+    if (newMode === 'terminal') {
+        if (!t.termWs) {
+            showTerminalLoading(t.panel, pName);
+            t._termClean = false;
+        } else if (!t._termClean) {
+            showTerminalLoading(t.panel, pName);
+            setTimeout(() => {
+                t.term.reset();
+                t._termClean = true;
+                hideTerminalLoading(t.panel, pName);
+                refit(t);
+            }, 500);
+        }
+    }
     
     // Update local state immediately so setupTerminal finds it
     const projectMeta = state.projects.find(x => x.name === pName);
