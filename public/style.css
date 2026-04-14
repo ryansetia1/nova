@@ -4487,10 +4487,10 @@ body.dev-mode-theatre .ambient-iframe-container {
 .chat-input-row {
   display: flex;
   gap: 8px;
-  padding: 12px;
+  padding: 10px 12px;
   background: rgba(17, 24, 39, 0.95);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-  align-items: stretch;
+  align-items: flex-end;
   position: relative; /* Added to anchor slash menu */
 }
 
@@ -4498,16 +4498,19 @@ body.dev-mode-theatre .ambient-iframe-container {
   flex: 1;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 10px;
   color: white;
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-size: 13px;
+  line-height: 1.4;
   font-family: var(--font-sans);
   resize: none;
-  min-height: 40px;
+  height: 36px;
+  min-height: 36px;
   max-height: 120px;
   outline: none;
   transition: border-color 0.2s;
+  overflow-y: hidden;
 }
 
 .chat-input:focus {
@@ -4518,13 +4521,15 @@ body.dev-mode-theatre .ambient-iframe-container {
   background: var(--accent-primary);
   color: white;
   border: none;
-  border-radius: 8px;
-  width: 40px;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .chat-send-btn:hover {
