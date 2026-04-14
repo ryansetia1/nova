@@ -2,9 +2,9 @@
    NOVA — Dev Tools
    ============================================ */
 
-import { state, dom } from './state.js';
+import { state, dom, CHARACTERS } from './state.js';
 import { showToast, showTooltip, hideTooltip } from './ui.js';
-import { WALKABLE_PATH, saveWalkablePath } from './walking.js';
+import { WALKABLE_PATH, saveWalkablePath, saveAnchorConfig, updateAnchorStyles, saveCharacterConfig, getCharConfig, updateCharacterScale, updateNicknameOffset } from './walking.js';
 
 export const dev = { 
     isActive: false, 
@@ -181,6 +181,8 @@ function enterDevMode() {
     dev.originalPositions = JSON.parse(JSON.stringify(state.breakPositions));
     dev.originalObjects = JSON.parse(JSON.stringify(state.foregroundObjects));
     dev.originalAmbientObjects = JSON.parse(JSON.stringify(state.ambientObjects));
+    dev.originalAnchors = JSON.parse(JSON.stringify(state.characterAnchors));
+    dev.originalCharConfig = JSON.parse(JSON.stringify(state.characterConfig));
     
     dev.polygon = [...WALKABLE_PATH];
     document.body.classList.add('drawing-mode');
@@ -309,11 +311,7 @@ export function exitDevMode(save = true) {
     document.body.classList.remove('layout-mode');
     document.body.classList.remove('theatre-mode');
     document.body.classList.remove('show-visuals');
-    document.body.classList.remove('dev-mode-visualize', 'dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-theatre');
-    
-    // Clear panels
-    const adj = document.getElementById('anchor-adjuster');
-    if (adj) adj.classList.remove('active');
+    document.body.classList.remove('dev-mode-visualize', 'dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-theatre', 'dev-mode-characters');
     
     const sidebar = document.getElementById('dev-right-sidebar');
     if (sidebar) sidebar.classList.add('hidden');
@@ -321,23 +319,39 @@ export function exitDevMode(save = true) {
     hidePositionConfig();
     hideLayoutConfig();
     hideAmbientConfig();
+    hideCharacterConfig();
 
     if (dev.toolbar) dev.toolbar.remove();
     dev.toolbar = null;
-    if (save && (dev.polygon.length >= 3 || state.breakPositions.length > 0 || state.foregroundObjects.length > 0 || state.ambientObjects.length > 0)) {
-        saveWalkablePath(dev.polygon);
+    if (save) {
+        if (dev.polygon.length >= 3) saveWalkablePath(dev.polygon);
         import('./walking.js').then(m => {
-            m.saveBreakPositions(state.breakPositions);
-            m.saveForegroundObjects(state.foregroundObjects);
-            m.saveAmbientObjects(state.ambientObjects);
+            if (state.breakPositions.length > 0) m.saveBreakPositions(state.breakPositions);
+            if (state.foregroundObjects.length > 0) m.saveForegroundObjects(state.foregroundObjects);
+            if (state.ambientObjects.length > 0) m.saveAmbientObjects(state.ambientObjects);
         });
-    } else if (!save) {
+        saveAnchorConfig(state.characterAnchors);
+        saveCharacterConfig(state.characterConfig);
+    } else {
         dev.polygon = [...dev.originalPolygon];
         state.breakPositions = JSON.parse(JSON.stringify(dev.originalPositions));
         state.foregroundObjects = JSON.parse(JSON.stringify(dev.originalObjects));
         state.ambientObjects = JSON.parse(JSON.stringify(dev.originalAmbientObjects));
         
-        // Re-render UI to remove discarded objects
+        if (dev.originalAnchors) {
+            state.characterAnchors = JSON.parse(JSON.stringify(dev.originalAnchors));
+            Object.keys(state.characterAnchors).forEach(charId => {
+                updateAnchorStyles(charId, state.characterAnchors[charId].x, state.characterAnchors[charId].y);
+            });
+        }
+        if (dev.originalCharConfig) {
+            state.characterConfig = JSON.parse(JSON.stringify(dev.originalCharConfig));
+            Object.keys(state.characterConfig).forEach(charId => {
+                if (state.characterConfig[charId].scale != null) updateCharacterScale(charId, state.characterConfig[charId].scale);
+                if (state.characterConfig[charId].nicknameY != null) updateNicknameOffset(charId, state.characterConfig[charId].nicknameY);
+            });
+        }
+        
         import('./ui.js').then(m => {
             m.renderForegroundObjects();
             m.renderAmbientObjects();
@@ -371,6 +385,7 @@ function showDevToolbar() {
     
     dev.toolbar.innerHTML = `
         <button id="dev-btn-visualize" style="${btnStyle} ${dev.mode === 'visualize' ? 'background:#8b5cf6; border-color:#8b5cf6;' : ''}">⚓ Visualize</button>
+        <button id="dev-btn-characters" style="${btnStyle} ${dev.mode === 'characters' ? 'background:#ec4899; border-color:#ec4899;' : ''}">🎭 Characters</button>
         <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🖋️ Draw</button>
         <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
@@ -385,6 +400,7 @@ function showDevToolbar() {
     document.body.appendChild(dev.toolbar);
     
     dev.toolbar.querySelector('#dev-btn-visualize').onclick = (e) => { e.stopPropagation(); setDevMode('visualize'); };
+    dev.toolbar.querySelector('#dev-btn-characters').onclick = (e) => { e.stopPropagation(); setDevMode('characters'); };
     dev.toolbar.querySelector('#dev-btn-draw').onclick = (e) => { e.stopPropagation(); setDevMode('draw'); };
     dev.toolbar.querySelector('#dev-btn-tweak').onclick = (e) => { e.stopPropagation(); setDevMode('tweak'); };
     dev.toolbar.querySelector('#dev-btn-positions').onclick = (e) => { e.stopPropagation(); setDevMode('positions'); };
@@ -396,6 +412,7 @@ function showDevToolbar() {
         if (dev.mode === 'positions') state.breakPositions = [];
         else if (dev.mode === 'layout') { state.foregroundObjects = []; import('./ui.js').then(m => m.renderForegroundObjects()); }
         else if (dev.mode === 'theatre') { state.ambientObjects = []; import('./ui.js').then(m => m.renderAmbientObjects()); }
+        else if (dev.mode === 'characters') { /* no-op for characters */ }
         else dev.polygon = []; 
         renderActivePath(); 
     };
@@ -631,19 +648,15 @@ function setDevMode(mode) {
     dev.mode = mode;
     showDevToolbar();
     
-    // Toggle visualization visibility
-    if (mode === 'visualize') {
+    // Both visualize and characters mode show anchor dots and floor polygon
+    if (mode === 'visualize' || mode === 'characters') {
         document.body.classList.add('show-visuals');
-        const adj = document.getElementById('anchor-adjuster');
-        if (adj) adj.classList.add('active');
     } else {
         document.body.classList.remove('show-visuals');
-        const adj = document.getElementById('anchor-adjuster');
-        if (adj) adj.classList.remove('active');
     }
 
     // Update body classes for CSS targeting
-    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize', 'dev-mode-theatre');
+    document.body.classList.remove('dev-mode-draw', 'dev-mode-tweak', 'dev-mode-positions', 'dev-mode-layout', 'dev-mode-visualize', 'dev-mode-theatre', 'dev-mode-characters');
     document.body.classList.add(`dev-mode-${mode}`);
     
     // Sidebar management
@@ -658,6 +671,11 @@ function setDevMode(mode) {
     hidePositionConfig();
     hideLayoutConfig();
     hideAmbientConfig();
+    hideCharacterConfig();
+
+    if (mode === 'characters') {
+        showCharacterConfig();
+    }
 
     if (mode === 'layout') {
         document.body.classList.add('layout-mode');
@@ -673,7 +691,6 @@ function setDevMode(mode) {
         document.body.classList.remove('theatre-mode');
     }
 
-    // DON'T clear dev.polygon here anymore, let the user use the Clear button
     if (mode === 'tweak' && dev.polygon.length === 0) {
         dev.polygon = [...WALKABLE_PATH]; 
     }
@@ -800,6 +817,177 @@ export function hideAmbientConfig() {
     document.querySelectorAll('.ambient-object-wrapper').forEach(el => el.classList.remove('dev-selected'));
 }
 
+// ─── Characters Config Panel ─────────────────────────────────────────
+function showCharacterConfig(selectedCharId) {
+    let panel = document.querySelector('#dev-char-config');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'dev-char-config';
+        panel.className = 'dev-char-config';
+        const app = document.getElementById('app');
+        if (app) app.appendChild(panel);
+        else document.body.appendChild(panel);
+    }
+    panel.classList.remove('hidden');
+
+    const charIds = Object.keys(CHARACTERS);
+    const allCharIds = [...new Set([
+        ...charIds,
+        ...Object.keys(dev.availableAnimationsMap || {})
+    ])];
+
+    const activeChar = selectedCharId || allCharIds[0] || 'Char1';
+    const anchor = state.characterAnchors[activeChar] || { x: 50, y: 85 };
+    const cfg = getCharConfig(activeChar);
+    const animations = Object.keys(dev.availableAnimationsMap[activeChar] || { Walk: 42, Idle: 80 });
+
+    const charOptions = allCharIds.map(id => {
+        const name = CHARACTERS[id]?.name || id;
+        return `<option value="${id}" ${id === activeChar ? 'selected' : ''}>${name} (${id})</option>`;
+    }).join('');
+
+    panel.innerHTML = `
+        <div class="dev-char-header">🎭 Character Config</div>
+        <div class="dev-char-body">
+            <div class="dev-char-section">
+                <label class="dev-char-label">CHARACTER</label>
+                <select id="char-cfg-selector">${charOptions}</select>
+            </div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">⚓ Anchor Position</div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">X Pivot: <span id="char-val-anchor-x">${anchor.x}</span>%</label>
+                <input type="range" id="char-input-anchor-x" min="0" max="100" value="${anchor.x}">
+            </div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">Y Pivot: <span id="char-val-anchor-y">${anchor.y}</span>%</label>
+                <input type="range" id="char-input-anchor-y" min="0" max="100" value="${anchor.y}">
+            </div>
+            <div class="dev-char-hint">Adjust until the green dot is at the character's feet</div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">🚶 Walk Speed</div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">Translation Speed: <span id="char-val-walk">${cfg.walkSpeed.toFixed(2)}</span>x</label>
+                <input type="range" id="char-input-walk" min="0.1" max="4" step="0.05" value="${cfg.walkSpeed}">
+            </div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">🎞️ Animation Speed</div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">Frame Rate: <span id="char-val-anim">${cfg.animSpeed.toFixed(2)}</span>x</label>
+                <input type="range" id="char-input-anim" min="0.1" max="4" step="0.05" value="${cfg.animSpeed}">
+            </div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">📐 Sprite Scale</div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">Scale: <span id="char-val-scale">${cfg.scale.toFixed(2)}</span></label>
+                <input type="range" id="char-input-scale" min="0.2" max="3" step="0.05" value="${cfg.scale}">
+            </div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">🏷️ Nickname Position</div>
+            <div class="dev-char-section">
+                <label class="dev-char-label">Vertical Offset: <span id="char-val-nickname">${cfg.nicknameY}</span>px</label>
+                <input type="range" id="char-input-nickname" min="-60" max="80" step="1" value="${cfg.nicknameY}">
+            </div>
+            <div class="dev-char-hint">Negative = above sprite, Positive = below. Auto-adjusts with scale.</div>
+
+            <div class="dev-char-divider"></div>
+            <div class="dev-char-section-title">🎬 Available Animations</div>
+            <div class="dev-char-anim-list" id="char-anim-list">
+                ${animations.map(a => `<span class="dev-char-anim-tag">${a}</span>`).join('')}
+            </div>
+
+            <div class="dev-char-actions">
+                <button id="char-cfg-reset">Reset</button>
+                <button id="char-cfg-save" class="primary">Save All</button>
+            </div>
+        </div>
+    `;
+
+    // Bind events
+    const selector = panel.querySelector('#char-cfg-selector');
+    selector.onchange = () => showCharacterConfig(selector.value);
+
+    const bindSlider = (inputId, valId, prop, onChange) => {
+        const input = panel.querySelector(inputId);
+        const valEl = panel.querySelector(valId);
+        input.oninput = () => {
+            const val = parseFloat(input.value);
+            valEl.textContent = prop === 'x' || prop === 'y' ? val : val.toFixed(2);
+            onChange(val);
+        };
+    };
+
+    bindSlider('#char-input-anchor-x', '#char-val-anchor-x', 'x', (val) => {
+        if (!state.characterAnchors[activeChar]) state.characterAnchors[activeChar] = { x: 50, y: 85 };
+        state.characterAnchors[activeChar].x = val;
+        updateAnchorStyles(activeChar, val, state.characterAnchors[activeChar].y);
+    });
+
+    bindSlider('#char-input-anchor-y', '#char-val-anchor-y', 'y', (val) => {
+        if (!state.characterAnchors[activeChar]) state.characterAnchors[activeChar] = { x: 50, y: 85 };
+        state.characterAnchors[activeChar].y = val;
+        updateAnchorStyles(activeChar, state.characterAnchors[activeChar].x, val);
+    });
+
+    bindSlider('#char-input-walk', '#char-val-walk', 'walkSpeed', (val) => {
+        if (!state.characterConfig[activeChar]) state.characterConfig[activeChar] = { walkSpeed: 1, animSpeed: 1, scale: 1 };
+        state.characterConfig[activeChar].walkSpeed = val;
+    });
+
+    bindSlider('#char-input-anim', '#char-val-anim', 'animSpeed', (val) => {
+        if (!state.characterConfig[activeChar]) state.characterConfig[activeChar] = { walkSpeed: 1, animSpeed: 1, scale: 1 };
+        state.characterConfig[activeChar].animSpeed = val;
+    });
+
+    bindSlider('#char-input-scale', '#char-val-scale', 'scale', (val) => {
+        if (!state.characterConfig[activeChar]) state.characterConfig[activeChar] = {};
+        state.characterConfig[activeChar].scale = val;
+        updateCharacterScale(activeChar, val);
+
+        // Auto-adjust nickname offset proportionally to scale
+        const baseNickY = 10; // neutral reference point
+        const newNickY = Math.round(baseNickY + (1 - val) * 55);
+        state.characterConfig[activeChar].nicknameY = newNickY;
+        updateNicknameOffset(activeChar, newNickY);
+        const nickInput = panel.querySelector('#char-input-nickname');
+        const nickVal = panel.querySelector('#char-val-nickname');
+        if (nickInput) nickInput.value = newNickY;
+        if (nickVal) nickVal.textContent = newNickY;
+    });
+
+    bindSlider('#char-input-nickname', '#char-val-nickname', 'nicknameY', (val) => {
+        if (!state.characterConfig[activeChar]) state.characterConfig[activeChar] = {};
+        state.characterConfig[activeChar].nicknameY = val;
+        updateNicknameOffset(activeChar, val);
+    });
+
+    panel.querySelector('#char-cfg-reset').onclick = () => {
+        state.characterAnchors[activeChar] = { x: 50, y: 85 };
+        updateAnchorStyles(activeChar, 50, 85);
+        delete state.characterConfig[activeChar];
+        const defaults = getCharConfig(activeChar);
+        updateCharacterScale(activeChar, defaults.scale);
+        updateNicknameOffset(activeChar, defaults.nicknameY);
+        showCharacterConfig(activeChar);
+        showToast('info', '🔄', `${activeChar} reset to defaults`);
+    };
+
+    panel.querySelector('#char-cfg-save').onclick = async () => {
+        await saveAnchorConfig(state.characterAnchors);
+        await saveCharacterConfig(state.characterConfig);
+    };
+}
+
+function hideCharacterConfig() {
+    const panel = document.querySelector('#dev-char-config');
+    if (panel) panel.classList.add('hidden');
+}
+
 function onTweakMove(e) {
     if (dev.draggingIndex === null) return;
     const floorWrapper = document.querySelector('#floor-wrapper');
@@ -847,8 +1035,7 @@ export function renderActivePath() {
         const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         poly.setAttribute('points', points);
         
-        // Muted zone in positions mode
-        const opacity = dev.mode === 'positions' ? '0.08' : '0.2';
+        const opacity = (dev.mode === 'positions' || dev.mode === 'characters') ? '0.08' : '0.2';
         poly.setAttribute('fill', `rgba(59, 130, 246, ${opacity})`);
         
         poly.setAttribute('stroke', '#3b82f6');

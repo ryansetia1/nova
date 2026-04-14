@@ -19,6 +19,7 @@ const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
 const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
 const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
 const AMBIENT_OBJECTS_FILE = path.join(DATA_PATH, 'ambient_objects.json');
+const CHARACTER_CONFIG_FILE = path.join(DATA_PATH, 'character_config.json');
 
 if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
@@ -199,6 +200,14 @@ app.get('/api/ambient-objects', (req, res) => {
 });
 app.post('/api/ambient-objects', (req, res) => {
   fs.writeFileSync(AMBIENT_OBJECTS_FILE, JSON.stringify(req.body.objects, null, 2));
+  res.json({ success: true });
+});
+
+app.get('/api/character-config', (req, res) => {
+  try { res.json(fs.existsSync(CHARACTER_CONFIG_FILE) ? JSON.parse(fs.readFileSync(CHARACTER_CONFIG_FILE, 'utf8')) : {}); } catch (e) { res.json({}); }
+});
+app.post('/api/character-config', (req, res) => {
+  fs.writeFileSync(CHARACTER_CONFIG_FILE, JSON.stringify(req.body, null, 2));
   res.json({ success: true });
 });
 

@@ -618,37 +618,7 @@ This project is [describe project].
   <!-- Toast notifications -->
   <div id="toast-container"></div>
 
-  <!-- Anchor Adjuster UI -->
-  <div id="anchor-adjuster" class="anchor-adjuster">
-    <div class="adjuster-header">⚓ Anchor Alignment</div>
-    <div class="adjuster-body">
-      <div class="adjust-group" style="margin-bottom: 12px;">
-        <label>CHARACTER</label>
-        <select id="anchor-char-selector" style="width: 100%; height: 28px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 4px; padding: 0 4px; font-size: 10px; font-weight: 600; cursor: pointer;">
-          <option value="Char1">Character 1 (Char1)</option>
-          <option value="Char2">Character 2 (Char2)</option>
-        </select>
-      </div>
-      <div class="adjust-group">
-        <label>X Pivot: <span id="val-anchor-x">50</span>%</label>
-        <input type="range" id="input-anchor-x" min="0" max="100" value="50">
-      </div>
-      <div class="adjust-group">
-        <label>Y Pivot: <span id="val-anchor-y">85</span>%</label>
-        <input type="range" id="input-anchor-y" min="0" max="100" value="85">
-      </div>
-      <div class="adjust-hint">Adjust until circle is at feet</div>
-      <div class="adjust-actions" style="display: flex; gap: 6px; margin-top: 12px;">
-        <button id="btn-anchor-reset"
-          style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Reset</button>
-        <button id="btn-anchor-cancel"
-          style="padding: 6px; font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; border-radius: 4px;">Cancel</button>
-        <button id="btn-anchor-save"
-          style="flex: 1; padding: 6px; font-size: 10px; background: #10b981; border: 1px solid #10b981; color: #fff; cursor: pointer; border-radius: 4px; font-weight: 700;">Save
-          & Apply</button>
-      </div>
-    </div>
-  </div>
+  <!-- Character config panel is now dynamically created by devtool.js (Characters mode) -->
 </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>

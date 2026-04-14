@@ -36,6 +36,9 @@ export const state = {
   ambientObjects: [], // { id, type: 'iframe', url, x, y, rotation, scale, skewX, skewY, width, height }
   objectAssets: [], // ['dispenser', ...]
   
+  // Per-character config: { charId: { walkSpeed, animSpeed, scale } }
+  characterConfig: {},
+
   // Pre-calculated frames for all characters
   characterFrames: {}, // { charId: { animationName: [paths] } }
 
@@ -141,12 +144,7 @@ export const dom = {
   get loaderProgress() { return $('#loader-progress'); },
   get loaderStatus() { return $('.loader-status'); },
 
-  // Anchor Adj
-  get anchorCharSelector() { return $('#anchor-char-selector'); },
-  get inputAnchorX() { return $('#input-anchor-x'); },
-  get inputAnchorY() { return $('#input-anchor-y'); },
-  get valAnchorX() { return $('#val-anchor-x'); },
-  get valAnchorY() { return $('#val-anchor-y'); },
+  // Anchor Adj (now managed dynamically by Characters dev mode in devtool.js)
   // Sidebar Elements
   get sidebar() { return $('#agent-sidebar'); },
   get sidebarToggle() { return $('#sidebar-toggle'); },

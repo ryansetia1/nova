@@ -78,12 +78,10 @@ export function startWalkingLoop() {
               const dy = ty - r.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
               
-              if (dist < 1.0) { // Closer threshold for forced targets
+              if (dist < 1.0) {
                   if (r.forcedTarget) {
-                      // ARRIVED at forced target
                       r.activity = r.forcedTarget.animation || 'idle';
                       r.isWalking = false;
-                      // We keep forcedTarget so we stay there, but stop walking
                   } else {
                       if (Math.random() < 0.5) {
                           r.naturalIdleTimer = 80 + Math.random() * 150;
@@ -93,10 +91,13 @@ export function startWalkingLoop() {
                       r.tx = next.x; r.ty = next.y;
                   }
               } else {
-                  // If we were doing an activity but started walking (shouldn't happen with logic above but safety first)
                   r.activity = null; 
                   
-                  const moveSpeed = r.forcedTarget ? r.speed * 2.0 : r.speed;
+                  const proj = state.projects.find(x => x.name === name);
+                  const charId = (proj?.emoji && proj.emoji.startsWith('SPRITE:')) ? proj.emoji.split(':')[1] : 'Char1';
+                  const charCfg = getCharConfig(charId);
+                  const baseSpeed = r.forcedTarget ? r.speed * 2.0 : r.speed;
+                  const moveSpeed = baseSpeed * charCfg.walkSpeed;
                   const nextX = r.x + (dx / dist) * moveSpeed;
                   const nextY = r.y + (dy / dist) * moveSpeed;
                   
@@ -141,11 +142,16 @@ export function startWalkingLoop() {
                   else if (isPlayingIdle) animName = 'idle';
                   else animName = 'walk'; // Fallback
 
-                  // Fallback to idle if animation doesn't exist
                   if (!charAnims[animName]) animName = 'idle';
                   const frames = charAnims[animName] || charAnims['idle'];
                   
-                  r.frame = (r.frame + 1) % frames.length;
+                  const charCfg = getCharConfig(charId);
+                  r.frameAccum = (r.frameAccum || 0) + charCfg.animSpeed;
+                  if (r.frameAccum >= 1) {
+                      const step = Math.floor(r.frameAccum);
+                      r.frame = (r.frame + step) % frames.length;
+                      r.frameAccum -= step;
+                  }
                   const sprite = el.querySelector('.robot-char-sprite');
                   if (sprite) {
                       sprite.src = frames[r.frame];
@@ -197,6 +203,41 @@ export async function saveWalkablePath(newPath) {
     } catch (err) { showToast('error', '❌', 'Failed to save path'); }
 }
 
+export async function loadCharacterConfig() {
+    try {
+        const res = await fetch('/api/character-config');
+        const data = await res.json();
+        Object.keys(data).forEach(charId => {
+            state.characterConfig[charId] = data[charId];
+            if (data[charId].scale != null) updateCharacterScale(charId, data[charId].scale);
+            if (data[charId].nicknameY != null) updateNicknameOffset(charId, data[charId].nicknameY);
+        });
+    } catch (err) { console.error('Failed to load character config', err); }
+}
+
+export async function saveCharacterConfig(config) {
+    try {
+        const res = await fetch('/api/character-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        if (res.ok) {
+            showToast('success', '🎭', 'Character config saved!');
+        }
+    } catch (err) { showToast('error', '❌', 'Failed to save character config'); }
+}
+
+const CHAR_DEFAULTS = {
+    Char1: { walkSpeed: 1, animSpeed: 1, scale: 1.1, nicknameY: -10 },
+    Char2: { walkSpeed: 1, animSpeed: 1, scale: 0.7, nicknameY: 35 }
+};
+
+export function getCharConfig(charId) {
+    const defaults = CHAR_DEFAULTS[charId] || { walkSpeed: 1, animSpeed: 1, scale: 1, nicknameY: 0 };
+    return { ...defaults, ...state.characterConfig[charId] };
+}
+
 export async function loadAnchorConfig() {
     try {
         const res = await fetch('/api/anchor');
@@ -231,67 +272,15 @@ export function updateAnchorStyles(charId, x, y) {
     document.documentElement.style.setProperty(`--anchor-y-${charId}`, `${y}%`);
 }
 
-export function initAnchorAdjuster() {
-  const { anchorCharSelector, inputAnchorX, inputAnchorY, valAnchorX, valAnchorY } = dom;
-  if (!inputAnchorX || !inputAnchorY || !anchorCharSelector) return;
-
-  const updateSlidersFromState = () => {
-    const charId = anchorCharSelector.value;
-    const anchor = state.characterAnchors[charId] || { x: 50, y: 85 };
-    inputAnchorX.value = anchor.x;
-    inputAnchorY.value = anchor.y;
-    valAnchorX.textContent = anchor.x;
-    valAnchorY.textContent = anchor.y;
-  };
-
-  const syncUI = () => {
-    const charId = anchorCharSelector.value;
-    const x = inputAnchorX.value;
-    const y = inputAnchorY.value;
-    
-    if (!state.characterAnchors[charId]) state.characterAnchors[charId] = { x: 50, y: 85 };
-    state.characterAnchors[charId].x = Number(x);
-    state.characterAnchors[charId].y = Number(y);
-    
-    valAnchorX.textContent = x;
-    valAnchorY.textContent = y;
-    
-    updateAnchorStyles(charId, x, y);
-  };
-
-  anchorCharSelector.addEventListener('change', updateSlidersFromState);
-  inputAnchorX.addEventListener('input', syncUI);
-  inputAnchorY.addEventListener('input', syncUI);
-  
-  const btnReset = document.querySelector('#btn-anchor-reset');
-  const btnCancel = document.querySelector('#btn-anchor-cancel');
-  const btnSave = document.querySelector('#btn-anchor-save');
-
-  if (btnReset) {
-      btnReset.onclick = () => {
-          const charId = anchorCharSelector.value;
-          state.characterAnchors[charId] = { x: 50, y: 85 };
-          updateSlidersFromState();
-          syncUI();
-          showToast('info', '🔄', `Anchor for ${charId} reset to default`);
-      };
-  }
-
-  if (btnCancel) {
-      btnCancel.onclick = () => {
-          import('./devtool.js').then(m => m.exitDevMode(false));
-          showToast('info', '📂', 'Dev Mode: OFF (Discarded)');
-      };
-  }
-
-  if (btnSave) {
-      btnSave.onclick = async () => {
-          await saveAnchorConfig(state.characterAnchors);
-      };
-  }
-
-  updateSlidersFromState();
+export function updateCharacterScale(charId, scale) {
+    document.documentElement.style.setProperty(`--char-scale-${charId}`, scale);
 }
+
+export function updateNicknameOffset(charId, offset) {
+    document.documentElement.style.setProperty(`--char-nickname-y-${charId}`, `${offset}px`);
+}
+
+// initAnchorAdjuster was moved into the Characters dev mode panel (devtool.js)
 
 export async function loadBreakPositions() {
     try {

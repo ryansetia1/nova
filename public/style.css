@@ -1030,78 +1030,161 @@ body.show-visuals .robot-anchor-dot {
   display: block;
 }
 
-/* Anchor Adjuster UI Styles */
-.anchor-adjuster {
-  position: fixed;
-  top: 100px;
-  left: 70px;
-  width: 220px;
-  background: rgba(13, 17, 28, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--accent-primary);
-  border-radius: 12px;
-  padding: 16px;
-  z-index: 10000;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s, opacity 0.4s;
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
 /* Shift dev panels when left sidebar is open */
-body.sidebar-expanded .anchor-adjuster,
 body.sidebar-expanded #dev-pos-config,
-body.sidebar-expanded #dev-layout-config {
+body.sidebar-expanded #dev-layout-config,
+body.sidebar-expanded #dev-char-config {
   left: 270px !important;
 }
 
 /* Base styles for dynamic dev panels to enable transition */
-#dev-pos-config, #dev-layout-config {
+#dev-pos-config, #dev-layout-config, #dev-char-config {
   transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s, opacity 0.4s !important;
 }
 
-body:not(.show-visuals) .anchor-adjuster {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(20px);
+/* ── Character Config Panel (🎭 Characters mode) ── */
+.dev-char-config {
+  position: fixed;
+  top: 80px;
+  left: 70px;
+  width: 240px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  background: rgba(13, 17, 28, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid #ec4899;
+  border-radius: 12px;
+  z-index: 45000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.3) transparent;
 }
 
-.adjuster-header {
+.dev-char-config.hidden {
+  display: none;
+}
+
+.dev-char-header {
   font-size: 13px;
   font-weight: 700;
-  color: var(--accent-primary);
-  margin-bottom: 12px;
+  color: #ec4899;
+  padding: 16px 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.adjust-group {
-  margin-bottom: 12px;
+.dev-char-body {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.adjust-group label {
+.dev-char-section {
+  margin-bottom: 4px;
+}
+
+.dev-char-section select {
+  width: 100%;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dev-char-section input[type="range"] {
+  width: 100%;
+  accent-color: #ec4899;
+  margin-top: 2px;
+}
+
+.dev-char-label {
   display: block;
   font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 4px;
 }
 
-.adjust-group input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent-primary);
+.dev-char-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
-.adjust-hint {
+.dev-char-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 6px 0;
+}
+
+.dev-char-hint {
   font-size: 10px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.35);
   font-style: italic;
+  margin-top: 2px;
+}
+
+.dev-char-anim-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.dev-char-anim-tag {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: rgba(236, 72, 153, 0.1);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dev-char-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.dev-char-actions button {
+  flex: 1;
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  transition: all 0.15s;
+}
+
+.dev-char-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dev-char-actions button.primary {
+  background: #ec4899;
+  border-color: #ec4899;
+  color: #fff;
+}
+
+.dev-char-actions button.primary:hover {
+  background: #db2777;
 }
 
 /* Hide distracting elements in Draw/Tweak mode */
 body.dev-mode-draw .workspace-object,
 body.dev-mode-tweak .workspace-object,
-body.dev-mode-draw .anchor-adjuster,
-body.dev-mode-tweak .anchor-adjuster,
+body.dev-mode-draw #dev-char-config,
+body.dev-mode-tweak #dev-char-config,
 body.dev-mode-draw .layout-delete-btn,
 body.dev-mode-tweak .layout-delete-btn {
   display: none !important;
@@ -1211,13 +1294,13 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   margin-bottom: 4px;
 }
 .char-parent-Char1 .robot-label.top {
-  transform: translateY(-10px);
+  transform: translateY(var(--char-nickname-y-Char1, -10px));
 }
 .char-parent-Char2 .robot-label.top {
-  transform: translateY(35px);
+  transform: translateY(var(--char-nickname-y-Char2, 35px));
 }
 .char-parent-Char2 .robot-thought-bubble {
-  top: 50px !important;
+  top: var(--char-nickname-y-Char2, 50px) !important;
 }
 
 .robot-label.bottom {
@@ -1243,10 +1326,10 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   transition: transform var(--transition-base);
 }
 .robot-sprite-container.char-Char1 {
-  transform: scale(1.1);
+  transform: scale(var(--char-scale-Char1, 1.1));
 }
 .robot-sprite-container.char-Char2 {
-  transform: scale(0.7);
+  transform: scale(var(--char-scale-Char2, 0.7));
 }
 
 .robot-char-sprite {

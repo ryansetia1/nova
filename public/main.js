@@ -26,9 +26,9 @@ import {
 import { 
     loadWalkablePath, 
     loadAnchorConfig, 
+    loadCharacterConfig,
     startWalkingLoop, 
     bindHoverListeners, 
-    initAnchorAdjuster,
     loadBreakPositions,
     loadForegroundObjects,
     loadAmbientObjects,
@@ -71,6 +71,7 @@ async function init() {
     
     await loadWalkablePath(); 
     await loadAnchorConfig(); 
+    await loadCharacterConfig();
     await loadBreakPositions();
     await loadForegroundObjects();
     await loadAmbientObjects();
@@ -86,7 +87,6 @@ async function init() {
     bindHoverListeners();
     initDevTool(); 
     initEmojiPopover();
-    initAnchorAdjuster();
     initThemeControl();
     initServiceSelector();
     initClaudeMdModal();
