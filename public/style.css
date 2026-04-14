@@ -733,7 +733,8 @@ body.is-fullscreen #header.reveal-padding {
   align-items: center;
   justify-content: center;
   min-height: 0;
-  padding: 20px 20px 40px 20px; /* Reduced bottom padding to keep it closer to the bottom */
+  padding: 20px 20px 40px 20px;
+  transition: transform 0.15s ease;
 }
 
 /* 1:1 Wrapper for precise coordinates regardless of screen width */

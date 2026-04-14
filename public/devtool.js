@@ -20,11 +20,21 @@ export const dev = {
     draggingPositionIndex: null, 
     draggingObjectIndex: null,
     draggingAmbientIndex: null,
-    editingPosition: null, // index of break position being edited
-    editingObject: null, // index of foreground object being edited
-    editingAmbient: null, // index of ambient object being edited
-    availableAnimationsMap: {}, // { charId: [animations] }
-    resizeStart: { w:0, h:0, x:0, y:0 }
+    editingPosition: null,
+    editingObject: null,
+    editingAmbient: null,
+    availableAnimationsMap: {},
+    resizeStart: { w:0, h:0, x:0, y:0 },
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    panStartX: 0,
+    panStartY: 0,
+    _wheelHandler: null,
+    _mouseDownHandler: null,
+    _mouseMoveHandler: null,
+    _mouseUpHandler: null
 };
 
 function getNextDefaultName(type, asset = null) {
@@ -176,6 +186,87 @@ function onPositionUp() {
     document.removeEventListener('mouseup', onPositionUp);
 }
 
+// ─── Dev Zoom & Pan ──────────────────────────────────────────────────
+
+function applyDevTransform() {
+    const floor = document.getElementById('office-floor');
+    if (!floor) return;
+    floor.style.transform = `scale(${dev.zoom}) translate(${dev.panX}px, ${dev.panY}px)`;
+    floor.style.transformOrigin = 'center center';
+    
+    const label = document.getElementById('dev-zoom-label');
+    if (label) label.textContent = `${Math.round(dev.zoom * 100)}%`;
+}
+
+function devZoom(delta) {
+    dev.zoom = Math.round(Math.max(0.3, Math.min(3, dev.zoom + delta)) * 100) / 100;
+    applyDevTransform();
+}
+
+function devZoomReset() {
+    dev.zoom = 1;
+    dev.panX = 0;
+    dev.panY = 0;
+    applyDevTransform();
+}
+
+function attachDevZoomPan() {
+    const floor = document.getElementById('office-floor');
+    if (!floor) return;
+
+    // Scroll wheel zoom
+    dev._wheelHandler = (e) => {
+        if (!dev.isActive) return;
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        devZoom(delta);
+    };
+    floor.addEventListener('wheel', dev._wheelHandler, { passive: false });
+    
+    // Middle-click panning
+    dev._mouseDownHandler = (e) => {
+        if (!dev.isActive) return;
+        if (e.button !== 1) return; // middle click only
+        e.preventDefault();
+        dev.isPanning = true;
+        dev.panStartX = e.clientX - dev.panX;
+        dev.panStartY = e.clientY - dev.panY;
+        floor.style.cursor = 'grabbing';
+    };
+    floor.addEventListener('mousedown', dev._mouseDownHandler);
+    
+    dev._mouseMoveHandler = (e) => {
+        if (!dev.isPanning) return;
+        dev.panX = e.clientX - dev.panStartX;
+        dev.panY = e.clientY - dev.panStartY;
+        applyDevTransform();
+    };
+    document.addEventListener('mousemove', dev._mouseMoveHandler);
+    
+    dev._mouseUpHandler = (e) => {
+        if (!dev.isPanning) return;
+        dev.isPanning = false;
+        floor.style.cursor = '';
+    };
+    document.addEventListener('mouseup', dev._mouseUpHandler);
+}
+
+function detachDevZoomPan() {
+    const floor = document.getElementById('office-floor');
+    if (floor) {
+        if (dev._wheelHandler) floor.removeEventListener('wheel', dev._wheelHandler);
+        if (dev._mouseDownHandler) floor.removeEventListener('mousedown', dev._mouseDownHandler);
+        floor.style.transform = '';
+        floor.style.transformOrigin = '';
+    }
+    if (dev._mouseMoveHandler) document.removeEventListener('mousemove', dev._mouseMoveHandler);
+    if (dev._mouseUpHandler) document.removeEventListener('mouseup', dev._mouseUpHandler);
+    
+    dev.zoom = 1;
+    dev.panX = 0;
+    dev.panY = 0;
+}
+
 function enterDevMode() {
     dev.originalPolygon = JSON.parse(JSON.stringify(WALKABLE_PATH));
     dev.originalPositions = JSON.parse(JSON.stringify(state.breakPositions));
@@ -183,6 +274,8 @@ function enterDevMode() {
     dev.originalAmbientObjects = JSON.parse(JSON.stringify(state.ambientObjects));
     dev.originalAnchors = JSON.parse(JSON.stringify(state.characterAnchors));
     dev.originalCharConfig = JSON.parse(JSON.stringify(state.characterConfig));
+    
+    attachDevZoomPan();
     
     dev.polygon = [...WALKABLE_PATH];
     document.body.classList.add('drawing-mode');
@@ -308,6 +401,8 @@ function renderDevSidebar() {
 }
 
 export function exitDevMode(save = true) {
+    detachDevZoomPan();
+    
     document.body.classList.remove('drawing-mode');
     document.body.classList.remove('layout-mode');
     document.body.classList.remove('theatre-mode');
@@ -384,6 +479,8 @@ function showDevToolbar() {
     
     const btnStyle = 'padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; cursor:pointer; font-size:12px; transition:all 0.2s;';
     
+    const zoomPct = Math.round((dev.zoom || 1) * 100);
+    
     dev.toolbar.innerHTML = `
         <button id="dev-btn-visualize" style="${btnStyle} ${dev.mode === 'visualize' ? 'background:#8b5cf6; border-color:#8b5cf6;' : ''}">⚓ Visualize</button>
         <button id="dev-btn-characters" style="${btnStyle} ${dev.mode === 'characters' ? 'background:#ec4899; border-color:#ec4899;' : ''}">🎭 Characters</button>
@@ -392,6 +489,13 @@ function showDevToolbar() {
         <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
         <button id="dev-btn-layout" style="${btnStyle} ${dev.mode === 'layout' ? 'background:#10b981; border-color:#10b981;' : ''}">📐 Layout</button>
         <button id="dev-btn-theatre" style="${btnStyle} ${dev.mode === 'theatre' ? 'background:#d97706; border-color:#d97706;' : ''}">🎬 Theatre</button>
+        <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
+        <div style="display:flex; align-items:center; gap:4px;">
+            <button id="dev-btn-zoom-out" style="${btnStyle} padding:6px 8px;" title="Zoom Out (Scroll Down)">−</button>
+            <span id="dev-zoom-label" style="color:#fff; font-size:10px; min-width:36px; text-align:center; opacity:0.7;">${zoomPct}%</span>
+            <button id="dev-btn-zoom-in" style="${btnStyle} padding:6px 8px;" title="Zoom In (Scroll Up)">+</button>
+            <button id="dev-btn-zoom-reset" style="${btnStyle} padding:6px 8px; font-size:10px;" title="Reset Zoom">⌂</button>
+        </div>
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
         <button id="dev-btn-cancel" style="${btnStyle}">❌ Cancel</button>
@@ -417,6 +521,11 @@ function showDevToolbar() {
         else dev.polygon = []; 
         renderActivePath(); 
     };
+
+    // Zoom controls
+    dev.toolbar.querySelector('#dev-btn-zoom-in').onclick = (e) => { e.stopPropagation(); devZoom(0.15); };
+    dev.toolbar.querySelector('#dev-btn-zoom-out').onclick = (e) => { e.stopPropagation(); devZoom(-0.15); };
+    dev.toolbar.querySelector('#dev-btn-zoom-reset').onclick = (e) => { e.stopPropagation(); devZoomReset(); };
 
     dev.toolbar.querySelector('#dev-btn-cancel').onclick = () => { dev.isActive = false; exitDevMode(false); hidePositionConfig(); hideLayoutConfig(); hideAmbientConfig(); };
     dev.toolbar.querySelector('#dev-btn-save').onclick = () => { dev.isActive = false; exitDevMode(true); hidePositionConfig(); hideLayoutConfig(); hideAmbientConfig(); };
