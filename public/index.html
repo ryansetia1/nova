@@ -153,6 +153,9 @@
             <div class="settings-divider"></div>
             <div id="default-folder-setting" class="default-folder-setting"></div>
             <div class="settings-divider"></div>
+            <div class="settings-label">Agent Management</div>
+            <button id="manage-schedules-btn" class="settings-menu-btn">📅 Manage Schedules</button>
+            <div class="settings-divider"></div>
             <div class="settings-label">Music & Sound</div>
             <button id="manage-music-btn" class="settings-menu-btn">🎵 Manage Playlist</button>
           </div>
@@ -670,6 +673,168 @@ This project is [describe project].
       <div class="modal-footer">
         <button id="music-close-btn" class="btn btn-ghost">Close</button>
         <button id="music-save-btn" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Management Modal -->
+  <div id="schedule-modal" class="modal-overlay hidden">
+    <div class="modal schedule-modal">
+      <div class="modal-header">
+        <span class="modal-icon">📅</span>
+        <h3>Agent Schedules</h3>
+      </div>
+      <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+        <div id="schedule-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="schedule-close-footer-btn" class="btn btn-ghost">Close</button>
+        <button id="schedule-add-btn" class="btn btn-primary">+ Add Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Add/Edit Form Modal -->
+  <div id="schedule-form-modal" class="modal-overlay schedule-modal hidden">
+    <div class="modal" style="max-width: 480px;">
+      <div class="modal-header">
+        <span class="modal-icon">📅</span>
+        <h3 id="sched-form-title">Add New Schedule</h3>
+      </div>
+      <div class="modal-body schedule-form-modal">
+        <!-- Mode -->
+        <div class="mode-section">
+          <span class="sched-section-label">Mode</span>
+          <div class="sched-radio-group">
+            <label class="sched-radio-label">
+              <input type="radio" name="sched-mode" value="broadcast" checked>
+              <span>🌍 Broadcast (all agents)</span>
+            </label>
+            <label class="sched-radio-label">
+              <input type="radio" name="sched-mode" value="per_agent">
+              <span>👤 Per Agent</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Agent (per agent only) -->
+        <div class="modal-row" id="sched-agent-group" style="display:none;">
+          <label>Agent</label>
+          <div id="sched-agent-dropdown" class="custom-dropdown">
+            <div class="custom-dropdown-selected" id="sched-agent-selected">
+              <span class="dropdown-placeholder">Select an agent</span>
+              <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            <div class="custom-dropdown-list" id="sched-agent-list"></div>
+          </div>
+          <input type="hidden" id="sched-agent" name="sched-agent">
+        </div>
+        
+        <!-- Name -->
+        <div class="modal-row">
+          <label for="sched-name">Schedule Name</label>
+          <input type="text" id="sched-name" placeholder="e.g. Coffee Break" class="form-input">
+        </div>
+        
+        <!-- Timing type -->
+        <div class="timing-section">
+          <span class="sched-section-label">Timing</span>
+          <div class="sched-radio-group">
+            <label class="sched-radio-label">
+              <input type="radio" name="sched-timing" value="specific" checked>
+              <span>🕐 At specific time</span>
+            </label>
+            <label class="sched-radio-label">
+              <input type="radio" name="sched-timing" value="interval">
+              <span>⏱️ Every interval</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Specific time (AM/PM) -->
+        <div class="modal-row" id="sched-time-group">
+          <label>Time</label>
+          <div class="sched-time-picker">
+            <input type="number" id="sched-hour" class="form-input sched-time-input" min="1" max="12" value="12" placeholder="HH">
+            <span class="sched-time-sep">:</span>
+            <input type="number" id="sched-minute" class="form-input sched-time-input" min="0" max="59" value="00" placeholder="MM">
+            <select id="sched-ampm" class="form-select sched-time-ampm">
+              <option value="AM">AM</option>
+              <option value="PM" selected>PM</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Days -->
+        <div id="sched-days-group">
+          <label class="sched-section-label" style="margin-bottom: 12px;">Days</label>
+          <div class="sched-days-row">
+            <label class="sched-day-chip"><input type="checkbox" value="0" checked><span>Sun</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="1" checked><span>Mon</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="2" checked><span>Tue</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="3" checked><span>Wed</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="4" checked><span>Thu</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="5" checked><span>Fri</span></label>
+            <label class="sched-day-chip"><input type="checkbox" value="6" checked><span>Sat</span></label>
+          </div>
+        </div>
+        
+        <!-- Interval -->
+        <div class="modal-row" id="sched-interval-group" style="display:none;">
+          <label for="sched-interval">Interval</label>
+          <select id="sched-interval" class="form-select">
+            <option value="15m">Every 15 minutes</option>
+            <option value="30m">Every 30 minutes</option>
+            <option value="1h">Every 1 hour</option>
+            <option value="2h" selected>Every 2 hours</option>
+            <option value="3h">Every 3 hours</option>
+            <option value="4h">Every 4 hours</option>
+            <option value="custom">Custom...</option>
+          </select>
+          <div id="sched-interval-custom" class="sched-custom-interval" style="display:none;">
+            <div class="sched-custom-interval-row">
+              <div class="sched-custom-interval-field">
+                <input type="number" id="sched-custom-hours" min="0" max="23" value="0" class="form-input sched-num-input">
+                <span class="sched-custom-label">hours</span>
+              </div>
+              <div class="sched-custom-interval-field">
+                <input type="number" id="sched-custom-minutes" min="0" max="59" value="30" class="form-input sched-num-input">
+                <span class="sched-custom-label">minutes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Duration -->
+        <div class="modal-row">
+          <label for="sched-duration">Duration</label>
+          <select id="sched-duration" class="form-select">
+            <option value="30">30 seconds</option>
+            <option value="60" selected>1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="180">3 minutes</option>
+            <option value="300">5 minutes</option>
+          </select>
+        </div>
+        
+        <!-- Action -->
+        <div class="modal-row">
+          <label for="sched-action">Action</label>
+          <select id="sched-action" class="form-select"></select>
+          <p class="modal-hint" style="margin-top:4px; font-size:12px; opacity:0.6;">Actions are created in Dev Mode (Ctrl+D → Actions tab)</p>
+        </div>
+        
+        <!-- Enabled -->
+        <div class="sched-enable-row">
+          <input type="checkbox" id="sched-enabled" checked>
+          <label for="sched-enabled">Activate immediately</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="sched-form-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="sched-form-save" class="btn btn-primary">Save Schedule</button>
       </div>
     </div>
   </div>

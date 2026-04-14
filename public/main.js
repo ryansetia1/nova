@@ -30,7 +30,7 @@ import {
     loadCharacterConfig,
     startWalkingLoop, 
     bindHoverListeners, 
-    loadBreakPositions,
+    loadActions,
     loadForegroundObjects,
     loadAmbientObjects,
     moveToPosition
@@ -63,6 +63,13 @@ import {
     hideTerminal,
     updateDockedLayout
 } from './terminal.js';
+import { 
+    initScheduler,
+    shutdownScheduler
+} from './scheduler.js';
+import { 
+    initScheduleUI
+} from './schedule-ui.js';
 
 // ---- Initialization ----
 async function init() {
@@ -73,7 +80,7 @@ async function init() {
     await loadWalkablePath(); 
     await loadAnchorConfig(); 
     await loadCharacterConfig();
-    await loadBreakPositions();
+    await loadActions();
     await loadForegroundObjects();
     await loadAmbientObjects();
     initSidebar();
@@ -84,6 +91,18 @@ async function init() {
     initYouTubePlayer(); 
     loadProjects();
     bindEvents();
+    
+    // Initialize the scheduler after projects are loaded
+    initScheduler();
+    
+    // Initialize schedule management UI
+    initScheduleUI();
+    
+    // Setup scheduler cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        shutdownScheduler();
+    });
+    
     startWalkingLoop();
     bindHoverListeners();
     initDevTool(); 

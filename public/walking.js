@@ -282,35 +282,33 @@ export function updateNicknameOffset(charId, offset) {
 
 // initAnchorAdjuster was moved into the Characters dev mode panel (devtool.js)
 
-export async function loadBreakPositions() {
+export async function loadActions() {
     try {
-        const res = await fetch('/api/break-positions');
+        const res = await fetch('/api/actions');
         const data = await res.json();
         if (Array.isArray(data)) {
-            state.breakPositions = data;
+            state.actions = data;
         }
-    } catch (err) { console.error('Failed to load break positions', err); }
+    } catch (err) { console.error('Failed to load actions', err); }
 }
 
-export async function saveBreakPositions(positions) {
+export async function saveActions(actions) {
     try {
-        const res = await fetch('/api/break-positions', {
+        const res = await fetch('/api/actions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ positions })
+            body: JSON.stringify({ actions })
         });
         if (res.ok) {
-            state.breakPositions = positions;
-            showToast('success', '☕', 'Break positions saved!');
+            state.actions = actions;
+            showToast('success', '☕', 'Actions saved!');
             renderActivePath();
             
-            // Re-render objects in case association changed
             renderForegroundObjects();
             
-            // Refresh all terminal activity bars
             import('./terminal.js').then(m => m.renderAllActivityBars());
         }
-    } catch (err) { showToast('error', '❌', 'Failed to save positions'); }
+    } catch (err) { showToast('error', '❌', 'Failed to save actions'); }
 }
 
 export async function loadForegroundObjects() {
@@ -377,31 +375,47 @@ export async function loadObjectAssets() {
     } catch (err) { console.error('Failed to load object assets', err); }
 }
 
-export function moveToPosition(pName, positionId) {
+export function moveToPosition(pName, positionId, { fromScheduler = false, offsetX = 0, offsetY = 0 } = {}) {
     const r = state.walkingRobots[pName];
     if (!r) return;
-    const pos = state.breakPositions.find(p => p.id === positionId);
-    // Toggle: if already moving to or at this specific position target, cancel it
-    if (r.forcedTarget && r.forcedTarget.id === pos.id) {
+    const pos = state.actions.find(p => p.id === positionId);
+    if (!pos) return;
+    
+    // Toggle: if already at this position, cancel it (unless called from scheduler)
+    if (!fromScheduler && r.forcedTarget && r.forcedTarget.id === pos.id) {
         r.forcedTarget = null;
-        r.naturalIdleTimer = 0; // Return to natural AI
+        r.naturalIdleTimer = 0;
         import('./terminal.js').then(m => m.renderAllActivityBars());
         return;
     }
 
-    r.forcedTarget = { id: pos.id, x: pos.x, y: pos.y, animation: pos.animation };
+    r.forcedTarget = { id: pos.id, x: pos.x + offsetX, y: pos.y + offsetY, animation: pos.animation };
     r.isWalking = true;
-    r.tx = pos.x; r.ty = pos.y;
+    r.tx = pos.x + offsetX;
+    r.ty = pos.y + offsetY;
     
     import('./terminal.js').then(m => m.renderAllActivityBars());
 
-    // Optional: Send command if defined
     if (pos.command) {
         const t = state.terminals[pName];
         if (t && t.send) {
             t.send(pos.command + '\n');
         }
     }
+}
+
+// Clear an agent's forced target so they resume random walking
+export function clearForcedTarget(pName) {
+    const r = state.walkingRobots[pName];
+    if (!r) return;
+    r.forcedTarget = null;
+    r.activity = null;
+    r.naturalIdleTimer = 0;
+    r.isWalking = true;
+    const next = pickSafePoint();
+    r.tx = next.x;
+    r.ty = next.y;
+    import('./terminal.js').then(m => m.renderAllActivityBars());
 }
 
 export function bindHoverListeners() {

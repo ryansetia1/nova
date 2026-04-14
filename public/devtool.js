@@ -49,8 +49,8 @@ function getNextDefaultName(type, asset = null) {
         const existingCount = state.ambientObjects.filter(p => p.name && p.name.startsWith('Ambient')).length;
         return `Ambient ${existingCount + 1}`;
     } else {
-        const existingCount = state.breakPositions.filter(p => p.name && p.name.startsWith('Position')).length;
-        return `Position ${existingCount + 1}`;
+        const existingCount = state.actions.filter(p => p.name && p.name.startsWith('Action')).length;
+        return `Action ${existingCount + 1}`;
     }
 }
 
@@ -87,7 +87,7 @@ export function initDevTool() {
                     document.addEventListener('mouseup', onTweakUp);
                 }
             } else if (dev.mode === 'positions') {
-                const hitIndex = state.breakPositions.findIndex(p => Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2)) < 3);
+                const hitIndex = state.actions.findIndex(p => Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2)) < 3);
                 if (hitIndex !== -1) {
                     dev.draggingPositionIndex = hitIndex;
                     dev.editingPosition = hitIndex;
@@ -175,8 +175,8 @@ function onPositionMove(e) {
     pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(dev.svg.getScreenCTM().inverse());
     
-    state.breakPositions[dev.draggingPositionIndex].x = svgP.x;
-    state.breakPositions[dev.draggingPositionIndex].y = svgP.y;
+    state.actions[dev.draggingPositionIndex].x = svgP.x;
+    state.actions[dev.draggingPositionIndex].y = svgP.y;
     renderActivePath();
 }
 
@@ -307,7 +307,7 @@ function detachDevZoomPan() {
 
 function enterDevMode() {
     dev.originalPolygon = JSON.parse(JSON.stringify(WALKABLE_PATH));
-    dev.originalPositions = JSON.parse(JSON.stringify(state.breakPositions));
+    dev.originalPositions = JSON.parse(JSON.stringify(state.actions));
     dev.originalObjects = JSON.parse(JSON.stringify(state.foregroundObjects));
     dev.originalAmbientObjects = JSON.parse(JSON.stringify(state.ambientObjects));
     dev.originalAnchors = JSON.parse(JSON.stringify(state.characterAnchors));
@@ -347,8 +347,8 @@ function renderDevSidebar() {
 
     sidebar.classList.remove('hidden');
     
-    const entities = isPositions ? state.breakPositions : (isLayout ? state.foregroundObjects : state.ambientObjects);
-    const title = isPositions ? 'Workspace Positions' : (isLayout ? 'Workspace Objects' : 'Ambient Objects');
+    const entities = isPositions ? state.actions : (isLayout ? state.foregroundObjects : state.ambientObjects);
+    const title = isPositions ? 'Workspace Actions' : (isLayout ? 'Workspace Objects' : 'Ambient Objects');
     const icon = isPositions ? '📍' : (isLayout ? '📦' : '🎬');
 
     sidebar.innerHTML = `
@@ -357,7 +357,7 @@ function renderDevSidebar() {
             ${entities.map((ent, i) => `
                 <div class="dev-entity-item ${ (isPositions ? dev.editingPosition : (isLayout ? dev.editingObject : dev.editingAmbient)) === i ? 'active' : ''}" data-index="${i}">
                     <span style="font-size:14px;">${ent.emoji || (isPositions ? '📍' : (isLayout ? (state.objectAssets.includes(ent.asset) ? '📦' : '❓') : '🎬'))}</span>
-                    <span class="dev-entity-name">${ent.name || (isPositions ? 'Position ' + (i+1) : (isLayout ? ent.asset : 'Ambient ' + (i+1)))}</span>
+                    <span class="dev-entity-name">${ent.name || (isPositions ? 'Action ' + (i+1) : (isLayout ? ent.asset : 'Ambient ' + (i+1)))}</span>
                     <span class="dev-entity-delete" data-index="${i}">✕</span>
                 </div>
             `).join('')}
@@ -365,7 +365,7 @@ function renderDevSidebar() {
             
             <button id="dev-sidebar-add-btn" class="dev-sidebar-main-btn" style="margin-top: 12px; height: 36px; gap: 10px;">
                 <span style="font-size: 18px; font-weight: 400; line-height: 1;">+</span>
-                <span>${isPositions ? 'Add Position' : (isLayout ? 'Add Object' : 'Add Iframe')}</span>
+                <span>${isPositions ? 'Add Action' : (isLayout ? 'Add Object' : 'Add Iframe')}</span>
             </button>
         </div>
     `;
@@ -376,9 +376,9 @@ function renderDevSidebar() {
             if (isPositions) {
                 const id = 'pos_' + Date.now();
                 const name = getNextDefaultName('position');
-                state.breakPositions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', assignee: 'All Agents', objectId: null });
-                dev.editingPosition = state.breakPositions.length - 1;
-                showPositionConfig(state.breakPositions.length - 1);
+                state.actions.push({ id, name, x: 50, y: 50, emoji: '☕', animation: 'coffee', command: '', objectId: null });
+                dev.editingPosition = state.actions.length - 1;
+                showPositionConfig(state.actions.length - 1);
             } else if (isLayout) {
                 const id = 'obj_' + Date.now();
                 const asset = state.objectAssets[0] || 'dispenser';
@@ -421,7 +421,7 @@ function renderDevSidebar() {
             e.stopPropagation();
             const idx = parseInt(btn.getAttribute('data-index'));
             if (isPositions) {
-                state.breakPositions.splice(idx, 1);
+                state.actions.splice(idx, 1);
                 hidePositionConfig();
             } else if (isLayout) {
                 state.foregroundObjects.splice(idx, 1);
@@ -460,7 +460,7 @@ export function exitDevMode(save = true) {
     if (save) {
         if (dev.polygon.length >= 3) saveWalkablePath(dev.polygon);
         import('./walking.js').then(m => {
-            if (state.breakPositions.length > 0) m.saveBreakPositions(state.breakPositions);
+            if (state.actions.length > 0) m.saveActions(state.actions);
             if (state.foregroundObjects.length > 0) m.saveForegroundObjects(state.foregroundObjects);
             if (state.ambientObjects.length > 0) m.saveAmbientObjects(state.ambientObjects);
         });
@@ -468,7 +468,7 @@ export function exitDevMode(save = true) {
         saveCharacterConfig(state.characterConfig);
     } else {
         dev.polygon = [...dev.originalPolygon];
-        state.breakPositions = JSON.parse(JSON.stringify(dev.originalPositions));
+        state.actions = JSON.parse(JSON.stringify(dev.originalPositions));
         state.foregroundObjects = JSON.parse(JSON.stringify(dev.originalObjects));
         state.ambientObjects = JSON.parse(JSON.stringify(dev.originalAmbientObjects));
         
@@ -524,7 +524,7 @@ function showDevToolbar() {
         <button id="dev-btn-characters" style="${btnStyle} ${dev.mode === 'characters' ? 'background:#ec4899; border-color:#ec4899;' : ''}">🎭 Characters</button>
         <button id="dev-btn-draw" style="${btnStyle} ${dev.mode === 'draw' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🖋️ Draw</button>
         <button id="dev-btn-tweak" style="${btnStyle} ${dev.mode === 'tweak' ? 'background:#3b82f6; border-color:#3b82f6;' : ''}">🎯 Tweak</button>
-        <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Positions</button>
+        <button id="dev-btn-positions" style="${btnStyle} ${dev.mode === 'positions' ? 'background:#6366f1; border-color:#6366f1;' : ''}">📍 Actions</button>
         <button id="dev-btn-layout" style="${btnStyle} ${dev.mode === 'layout' ? 'background:#10b981; border-color:#10b981;' : ''}">📐 Layout</button>
         <button id="dev-btn-theatre" style="${btnStyle} ${dev.mode === 'theatre' ? 'background:#d97706; border-color:#d97706;' : ''}">🎬 Theatre</button>
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
@@ -552,7 +552,7 @@ function showDevToolbar() {
     if (theatreBtn) theatreBtn.onclick = (e) => { e.stopPropagation(); setDevMode('theatre'); };
     
     dev.toolbar.querySelector('#dev-btn-clear').onclick = () => { 
-        if (dev.mode === 'positions') state.breakPositions = [];
+        if (dev.mode === 'positions') state.actions = [];
         else if (dev.mode === 'layout') { state.foregroundObjects = []; import('./ui.js').then(m => m.renderForegroundObjects()); }
         else if (dev.mode === 'theatre') { state.ambientObjects = []; import('./ui.js').then(m => m.renderAmbientObjects()); }
         else if (dev.mode === 'characters') { /* no-op for characters */ }
@@ -570,7 +570,7 @@ function showDevToolbar() {
 }
 
 function showPositionConfig(index) {
-    const pos = state.breakPositions[index];
+    const pos = state.actions[index];
     if (!pos) return;
 
     let panel = document.querySelector('#dev-pos-config');
@@ -584,36 +584,23 @@ function showPositionConfig(index) {
     }
     panel.classList.remove('hidden');
 
-    // Get animations based on assignment
+    // Get union of all animations across active agents
+    const activeCharIds = [...new Set(state.projects
+        .filter(p => p.active)
+        .map(p => (p.emoji && p.emoji.startsWith('SPRITE:')) ? p.emoji.split(':')[1] : 'Char1'))];
+    
     let animations = [];
-    if (!pos.assignee || pos.assignee === 'All Agents') {
-        // Intersection of animations across all ACTIVE agents' models
-        const activeCharIds = [...new Set(state.projects
-            .filter(p => p.active)
-            .map(p => (p.emoji && p.emoji.startsWith('SPRITE:')) ? p.emoji.split(':')[1] : 'Char1'))];
-        
-        if (activeCharIds.length === 0) {
-            animations = ['Walk', 'Idle'];
-        } else {
-            // Start with animations of the first active character
-            animations = Object.keys(dev.availableAnimationsMap[activeCharIds[0]] || { 'Walk': 42, 'Idle': 80 });
-            // Intersect with the rest of the active characters
-            activeCharIds.forEach(id => {
-                const charAnims = Object.keys(dev.availableAnimationsMap[id] || { 'Walk': 42, 'Idle': 80 });
-                animations = animations.filter(a => charAnims.includes(a));
-            });
-        }
+    if (activeCharIds.length === 0) {
+        animations = ['Walk', 'Idle'];
     } else {
-        const agent = state.projects.find(p => p.name === pos.assignee);
-        const charId = (agent?.emoji && agent.emoji.startsWith('SPRITE:')) ? agent.emoji.split(':')[1] : 'Char1';
-        animations = Object.keys(dev.availableAnimationsMap[charId] || { 'Walk': 42, 'Idle': 80 });
+        const allAnims = new Set();
+        activeCharIds.forEach(id => {
+            Object.keys(dev.availableAnimationsMap[id] || { 'Walk': 42, 'Idle': 80 }).forEach(a => allAnims.add(a));
+        });
+        animations = [...allAnims];
     }
 
     const animOptions = animations.map(a => `<option value="${a}" ${pos.animation === a ? 'selected' : ''}>${a}</option>`).join('');
-    const agentOptions = [
-        { name: 'All Agents', label: 'All Agents' },
-        ...state.projects.map(p => ({ name: p.name, label: p.nickname || p.name }))
-    ].map(opt => `<option value="${opt.name}" ${pos.assignee === opt.name ? 'selected' : ''}>${opt.label}</option>`).join('');
 
     const commonEmojis = ['☕', '🚬', '🛋️', '🍴', '🎧', '💤', '📖', '🚽', '🎮'];
     const emojiButtons = commonEmojis.map(e => 
@@ -621,10 +608,10 @@ function showPositionConfig(index) {
     ).join('');
 
     panel.innerHTML = `
-        <div style="font-weight:700; color:#6366f1; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Position</div>
+        <div style="font-weight:700; color:#6366f1; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Action</div>
         <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Name</label>
-            <input type="text" id="pos-name" value="${pos.name || ''}" placeholder="e.g. Position 1" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; margin-bottom:8px;">
+            <input type="text" id="pos-name" value="${pos.name || ''}" placeholder="e.g. Coffee Break" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; margin-bottom:8px;">
         </div>
         <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:6px;">Icon / Emoji</label>
@@ -632,12 +619,6 @@ function showPositionConfig(index) {
                 ${emojiButtons}
             </div>
             <input type="text" id="pos-emoji" value="${pos.emoji}" placeholder="Or type emoji..." style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; font-size:14px;">
-        </div>
-        <div>
-            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px; margin-top:4px;">Assignment (Which Agent?)</label>
-            <select id="pos-assignee" style="width:100%; height:32px; background:rgba(13,17,28,1); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px;">
-                ${agentOptions}
-            </select>
         </div>
         <div>
             <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Animation (Loop)</label>
@@ -658,26 +639,22 @@ function showPositionConfig(index) {
         </div>
     `;
 
-    renderDevSidebar(); // Sync sidebar selection
+    renderDevSidebar();
 
     panel.querySelectorAll('.pos-emoji-chip').forEach(btn => {
         btn.onclick = () => {
             pos.emoji = btn.textContent;
-            showPositionConfig(index); // Refresh to show active chip
+            showPositionConfig(index);
             renderActivePath();
         };
     });
 
     panel.querySelector('#pos-name').oninput = (e) => { pos.name = e.target.value; };
     panel.querySelector('#pos-emoji').oninput = (e) => { pos.emoji = e.target.value; renderActivePath(); };
-    panel.querySelector('#pos-assignee').onchange = (e) => { 
-        pos.assignee = e.target.value; 
-        showPositionConfig(index); // Re-render to update animations dropdown
-    };
     panel.querySelector('#pos-anim').onchange = (e) => { pos.animation = e.target.value; };
     panel.querySelector('#pos-object-id').onchange = (e) => { pos.objectId = e.target.value || null; import('./ui.js').then(m => m.renderForegroundObjects()); };
     panel.querySelector('#pos-delete').onclick = () => {
-        state.breakPositions.splice(index, 1);
+        state.actions.splice(index, 1);
         hidePositionConfig();
         renderActivePath();
     };
@@ -1319,16 +1296,16 @@ export function renderActivePath() {
             });
         }
 
-        // Render Break Positions - only in Positions/Layout mode
+        // Render Actions - only in Positions/Layout mode
         if (dev.mode === 'positions' || dev.mode === 'layout') {
-            state.breakPositions.forEach((pos, i) => {
+            state.actions.forEach((pos, i) => {
                 const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 const isPositionsMode = dev.mode === 'positions';
                 group.setAttribute('style', `cursor:${isPositionsMode ? 'pointer' : 'default'}; pointer-events:${isPositionsMode ? 'auto' : 'none'};`);
                 
                 group.onmousemove = (e) => {
                     if (!isPositionsMode) return;
-                    const name = pos.name || `Position ${i + 1}`;
+                    const name = pos.name || `Action ${i + 1}`;
                     showTooltip(name, e.clientX, e.clientY - 40);
                 };
                 group.onmouseleave = () => {

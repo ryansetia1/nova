@@ -355,7 +355,7 @@ export function renderForegroundObjects() {
     const suffix = isNight ? '_night' : '_day';
     
     container.innerHTML = state.foregroundObjects.map((obj, i) => {
-        const isLinked = state.breakPositions.some(p => p.objectId === obj.id);
+        const isLinked = state.actions.some(p => p.objectId === obj.id);
         const transform = `translate(-50%, -50%) rotate(${obj.rotation || 0}deg) scale(${obj.scale || 1})`;
         const zIndex = obj.layer === 'front' ? '20005' : '50';
         
@@ -524,14 +524,15 @@ window.handleObjectClick = async (objectId, event) => {
     const devModule = await import('./devtool.js');
     if (devModule?.dev?.isActive) return;
 
-    const pos = state.breakPositions.find(p => p.objectId === objectId);
-    if (!pos) return;
+    const action = state.actions.find(p => p.objectId === objectId);
+    if (!action) return;
 
-    // Trigger position action
-    let targetAgent = pos.assignee === 'All Agents' ? state.projects.find(p => p.active)?.name : pos.assignee;
-    
-    if (targetAgent && window.nova && window.nova.moveToPosition) {
-        window.nova.moveToPosition(targetAgent, pos.id);
+    // Trigger action for all active agents
+    const activeAgents = state.projects.filter(p => p.active);
+    if (activeAgents.length > 0 && window.nova && window.nova.moveToPosition) {
+        activeAgents.forEach(agent => {
+            window.nova.moveToPosition(agent.name, action.id);
+        });
     }
 };
 

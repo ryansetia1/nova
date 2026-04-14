@@ -1,0 +1,32 @@
+[
+  {
+    "id": "pos_1775984939462",
+    "name": "Coffee Break",
+    "x": 62.894737243652344,
+    "y": 78.09210968017578,
+    "emoji": "☕",
+    "animation": "coffee",
+    "command": "",
+    "objectId": "obj_1775991459757"
+  },
+  {
+    "id": "meeting_room",
+    "name": "Meeting Room",
+    "x": 77.02615356445312,
+    "y": 61.9383659362793,
+    "emoji": "📋",
+    "animation": "idle",
+    "command": "",
+    "objectId": null
+  },
+  {
+    "id": "quiet_zone",
+    "name": "Quiet Zone",
+    "x": 30.33576774597168,
+    "y": 67.8272476196289,
+    "emoji": "🤔",
+    "animation": "idle",
+    "command": "",
+    "objectId": null
+  }
+]

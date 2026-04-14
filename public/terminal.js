@@ -838,8 +838,7 @@ export function renderActivityBar(pName, panel = null) {
 
     const robot = state.walkingRobots[pName];
     
-    bar.innerHTML = state.breakPositions
-        .filter(pos => !pos.assignee || pos.assignee === 'All Agents' || pos.assignee === pName)
+    bar.innerHTML = state.actions
         .map(pos => {
             const isActive = robot?.forcedTarget?.id === pos.id;
             return `<button class="activity-btn ${isActive ? 'active' : ''}" data-id="${pos.id}" title="Go to ${pos.animation}">${pos.emoji || '📍'}</button>`;
@@ -849,7 +848,7 @@ export function renderActivityBar(pName, panel = null) {
         btn.onclick = (e) => {
             e.stopPropagation();
             const posId = btn.dataset.id;
-            const pos = state.breakPositions.find(x => x.id === posId);
+            const pos = state.actions.find(x => x.id === posId);
             if (!pos || !robot) return;
 
             if (robot.forcedTarget?.id === pos.id) {

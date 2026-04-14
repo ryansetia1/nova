@@ -90,7 +90,7 @@ nova/
 
 ### Agent movement
 
-- Walkable polygons, foreground collision, break positions — `walkable_path.json`, `foreground_objects.json`, `break_positions.json`; logic in `walking.js` and related.
+- Walkable polygons, foreground collision, actions — `walkable_path.json`, `foreground_objects.json`, `actions.json`; logic in `walking.js` and related.
 
 ### Ambient & weather
 
@@ -105,7 +105,8 @@ nova/
 Key configuration files:
 
 - `anchor_config.json` — Sprite pivot / alignment per character
-- `break_positions.json` — Named idle/break points
+- `actions.json` — Named action points (positions with animations for scheduling)
+- `schedules.json` — User-created agent schedules (persisted, loaded on boot)
 - `foreground_objects.json` — Collision / layout objects
 - `walkable_path.json` — Floor polygons
 - `character_mapping.json` — Entity → sprite / behavior

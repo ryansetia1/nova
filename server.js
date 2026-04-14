@@ -16,7 +16,8 @@ const PROJECTS_DIR = path.join(DATA_PATH, 'projects');
 
 const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
 const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
-const BREAK_POSITIONS_FILE = path.join(DATA_PATH, 'break_positions.json');
+const ACTIONS_FILE = path.join(DATA_PATH, 'actions.json');
+const SCHEDULES_FILE = path.join(DATA_PATH, 'schedules.json');
 const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
 const AMBIENT_OBJECTS_FILE = path.join(DATA_PATH, 'ambient_objects.json');
 const CHARACTER_CONFIG_FILE = path.join(DATA_PATH, 'character_config.json');
@@ -179,11 +180,20 @@ app.post('/api/anchor', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/break-positions', (req, res) => {
-  try { res.json(fs.existsSync(BREAK_POSITIONS_FILE) ? JSON.parse(fs.readFileSync(BREAK_POSITIONS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+app.get('/api/actions', (req, res) => {
+  try { res.json(fs.existsSync(ACTIONS_FILE) ? JSON.parse(fs.readFileSync(ACTIONS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
 });
-app.post('/api/break-positions', (req, res) => {
-  fs.writeFileSync(BREAK_POSITIONS_FILE, JSON.stringify(req.body.positions, null, 2));
+app.post('/api/actions', (req, res) => {
+  fs.writeFileSync(ACTIONS_FILE, JSON.stringify(req.body.actions, null, 2));
+  res.json({ success: true });
+});
+
+// Schedule persistence
+app.get('/api/schedules', (req, res) => {
+  try { res.json(fs.existsSync(SCHEDULES_FILE) ? JSON.parse(fs.readFileSync(SCHEDULES_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+});
+app.post('/api/schedules', (req, res) => {
+  fs.writeFileSync(SCHEDULES_FILE, JSON.stringify(req.body.schedules, null, 2));
   res.json({ success: true });
 });
 

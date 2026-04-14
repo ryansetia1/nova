@@ -31,7 +31,7 @@ export const state = {
   updateAppearanceType: 'emoji',
   walkingRobots: {}, // { name: { x, y, tx, ty, speed, isWalking, isHovered, isThinking, hasUpdate, frame, forcedTarget, activity, activityFrame } }
   projectForEmojiUpdate: null,
-  breakPositions: [], // { id, x, y, emoji, animation, command }
+  actions: [], // { id, x, y, emoji, animation, command, objectId }
   foregroundObjects: [], // { id, x, y, rotation, scale, asset, positionId }
   ambientObjects: [], // { id, name, url, x, y, rotation, scale, skewX, skewY, width, height, interactive }
   objectAssets: [], // ['dispenser', ...]
@@ -63,7 +63,11 @@ export const state = {
   set hiddenAgents(val) {
     this._hiddenAgents = val;
     localStorage.setItem('nova_hidden_agents', JSON.stringify(val));
-  }
+  },
+
+  // Scheduling System
+  schedules: [], // User-created schedules loaded from schedules.json
+  schedulerInitialized: false
 };
 
 export const $ = (sel) => document.querySelector(sel);
