@@ -201,10 +201,13 @@ function bindEvents() {
             e.stopPropagation();
             dom.spawnMenu.classList.toggle('hidden');
             
-            // Constraint: Hide Captain if already exists
-            const captainExists = state.projects.some(p => p.type === 'captain' || p.name === 'Captain');
+            // Hide Captain only while an active captain exists (inactive/orphaned still allows Spawn Captain)
+            const captainActive = state.projects.some(p =>
+                (p.active === true || p.active === 'true') &&
+                (p.type === 'captain' || p.name === 'Captain')
+            );
             if (dom.spawnMenuCaptain) {
-                dom.spawnMenuCaptain.classList.toggle('hidden', captainExists);
+                dom.spawnMenuCaptain.classList.toggle('hidden', captainActive);
             }
         });
     }
@@ -417,6 +420,9 @@ window.nova = {
                 state.walkingRobots[name].frame = 0;
             }
         }
+        const esc = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(name) : name;
+        const card = dom.robotCards?.querySelector(`.robot-avatar[data-project="${esc}"]`);
+        if (card) card.classList.toggle('is-hovered', !!isActive);
     },
     spawnAtOrphaned(pName) {
         const p = state.projects.find(x => x.active === false && x.name === pName);

@@ -854,8 +854,10 @@ body.theme-night .robot-card-emoji {
 /* Maintain glow even when dimmed */
 body.theme-night .robot-avatar.active .robot-char-sprite,
 body.theme-night .robot-avatar:hover .robot-char-sprite,
+body.theme-night .robot-avatar.is-hovered .robot-char-sprite,
 body.theme-night .robot-avatar.active .robot-card-emoji,
-body.theme-night .robot-avatar:hover .robot-card-emoji {
+body.theme-night .robot-avatar:hover .robot-card-emoji,
+body.theme-night .robot-avatar.is-hovered .robot-card-emoji {
   filter: brightness(0.9) contrast(1.1) drop-shadow(0 0 15px var(--accent-primary));
 }
 
@@ -977,14 +979,21 @@ body.drawing-mode:not(.show-visuals) #robot-area {
   --char-anchor-y: var(--anchor-y-Char2, 85%);
 }
 
-.robot-avatar:hover {
-  /* Relative lift based on current anchor */
+.robot-avatar:hover,
+.robot-avatar.is-hovered {
+  /* Relative lift based on current anchor (sidebar hover uses .is-hovered — keep in sync) */
   transform: translate(calc(-1 * var(--char-anchor-x)), calc(-1 * var(--char-anchor-y) - 15%)) scale(1.1);
   z-index: 100;
 }
 
 .robot-avatar.active {
   z-index: 99;
+}
+
+/* Active + hover (pointer or sidebar-synced): keep lift above .active baseline */
+.robot-avatar.active:hover,
+.robot-avatar.active.is-hovered {
+  z-index: 100;
 }
 
 .robot-anchor-dot {
@@ -1238,7 +1247,8 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 }
 
 .robot-avatar.active .robot-char-sprite,
-.robot-avatar:hover .robot-char-sprite {
+.robot-avatar:hover .robot-char-sprite,
+.robot-avatar.is-hovered .robot-char-sprite {
   filter: drop-shadow(0 0 15px var(--accent-primary));
 }
 
@@ -1254,11 +1264,13 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
 }
 
 .robot-avatar.active .robot-card-emoji,
-.robot-avatar:hover .robot-card-emoji {
+.robot-avatar:hover .robot-card-emoji,
+.robot-avatar.is-hovered .robot-card-emoji {
   filter: drop-shadow(0 0 10px var(--accent-primary));
 }
 
-.robot-avatar:hover .robot-card-emoji {
+.robot-avatar:hover .robot-card-emoji,
+.robot-avatar.is-hovered .robot-card-emoji {
   animation-play-state: paused;
   filter: drop-shadow(0 0 10px var(--accent-primary));
 }
@@ -1276,7 +1288,8 @@ body:not(.show-visuals):not(.drawing-mode) #floor-wrapper svg {
   transition: opacity 0.2s;
 }
 
-.robot-avatar:hover .robot-card-status {
+.robot-avatar:hover .robot-card-status,
+.robot-avatar.is-hovered .robot-card-status {
   opacity: 1;
 }
 
@@ -2964,6 +2977,23 @@ body.dev-mode-layout #dev-svg-layer g {
   padding-left: 16px;
   border-left: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 0 8px 8px 0;
+}
+
+.sidebar-item.sidebar-item-captain {
+  border-color: rgba(250, 204, 21, 0.12);
+  background: rgba(250, 204, 21, 0.04);
+}
+
+.sidebar-item.sidebar-item-captain:hover {
+  border-color: rgba(250, 204, 21, 0.22);
+  background: rgba(250, 204, 21, 0.07);
+}
+
+.sidebar-captain-star {
+  margin-right: 4px;
+  font-size: 0.9em;
+  opacity: 0.95;
+  vertical-align: -0.05em;
 }
 
 .nested-indicator {

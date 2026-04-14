@@ -85,9 +85,31 @@ export function initSidebar() {
           if (window.rescaleOffice) window.rescaleOffice();
       }, 350);
     });
+
+    // Mirror workspace character hover while pointer is over the active-agent list
+    if (dom.activeAgentList) {
+        dom.activeAgentList.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.sidebar-item');
+            if (!item || !dom.activeAgentList.contains(item)) return;
+            const name = item.dataset.name;
+            if (name && window.nova?.setHover) window.nova.setHover(name, true);
+        });
+        dom.activeAgentList.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.sidebar-item');
+            if (!item || !dom.activeAgentList.contains(item)) return;
+            const related = e.relatedTarget;
+            if (related && item.contains(related)) return;
+            const name = item.dataset.name;
+            const toAvatar = related?.closest?.('.robot-avatar');
+            if (name && toAvatar && toAvatar.dataset.project === name) return;
+            if (name && window.nova?.setHover) window.nova.setHover(name, false);
+        });
+    }
 }
 
 export function renderSidebar() {
+    const isCaptainRole = (p) => p.type === 'captain' || p.name === 'Captain';
+
     const activeAgents = state.projects.filter(p => p.active === true || p.active === "true");
     const orphanedFolders = state.projects.filter(p => 
         (p.active === false || p.active === "false" || !p.active) && 
@@ -107,23 +129,25 @@ export function renderSidebar() {
 
     // Render Active Agents
     if (dom.activeAgentList) {
-      // Reorder agents so children follow parents
-      const roots = activeAgents.filter(p => !p.parentAgent);
-      const sortedAgents = [];
+      const captains = activeAgents.filter(isCaptainRole).sort((a, b) => a.name.localeCompare(b.name));
+      const nonCaptains = activeAgents.filter(p => !isCaptainRole(p));
+      // Reorder non-captains so children follow parents
+      const roots = nonCaptains.filter(p => !p.parentAgent);
+      const sortedRest = [];
       roots.forEach(root => {
-        sortedAgents.push(root);
-        const children = activeAgents.filter(p => p.parentAgent === root.name);
-        sortedAgents.push(...children);
+        sortedRest.push(root);
+        const children = nonCaptains.filter(p => p.parentAgent === root.name);
+        sortedRest.push(...children);
       });
-      
-      // If there are agents with parents that weren't found in roots (shouldn't happen, but for safety)
-      activeAgents.forEach(p => {
-          if (!sortedAgents.includes(p)) sortedAgents.push(p);
+      nonCaptains.forEach(p => {
+          if (!sortedRest.includes(p)) sortedRest.push(p);
       });
+      const sortedAgents = [...captains, ...sortedRest];
 
       dom.activeAgentList.innerHTML = sortedAgents.map(p => {
         const isNested = !!p.parentAgent;
         const prefix = isNested ? '<span class="nested-indicator">↳ </span>' : '';
+        const captainMark = isCaptainRole(p) ? '<span class="sidebar-captain-star" aria-hidden="true">⭐</span>' : '';
         
         const r = state.walkingRobots[p.name];
         let statusChip = '';
@@ -140,11 +164,13 @@ export function renderSidebar() {
         const dismissBtn = (p.type === 'pet' || !p.active) ? 
           `<span class="sidebar-item-dismiss" title="Dismiss" onclick="event.stopPropagation(); window.nova.openDeleteAgentModalByName('${p.name}')">✕</span>` : '';
 
+        const captainCls = isCaptainRole(p) ? 'sidebar-item-captain' : '';
+
         return `
-        <div class="sidebar-item ${isNested ? 'nested' : ''} ${isHidden ? 'is-hidden' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
+        <div class="sidebar-item ${captainCls} ${isNested ? 'nested' : ''} ${isHidden ? 'is-hidden' : ''}" data-name="${p.name}" onclick="window.focusAgentTerminal('${p.name}')">
           <div class="sidebar-item-icon">${getAppearanceHtml(p.emoji)}</div>
           <div class="sidebar-item-info">
-            <div class="sidebar-item-name">${prefix}${p.nickname || p.name}${statusChip}</div>
+            <div class="sidebar-item-name">${prefix}${captainMark}${p.nickname || p.name}${statusChip}</div>
             <div class="sidebar-item-sub">${p.name}</div>
           </div>
           <div class="sidebar-item-actions">
@@ -217,7 +243,9 @@ export function renderRobots() {
         }
 
         const isNested = !!p.parentAgent;
-        const topLabel = (isNested ? '↳ ' : '') + (p.nickname || p.name);
+        const isCaptainRole = p.type === 'captain' || p.name === 'Captain';
+        const captainStar = isCaptainRole ? '<span class="sidebar-captain-star" aria-hidden="true">⭐</span>' : '';
+        const topLabel = (isNested ? '↳ ' : '') + captainStar + (p.nickname || p.name);
 
         const charId = isSprite ? rawAppearance.split(':')[1] : 'emoji';
 
@@ -225,7 +253,7 @@ export function renderRobots() {
         const clickHandler = isPet ? '' : `onclick="window.nova.openTerminal('${p.name}')"`;
 
         return `
-            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady && !isPet ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''} ${isPet ? 'is-pet' : ''} char-parent-${charId}" 
+            <div class="robot-avatar ${isVisible ? 'active' : ''} ${!isReady && !isPet ? 'initializing' : ''} ${r?.isThinking ? 'thinking' : ''} ${r?.hasUpdate ? 'has-update' : ''} ${r?.hasError ? 'has-error' : ''} ${isPet ? 'is-pet' : ''} ${r?.isHovered ? 'is-hovered' : ''} char-parent-${charId}" 
                  data-project="${p.name}" style="${posStyle}"
                  ${clickHandler}>
                 <div class="robot-label top">${topLabel}</div>

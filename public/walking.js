@@ -426,6 +426,7 @@ export function bindHoverListeners() {
                   state.walkingRobots[name].frame = 0;
               }
           }
+          card.classList.add('is-hovered');
       }
   });
 
@@ -435,12 +436,15 @@ export function bindHoverListeners() {
           const name = card.dataset.project;
           const nextElement = e.relatedTarget;
           if (!nextElement || !card.contains(nextElement)) {
+              const toSidebar = nextElement?.closest?.('.sidebar-item');
+              if (toSidebar && toSidebar.dataset.name === name) return;
               if (state.walkingRobots[name]) {
                   if (state.walkingRobots[name].isHovered) {
                       state.walkingRobots[name].isHovered = false;
                       state.walkingRobots[name].frame = 0;
                   }
               }
+              card.classList.remove('is-hovered');
           }
       }
   });

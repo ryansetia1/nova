@@ -165,7 +165,12 @@ export async function openModal(type = 'agent') {
     dom.nicknameInput.value = ''; 
     dom.nicknameInputSpecial.value = '';
     dom.customPathInput.value = '';
-    
+
+    if (type === 'captain') {
+        const capMeta = state.projects.find(p => p.name === 'Captain');
+        if (capMeta?.nickname) dom.nicknameInputSpecial.value = capMeta.nickname;
+    }
+
     if (dom.emojiPreview) dom.emojiPreview.innerHTML = getAppearanceHtml('🪐');
     
     // Reset Character selection
@@ -185,8 +190,12 @@ export async function openModal(type = 'agent') {
         // For pets, character is often preferred, but we'll stick to emoji default for consistency
     }
     
-    // Handle Orphaned (Agent Only)
-    const orphaned = state.projects.filter(p => !p.active);
+    // Handle Orphaned (Agent only): exclude captain folders — resume those via Spawn Captain (matches sidebar)
+    const orphaned = state.projects.filter(p =>
+        (p.active === false || p.active === 'false' || !p.active) &&
+        p.name !== 'Captain' &&
+        p.type !== 'captain'
+    );
     if (type === 'agent' && orphaned.length > 0) {
         dom.orphanedGroup.classList.remove('hidden');
         dom.orphanedGroup.style.display = 'block'; 
@@ -423,8 +432,10 @@ export async function handleSpawn() {
         });
         const data = await res.json();
         if (!res.ok) return showToast('error', '❌', data.error);
-        
-        state.projects.push(data);
+
+        const existingIdx = state.projects.findIndex(p => p.name === data.name);
+        if (existingIdx >= 0) state.projects[existingIdx] = data;
+        else state.projects.push(data);
         closeModal(); 
         renderRobots();
         
@@ -437,26 +448,43 @@ export async function handleSpawn() {
     } catch (err) {} finally { dom.modalConfirm.disabled = false; }
 }
 
+async function syncProjectsAfterDelete(project, pName, deleteFiles) {
+    try {
+        const sync = await fetch('/api/projects');
+        if (sync.ok) {
+            state.projects = await sync.json();
+            return;
+        }
+    } catch (e) {
+        console.warn('Failed to sync projects after delete', e);
+    }
+    if (deleteFiles || project.type === 'pet') {
+        state.projects = state.projects.filter(p => p.name !== pName);
+    } else {
+        const p = state.projects.find(x => x.name === pName);
+        if (p) p.active = false;
+    }
+}
+
 export async function handleDeleteAgent(deleteFiles = false) {
     const project = state.agentToDelete; if (!project) return;
     const pName = project.name;
     try {
         const res = await fetch(`/api/projects/${encodeURIComponent(project.name)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showToast('error', '❌', data.error || 'Failed to remove agent');
+            return;
+        }
+
         const terminalModule = await import('./terminal.js');
         terminalModule.disposeTerminal(pName);
 
-        if (data.type === 'symlink' || deleteFiles || project.type === 'pet') {
-            state.projects = state.projects.filter(p => p.name !== project.name);
-        } else if (data.type === 'orphaned') {
-            const p = state.projects.find(x => x.name === project.name);
-            if (p) p.active = false;
-        }
-        
+        await syncProjectsAfterDelete(project, pName, deleteFiles);
+
         closeDeleteAgentModal();
         renderRobots();
-        
+
         showToast('success', '🗑️', data.message || 'Agent removed');
     } catch (err) {
         showToast('error', '❌', 'Failed to remove agent');
@@ -466,22 +494,21 @@ export async function handleDeleteAgent(deleteFiles = false) {
 export async function handleDeleteAgentByName(pName, deleteFiles = false) {
     const project = state.projects.find(p => p.name === pName);
     if (!project) return;
-    
+
     try {
         const res = await fetch(`/api/projects/${encodeURIComponent(pName)}?deleteFiles=${deleteFiles}`, { method: 'DELETE' });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showToast('error', '❌', data.error || 'Failed to remove');
+            return;
+        }
+
         const terminalModule = await import('./terminal.js');
         terminalModule.disposeTerminal(pName);
 
-        if (data.type === 'symlink' || deleteFiles || project.type === 'pet') {
-            state.projects = state.projects.filter(p => p.name !== pName);
-        } else if (data.type === 'orphaned') {
-            const p = state.projects.find(x => x.name === pName);
-            if (p) p.active = false;
-        }
-        
-        renderRobots(); 
+        await syncProjectsAfterDelete(project, pName, deleteFiles);
+
+        renderRobots();
         showToast('success', '🗑️', data.message || 'Removed from workspace');
     } catch (err) {
         showToast('error', '❌', 'Failed to remove');
