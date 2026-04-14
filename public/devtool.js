@@ -31,10 +31,13 @@ export const dev = {
     isPanning: false,
     panStartX: 0,
     panStartY: 0,
+    spacePressed: false,
     _wheelHandler: null,
     _mouseDownHandler: null,
     _mouseMoveHandler: null,
-    _mouseUpHandler: null
+    _mouseUpHandler: null,
+    _keyDownHandler: null,
+    _keyUpHandler: null
 };
 
 function getNextDefaultName(type, asset = null) {
@@ -214,19 +217,31 @@ function attachDevZoomPan() {
     const floor = document.getElementById('office-floor');
     if (!floor) return;
 
-    // Scroll wheel zoom
+    // Trackpad + mouse wheel handling
     dev._wheelHandler = (e) => {
         if (!dev.isActive) return;
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 0.1 : -0.1;
-        devZoom(delta);
+        
+        // Trackpad pinch-to-zoom (Cmd/Ctrl + scroll)
+        if (e.ctrlKey || e.metaKey) {
+            const delta = e.deltaY < 0 ? 0.05 : -0.05; // Smaller increment for smooth trackpad zoom
+            devZoom(delta);
+        }
+        // Trackpad two-finger scroll = pan (smooth trackpad scrolling)
+        else {
+            const sensitivity = 0.8; // Adjust trackpad pan sensitivity
+            dev.panX -= e.deltaX * sensitivity;
+            dev.panY -= e.deltaY * sensitivity;
+            applyDevTransform();
+        }
     };
     floor.addEventListener('wheel', dev._wheelHandler, { passive: false });
     
-    // Middle-click panning
+    // Middle-click + Space+drag panning
     dev._mouseDownHandler = (e) => {
         if (!dev.isActive) return;
-        if (e.button !== 1) return; // middle click only
+        // Middle-click OR left-click with space key (like Figma)
+        if (e.button !== 1 && !(e.button === 0 && (e.shiftKey || dev.spacePressed))) return;
         e.preventDefault();
         dev.isPanning = true;
         dev.panStartX = e.clientX - dev.panX;
@@ -246,9 +261,28 @@ function attachDevZoomPan() {
     dev._mouseUpHandler = (e) => {
         if (!dev.isPanning) return;
         dev.isPanning = false;
-        floor.style.cursor = '';
+        floor.style.cursor = dev.spacePressed ? 'grab' : '';
     };
     document.addEventListener('mouseup', dev._mouseUpHandler);
+    
+    // Space key for pan mode (like Figma)
+    dev._keyDownHandler = (e) => {
+        if (!dev.isActive) return;
+        if (e.code === 'Space' && !dev.spacePressed) {
+            dev.spacePressed = true;
+            floor.style.cursor = 'grab';
+            e.preventDefault();
+        }
+    };
+    document.addEventListener('keydown', dev._keyDownHandler);
+    
+    dev._keyUpHandler = (e) => {
+        if (e.code === 'Space' && dev.spacePressed) {
+            dev.spacePressed = false;
+            floor.style.cursor = dev.isPanning ? 'grabbing' : '';
+        }
+    };
+    document.addEventListener('keyup', dev._keyUpHandler);
 }
 
 function detachDevZoomPan() {
@@ -258,13 +292,17 @@ function detachDevZoomPan() {
         if (dev._mouseDownHandler) floor.removeEventListener('mousedown', dev._mouseDownHandler);
         floor.style.transform = '';
         floor.style.transformOrigin = '';
+        floor.style.cursor = '';
     }
     if (dev._mouseMoveHandler) document.removeEventListener('mousemove', dev._mouseMoveHandler);
     if (dev._mouseUpHandler) document.removeEventListener('mouseup', dev._mouseUpHandler);
+    if (dev._keyDownHandler) document.removeEventListener('keydown', dev._keyDownHandler);
+    if (dev._keyUpHandler) document.removeEventListener('keyup', dev._keyUpHandler);
     
     dev.zoom = 1;
     dev.panX = 0;
     dev.panY = 0;
+    dev.spacePressed = false;
 }
 
 function enterDevMode() {
@@ -491,10 +529,10 @@ function showDevToolbar() {
         <button id="dev-btn-theatre" style="${btnStyle} ${dev.mode === 'theatre' ? 'background:#d97706; border-color:#d97706;' : ''}">🎬 Theatre</button>
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <div style="display:flex; align-items:center; gap:4px;">
-            <button id="dev-btn-zoom-out" style="${btnStyle} padding:6px 8px;" title="Zoom Out (Scroll Down)">−</button>
+            <button id="dev-btn-zoom-out" style="${btnStyle} padding:6px 8px;" title="Zoom Out (Cmd+Scroll / Scroll Down)">−</button>
             <span id="dev-zoom-label" style="color:#fff; font-size:10px; min-width:36px; text-align:center; opacity:0.7;">${zoomPct}%</span>
-            <button id="dev-btn-zoom-in" style="${btnStyle} padding:6px 8px;" title="Zoom In (Scroll Up)">+</button>
-            <button id="dev-btn-zoom-reset" style="${btnStyle} padding:6px 8px; font-size:10px;" title="Reset Zoom">⌂</button>
+            <button id="dev-btn-zoom-in" style="${btnStyle} padding:6px 8px;" title="Zoom In (Cmd+Scroll / Scroll Up)">+</button>
+            <button id="dev-btn-zoom-reset" style="${btnStyle} padding:6px 8px; font-size:10px;" title="Reset View (Space+Drag to Pan)">⌂</button>
         </div>
         <div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
         <button id="dev-btn-clear" style="${btnStyle}">🗑️ Clear</button>
