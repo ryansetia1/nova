@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Notification, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, BrowserView, shell, Notification, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -134,6 +134,176 @@ ipcMain.handle('select-folder', async () => {
   });
   if (result.canceled || !result.filePaths.length) return null;
   return result.filePaths[0];
+});
+
+// Browser window management for interactive iframes
+const browserWindows = new Map(); // key: ambientId, value: { win, view }
+const TOOLBAR_HEIGHT = 42;
+
+function ensureUrl(url) {
+  if (!url) return 'https://google.com';
+  if (!url.match(/^https?:\/\//)) return `https://${url}`;
+  return url;
+}
+
+function createBrowserWindow(ambientId, url, width, height) {
+  const validUrl = ensureUrl(url);
+  const w = width || 1200;
+  const h = height || 800;
+
+  const win = new BrowserWindow({
+    width: w,
+    height: h,
+    minWidth: 500,
+    minHeight: 300,
+    title: 'Nova Browser',
+    backgroundColor: '#1e1e2e',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'public/browser-preload.js')
+    },
+    show: true
+  });
+
+  // Load toolbar UI
+  win.loadFile(path.join(__dirname, 'public/browser-toolbar.html'));
+
+  // Create BrowserView for web content
+  const view = new BrowserView({
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true
+    }
+  });
+  win.setBrowserView(view);
+
+  // Position the view below the toolbar
+  const [bw, bh] = win.getContentSize();
+  view.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width: bw, height: bh - TOOLBAR_HEIGHT });
+  view.setAutoResize({ width: true, height: true });
+
+  // Load URL in the view
+  view.webContents.loadURL(validUrl).catch(err => {
+    console.error('[Nova Browser] Failed to load:', validUrl, err.message);
+  });
+
+  // Sync URL changes to toolbar
+  const sendNavState = () => {
+    if (win.isDestroyed()) return;
+    win.webContents.send('browser-nav-state-changed', {
+      canGoBack: view.webContents.canGoBack(),
+      canGoForward: view.webContents.canGoForward()
+    });
+  };
+
+  view.webContents.on('did-navigate', (e, navUrl) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('browser-url-changed', navUrl);
+      sendNavState();
+    }
+  });
+  view.webContents.on('did-navigate-in-page', (e, navUrl) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('browser-url-changed', navUrl);
+      sendNavState();
+    }
+  });
+  view.webContents.on('did-start-loading', () => {
+    if (!win.isDestroyed()) win.webContents.send('browser-loading-changed', true);
+  });
+  view.webContents.on('did-stop-loading', () => {
+    if (!win.isDestroyed()) win.webContents.send('browser-loading-changed', false);
+  });
+  view.webContents.on('page-title-updated', (e, title) => {
+    if (!win.isDestroyed()) win.setTitle(`Nova Browser — ${title}`);
+  });
+
+  // Open target=_blank links inside the same view instead of external browser
+  view.webContents.setWindowOpenHandler(({ url: linkUrl }) => {
+    view.webContents.loadURL(linkUrl);
+    return { action: 'deny' };
+  });
+
+  // Toolbar → View IPC
+  const wcId = win.webContents.id;
+  const onNavigate = (e, navUrl) => { if (e.sender.id === wcId) view.webContents.loadURL(ensureUrl(navUrl)); };
+  const onBack = (e) => { if (e.sender.id === wcId) view.webContents.goBack(); };
+  const onForward = (e) => { if (e.sender.id === wcId) view.webContents.goForward(); };
+  const onRefresh = (e) => { if (e.sender.id === wcId) view.webContents.reload(); };
+
+  ipcMain.on('browser-navigate', onNavigate);
+  ipcMain.on('browser-go-back', onBack);
+  ipcMain.on('browser-go-forward', onForward);
+  ipcMain.on('browser-refresh', onRefresh);
+
+  // Send initial URL once toolbar is ready
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.send('browser-url-changed', validUrl);
+    sendNavState();
+  });
+
+  // Handle resize to keep view bounds correct
+  win.on('resize', () => {
+    if (win.isDestroyed()) return;
+    const [cw, ch] = win.getContentSize();
+    view.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width: cw, height: ch - TOOLBAR_HEIGHT });
+  });
+
+  // Cleanup
+  win.on('closed', () => {
+    browserWindows.delete(ambientId);
+    ipcMain.removeListener('browser-navigate', onNavigate);
+    ipcMain.removeListener('browser-go-back', onBack);
+    ipcMain.removeListener('browser-go-forward', onForward);
+    ipcMain.removeListener('browser-refresh', onRefresh);
+  });
+
+  browserWindows.set(ambientId, { win, view });
+  return win;
+}
+
+ipcMain.handle('open-browser-window', async (event, { ambientId, url, width, height }) => {
+  // Reuse existing window
+  if (browserWindows.has(ambientId)) {
+    const { win } = browserWindows.get(ambientId);
+    if (!win.isDestroyed()) {
+      win.focus();
+      return { success: true, existed: true };
+    }
+    browserWindows.delete(ambientId);
+  }
+
+  try {
+    createBrowserWindow(ambientId, url, width, height);
+    return { success: true, existed: false };
+  } catch (error) {
+    console.error('[Nova Browser] Error creating window:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('close-browser-window', async (event, ambientId) => {
+  if (browserWindows.has(ambientId)) {
+    const { win } = browserWindows.get(ambientId);
+    if (!win.isDestroyed()) win.close();
+    browserWindows.delete(ambientId);
+    return { success: true };
+  }
+  return { success: false, error: 'Window not found' };
+});
+
+ipcMain.handle('focus-browser-window', async (event, ambientId) => {
+  if (browserWindows.has(ambientId)) {
+    const { win } = browserWindows.get(ambientId);
+    if (!win.isDestroyed()) {
+      win.focus();
+      return { success: true };
+    }
+    browserWindows.delete(ambientId);
+  }
+  return { success: false, error: 'Window not found' };
 });
 
 app.on('window-all-closed', () => {

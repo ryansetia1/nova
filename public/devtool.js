@@ -259,9 +259,10 @@ function renderDevSidebar() {
             } else if (isTheatre) {
                 const id = 'ambient_' + Date.now();
                 const name = getNextDefaultName('ambient');
-                state.ambientObjects.push({ 
-                    id, name, url: '', x: 50, y: 50, 
-                    width: 300, height: 180, rotation: 0, scale: 1, skewX: 0, skewY: 0
+                state.ambientObjects.push({
+                    id, name, url: '', x: 50, y: 50,
+                    width: 300, height: 180, rotation: 0, scale: 1, skewX: 0, skewY: 0,
+                    interactive: false
                 });
                 dev.editingAmbient = state.ambientObjects.length - 1;
                 showAmbientConfig(state.ambientObjects.length - 1);
@@ -700,25 +701,39 @@ function setDevMode(mode) {
     showToast('info', '⚙️', `Switched to ${mode.toUpperCase()} mode`);
 }
 
+function applyPreviewOpacity(idx, opacity) {
+    const el = document.querySelector(`.ambient-object-wrapper[data-index="${idx}"]`);
+    if (el) el.style.setProperty('opacity', opacity, 'important');
+}
+
 export function showAmbientConfig(index) {
     const obj = state.ambientObjects[index];
     if (!obj) return;
+    
+    // Initialize preview opacity if not set
+    if (obj._previewOpacity == null) obj._previewOpacity = 1;
 
     let panel = document.querySelector('#dev-ambient-config');
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'dev-ambient-config';
-        panel.setAttribute('style', 'position:fixed; top:100px; left:70px; background:rgba(13,17,28,0.95); padding:16px; border-radius:12px; z-index:45000; border:1px solid #d97706; width:240px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:12px;');
+        panel.setAttribute('style', 'position:fixed; top:100px; left:70px; background:rgba(13,17,28,0.95); padding:14px; border-radius:12px; z-index:45000; border:1px solid #d97706; width:260px; box-shadow:0 8px 32px rgba(0,0,0,0.5); backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:10px; overflow:hidden;');
         const app = document.getElementById('app');
         if (app) app.appendChild(panel);
         else document.body.appendChild(panel);
     }
     panel.classList.remove('hidden');
 
-    // Highlight selection
-    document.querySelectorAll('.ambient-object-wrapper').forEach(el => el.classList.remove('dev-selected'));
+    // Reset opacity of previously selected items and highlight new selection
+    document.querySelectorAll('.ambient-object-wrapper').forEach(el => {
+        el.classList.remove('dev-selected');
+        el.style.removeProperty('opacity');
+    });
     const selected = document.querySelector(`.ambient-object-wrapper[data-index="${index}"]`);
-    if (selected) selected.classList.add('dev-selected');
+    if (selected) {
+        selected.classList.add('dev-selected');
+        applyPreviewOpacity(index, obj._previewOpacity);
+    }
 
     panel.innerHTML = `
         <div style="font-weight:700; color:#d97706; font-size:12px; text-transform:uppercase; margin-bottom:4px;">Config Ambient</div>
@@ -727,8 +742,17 @@ export function showAmbientConfig(index) {
             <input type="text" id="amb-name" value="${obj.name || ''}" placeholder="e.g. Laptop Screen" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; font-size:10px; margin-bottom:8px;">
         </div>
         <div>
-            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Iframe URL (Leave empty to mirror playlist)</label>
-            <input type="text" id="amb-url" value="${obj.url || ''}" placeholder="Optional: YouTube URL" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:0 8px; font-size:10px;">
+            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">
+                <span id="url-label-text">${obj.interactive ? 'Browser URL (Leave empty for Google)' : 'Iframe URL (Leave empty to mirror playlist)'}</span>
+            </label>
+            <input type="text" id="amb-url" value="${obj.url || ''}" placeholder="${obj.interactive ? 'https://example.com' : 'Optional: YouTube URL'}" style="width:100%; height:32px; background:rgba(255,255,255,0.05); border:1px solid ${obj.interactive ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.1)'}; color:#fff; border-radius:6px; padding:0 8px; font-size:10px;">
+            <div id="url-help-text" style="font-size:8px; opacity:0.5; margin-top:2px; ${obj.interactive ? '' : 'display:none;'}">Click iframe in workspace to open browser window</div>
+        </div>
+        <div style="margin:8px 0; padding:8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:10px;">
+                <input type="checkbox" id="amb-interactive" ${obj.interactive ? 'checked' : ''} style="margin:0;">
+                <span style="color:#22d3ee;">🌐 Interactive Browser Mode</span>
+            </label>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <div>
@@ -740,22 +764,40 @@ export function showAmbientConfig(index) {
                 <input type="number" id="amb-h" value="${obj.height}" style="width:100%; height:32px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:0 8px;">
             </div>
         </div>
-        <div>
-            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Rotation (${obj.rotation}°)</label>
-            <input type="range" id="amb-rot" min="-180" max="180" value="${obj.rotation}" style="width:100%;">
+        <div style="padding:6px 8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+            <label style="display:block; font-size:9px; opacity:0.6; margin-bottom:2px;" id="preview-opacity-label">Dev Preview Opacity (${obj._previewOpacity.toFixed(1)})</label>
+            <input type="range" id="amb-preview-opacity" min="0.1" max="1" step="0.1" value="${obj._previewOpacity}" style="width:100%; margin:0;">
         </div>
-        <div>
-            <label style="display:block; font-size:10px; opacity:0.6; margin-bottom:4px;">Scale (${obj.scale.toFixed(2)})</label>
-            <input type="range" id="amb-scale" min="0.1" max="3" step="0.1" value="${obj.scale}" style="width:100%;">
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-            <div>
-                <label style="display:block; font-size:10px; opacity:0.6;">Skew X (${obj.skewX}°)</label>
-                <input type="range" id="amb-skew-x" min="-60" max="60" value="${obj.skewX}" style="width:100%;">
+        <div class="amb-ctrl">
+            <label style="font-size:9px; opacity:0.6;">Rotation</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="range" id="amb-rot-slider" min="-180" max="180" value="${obj.rotation}" style="flex:1; min-width:0;">
+                <input type="number" id="amb-rot" min="-180" max="180" value="${obj.rotation}" class="amb-num">
+                <span style="font-size:8px; opacity:0.4;">°</span>
             </div>
-            <div>
-                <label style="display:block; font-size:10px; opacity:0.6;">Skew Y (${obj.skewY}°)</label>
-                <input type="range" id="amb-skew-y" min="-60" max="60" value="${obj.skewY}" style="width:100%;">
+        </div>
+        <div class="amb-ctrl">
+            <label style="font-size:9px; opacity:0.6;">Scale</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="range" id="amb-scale-slider" min="0.1" max="3" step="0.1" value="${obj.scale}" style="flex:1; min-width:0;">
+                <input type="number" id="amb-scale" min="0.1" max="3" step="0.1" value="${obj.scale}" class="amb-num">
+                <span style="font-size:8px; opacity:0.4;">×</span>
+            </div>
+        </div>
+        <div class="amb-ctrl">
+            <label style="font-size:9px; opacity:0.6;">Skew X</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="range" id="amb-skew-x-slider" min="-60" max="60" value="${obj.skewX}" style="flex:1; min-width:0;">
+                <input type="number" id="amb-skew-x" min="-60" max="60" value="${obj.skewX}" class="amb-num">
+                <span style="font-size:8px; opacity:0.4;">°</span>
+            </div>
+        </div>
+        <div class="amb-ctrl">
+            <label style="font-size:9px; opacity:0.6;">Skew Y</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="range" id="amb-skew-y-slider" min="-60" max="60" value="${obj.skewY}" style="flex:1; min-width:0;">
+                <input type="number" id="amb-skew-y" min="-60" max="60" value="${obj.skewY}" class="amb-num">
+                <span style="font-size:8px; opacity:0.4;">°</span>
             </div>
         </div>
         <div style="display:flex; gap:8px; margin-top:8px;">
@@ -772,28 +814,86 @@ export function showAmbientConfig(index) {
         obj.url = e.target.value; 
         import('./ui.js').then(m => m.renderAmbientObjects()); 
     };
-    panel.querySelector('#amb-w').oninput = (e) => { obj.width = parseInt(e.target.value); import('./ui.js').then(m => m.renderAmbientObjects()); };
-    panel.querySelector('#amb-h').oninput = (e) => { obj.height = parseInt(e.target.value); import('./ui.js').then(m => m.renderAmbientObjects()); };
-    panel.querySelector('#amb-rot').oninput = (e) => { 
-        obj.rotation = parseInt(e.target.value); 
-        panel.querySelectorAll('label')[4].textContent = `Rotation (${obj.rotation}°)`;
-        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    panel.querySelector('#amb-interactive').onchange = (e) => { 
+        obj.interactive = e.target.checked;
+        
+        // Update URL field appearance and labels
+        const urlField = panel.querySelector('#amb-url');
+        const urlLabel = panel.querySelector('#url-label-text');
+        const urlHelp = panel.querySelector('#url-help-text');
+        
+        if (obj.interactive) {
+            urlLabel.textContent = 'Browser URL (Leave empty for Google)';
+            urlField.placeholder = 'https://example.com';
+            urlField.style.borderColor = 'rgba(34,211,238,0.3)';
+            urlHelp.style.display = '';
+        } else {
+            urlLabel.textContent = 'Iframe URL (Leave empty to mirror playlist)';
+            urlField.placeholder = 'Optional: YouTube URL';
+            urlField.style.borderColor = 'rgba(255,255,255,0.1)';
+            urlHelp.style.display = 'none';
+        }
+        
+        import('./ui.js').then(m => { m.renderAmbientObjects(); applyPreviewOpacity(index, obj._previewOpacity); }); 
     };
-    panel.querySelector('#amb-scale').oninput = (e) => { 
-        obj.scale = parseFloat(e.target.value); 
-        panel.querySelectorAll('label')[5].textContent = `Scale (${obj.scale.toFixed(2)})`;
-        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    panel.querySelector('#amb-w').oninput = (e) => { obj.width = parseInt(e.target.value); import('./ui.js').then(m => { m.renderAmbientObjects(); applyPreviewOpacity(index, obj._previewOpacity); }); };
+    panel.querySelector('#amb-h').oninput = (e) => { obj.height = parseInt(e.target.value); import('./ui.js').then(m => { m.renderAmbientObjects(); applyPreviewOpacity(index, obj._previewOpacity); }); };
+    
+    // Helper: render and reapply preview opacity
+    const renderAndKeepOpacity = () => {
+        import('./ui.js').then(m => { m.renderAmbientObjects(); applyPreviewOpacity(index, obj._previewOpacity); });
     };
-    panel.querySelector('#amb-skew-x').oninput = (e) => { 
-        obj.skewX = parseInt(e.target.value); 
-        panel.querySelectorAll('label')[6].textContent = `Skew X (${obj.skewX}°)`;
-        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    
+    // Preview opacity slider — applies directly without re-render
+    panel.querySelector('#amb-preview-opacity').oninput = (e) => { 
+        const opacity = parseFloat(e.target.value);
+        obj._previewOpacity = opacity;
+        
+        const label = panel.querySelector('#preview-opacity-label');
+        if (label) label.textContent = `Dev Preview Opacity (${opacity.toFixed(1)})`;
+        
+        applyPreviewOpacity(index, opacity);
     };
-    panel.querySelector('#amb-skew-y').oninput = (e) => { 
-        obj.skewY = parseInt(e.target.value); 
-        panel.querySelectorAll('label')[7].textContent = `Skew Y (${obj.skewY}°)`;
-        import('./ui.js').then(m => m.renderAmbientObjects()); 
+    
+    // Synced slider + number for rotation
+    const syncRotation = (val) => {
+        obj.rotation = parseInt(val) || 0;
+        panel.querySelector('#amb-rot-slider').value = obj.rotation;
+        panel.querySelector('#amb-rot').value = obj.rotation;
+        renderAndKeepOpacity();
     };
+    panel.querySelector('#amb-rot-slider').oninput = (e) => syncRotation(e.target.value);
+    panel.querySelector('#amb-rot').oninput = (e) => syncRotation(e.target.value);
+    
+    // Synced slider + number for scale
+    const syncScale = (val) => {
+        obj.scale = parseFloat(val) || 1;
+        panel.querySelector('#amb-scale-slider').value = obj.scale;
+        panel.querySelector('#amb-scale').value = obj.scale;
+        renderAndKeepOpacity();
+    };
+    panel.querySelector('#amb-scale-slider').oninput = (e) => syncScale(e.target.value);
+    panel.querySelector('#amb-scale').oninput = (e) => syncScale(e.target.value);
+    
+    // Synced slider + number for skew X
+    const syncSkewX = (val) => {
+        obj.skewX = parseInt(val) || 0;
+        panel.querySelector('#amb-skew-x-slider').value = obj.skewX;
+        panel.querySelector('#amb-skew-x').value = obj.skewX;
+        renderAndKeepOpacity();
+    };
+    panel.querySelector('#amb-skew-x-slider').oninput = (e) => syncSkewX(e.target.value);
+    panel.querySelector('#amb-skew-x').oninput = (e) => syncSkewX(e.target.value);
+    
+    // Synced slider + number for skew Y
+    const syncSkewY = (val) => {
+        obj.skewY = parseInt(val) || 0;
+        panel.querySelector('#amb-skew-y-slider').value = obj.skewY;
+        panel.querySelector('#amb-skew-y').value = obj.skewY;
+        renderAndKeepOpacity();
+    };
+    panel.querySelector('#amb-skew-y-slider').oninput = (e) => syncSkewY(e.target.value);
+    panel.querySelector('#amb-skew-y').oninput = (e) => syncSkewY(e.target.value);
 
     panel.querySelector('#amb-delete').onclick = () => {
         state.ambientObjects.splice(index, 1);
@@ -814,7 +914,12 @@ export function hideAmbientConfig() {
     const panel = document.querySelector('#dev-ambient-config');
     if (panel) panel.classList.add('hidden');
     dev.editingAmbient = null;
-    document.querySelectorAll('.ambient-object-wrapper').forEach(el => el.classList.remove('dev-selected'));
+    
+    // Reset preview opacity and remove selection
+    document.querySelectorAll('.ambient-object-wrapper').forEach(el => {
+        el.classList.remove('dev-selected');
+        el.style.removeProperty('opacity');
+    });
 }
 
 // ─── Characters Config Panel ─────────────────────────────────────────

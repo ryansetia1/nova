@@ -386,32 +386,48 @@ export function renderAmbientObjects() {
             skew(${obj.skewX || 0}deg, ${obj.skewY || 0}deg)
         `;
         
-        let finalUrl = obj.url;
-        if (!finalUrl && dom.youtubePlayer) {
-            const mainSrc = dom.youtubePlayer.src;
-            if (mainSrc && !mainSrc.includes('about:blank')) {
-                finalUrl = mainSrc;
-                if (!finalUrl.includes('autoplay=1')) finalUrl += '&autoplay=1';
-                if (!finalUrl.includes('mute=1')) finalUrl += '&mute=1';
-                if (!finalUrl.includes('controls=0')) finalUrl += '&controls=0';
-            } else {
-                finalUrl = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=0&loop=1';
+        let finalUrl;
+        if (obj.interactive) {
+            const browseUrl = obj.url || 'https://google.com';
+            const encodedUrl = browseUrl.replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+            let domain = browseUrl;
+            try { domain = new URL(browseUrl).hostname; } catch(e) {}
+            // Chrome-style browser preview with logo and URL bar
+            finalUrl = `data:text/html,${encodeURIComponent(`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1e1e2e;font-family:system-ui,-apple-system,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}.bar{background:#2d2d44;padding:4px 8px;display:flex;align-items:center;gap:6px;flex-shrink:0;min-height:22px}.dots{display:flex;gap:3px}.dot{width:5px;height:5px;border-radius:50%}.d1{background:#ff5f57}.d2{background:#ffbd2e}.d3{background:#28c840}.url-bar{flex:1;background:#1a1a2e;border-radius:4px;padding:2px 6px;color:#7b7fa0;font-size:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:3px}.lock{color:#28c840;font-size:5px}.content{flex:1;display:flex;align-items:center;justify-content:center;background:#111122;flex-direction:column;gap:min(2vw,10px)}.logo{width:min(20vw,64px);height:min(20vw,64px);position:relative;filter:drop-shadow(0 4px 20px rgba(66,133,244,0.3))}.ring{position:absolute;width:100%;height:100%;border-radius:50%;clip-path:polygon(50% 0%,100% 0%,100% 100%,50% 100%)}.r1{background:#ea4335;clip-path:polygon(50% 0%,100% 25%,75% 50%,50% 50%,25% 50%,0% 25%,10% 0%)}.r2{background:#fbbc04;clip-path:polygon(0% 25%,25% 50%,50% 50%,25% 85%,0% 100%,0% 25%)}.r3{background:#34a853;clip-path:polygon(25% 85%,50% 50%,75% 50%,100% 75%,90% 100%,0% 100%)}.r4{background:#4285f4;clip-path:polygon(50% 50%,100% 25%,100% 75%,75% 50%)}.center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36%;height:36%;background:#4285f4;border-radius:50%;border:min(0.5vw,2px) solid #fff}.domain{color:#7b7fa0;font-size:min(3vw,11px);letter-spacing:0.5px}.hint{color:#44476a;font-size:min(2vw,8px)}</style></head><body><div class="bar"><div class="dots"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div></div><div class="url-bar"><span class="lock">🔒</span>${encodedUrl}</div></div><div class="content"><div class="logo"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div><div class="center"></div></div><div class="domain">${domain}</div><div class="hint">click to browse</div></div></body></html>`)}`;
+        } else {
+            // Decorative mode: use url or mirror YouTube playlist
+            finalUrl = obj.url;
+            if (!finalUrl && dom.youtubePlayer) {
+                const mainSrc = dom.youtubePlayer.src;
+                if (mainSrc && !mainSrc.includes('about:blank')) {
+                    finalUrl = mainSrc;
+                    if (!finalUrl.includes('autoplay=1')) finalUrl += '&autoplay=1';
+                    if (!finalUrl.includes('mute=1')) finalUrl += '&mute=1';
+                    if (!finalUrl.includes('controls=0')) finalUrl += '&controls=0';
+                } else {
+                    finalUrl = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=0&loop=1';
+                }
             }
         }
 
         const zIndex = Math.floor(obj.y * 100) - 100; // Keep below agents at same Y
+        const interactiveClass = obj.interactive ? 'interactive-browser' : 'decorative-iframe';
+        const pointerEvents = 'none'; // All iframes should be non-interactive
+        const browserIcon = obj.interactive ? '🌐 ' : '';
+        
         return `
-            <div class="ambient-object-wrapper ${obj.url ? 'has-custom-url' : ''}" 
+            <div class="ambient-object-wrapper ${obj.url ? 'has-custom-url' : ''} ${interactiveClass}" 
                  data-id="${obj.id}" 
                  data-index="${i}"
+                 data-interactive="${obj.interactive ? 'true' : 'false'}"
                  style="left: ${obj.x}%; top: ${obj.y}%; width: ${obj.width || 200}px; height: ${obj.height || 120}px; transform: ${transform}; z-index: ${zIndex};"
                  onclick="window.handleAmbientClick('${obj.id}', event)">
-                 <div class="ambient-label" style="position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:9px; color:rgba(255,255,255,0.4); white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.2s;">${obj.name}</div>
-                <div class="ambient-iframe-container" style="pointer-events: none;">
+                 <div class="ambient-label" style="position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:9px; color:rgba(255,255,255,0.4); white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.2s;">${browserIcon}${obj.name}</div>
+                <div class="ambient-iframe-container" data-interactive="${obj.interactive ? 'true' : 'false'}" style="pointer-events: ${pointerEvents};">
                     <iframe src="${finalUrl}" 
                             class="ambient-iframe"
                             frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                             allowfullscreen></iframe>
                 </div>
             </div>
@@ -436,7 +452,7 @@ export function syncAmbientPlayers() {
 
     document.querySelectorAll('.ambient-iframe').forEach((iframe, i) => {
         const obj = state.ambientObjects[i];
-        if (obj && !obj.url) { // Only sync if no custom URL
+        if (obj && !obj.url && !obj.interactive) { // Only sync decorative iframes with no custom URL
             const currentId = extractYouTubeIdFromSrc(iframe.src);
             if (currentId !== mainVideoId) {
                 iframe.src = `https://www.youtube.com/embed/${mainVideoId}?autoplay=1&mute=1&controls=0&loop=1&enablejsapi=1`;
@@ -447,10 +463,56 @@ export function syncAmbientPlayers() {
 
 window.handleAmbientClick = async (objectId, event) => {
     const devModule = await import('./devtool.js');
+    
+    // Dev mode: show config panel
     if (devModule?.dev?.isActive && devModule?.dev?.mode === 'theatre') {
         const idx = state.ambientObjects.findIndex(o => o.id === objectId);
         if (idx !== -1) {
             devModule.showAmbientConfig(idx);
+        }
+        return;
+    }
+    
+    // Normal mode: handle interactive browsers
+    const obj = state.ambientObjects.find(o => o.id === objectId);
+    if (obj && obj.interactive) {
+        // Prevent iframe event bubbling
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Check if we're running in Electron
+        if (window.electronAPI) {
+            try {
+                const url = obj.url || 'https://google.com';
+                // Use 80% of main window size instead of small iframe size
+                const width = Math.floor(window.innerWidth * 0.8);
+                const height = Math.floor(window.innerHeight * 0.8);
+                
+                const result = await window.electronAPI.openBrowserWindow(objectId, url, width, height);
+                
+                if (result.success) {
+                    const { showToast } = await import('./ui.js');
+                    if (result.existed) {
+                        showToast('info', '🌐', 'Browser focused');
+                    } else {
+                        showToast('success', '🌐', 'Browser opened');
+                    }
+                } else {
+                    console.error('Failed to open browser window:', result.error);
+                    const { showToast } = await import('./ui.js');
+                    showToast('error', '❌', `Failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error opening browser window:', error);
+                const { showToast } = await import('./ui.js');
+                showToast('error', '❌', `Error: ${error.message || 'Unknown'}`);
+            }
+        } else {
+            // Fallback for web version - open in new tab
+            const url = obj.url || 'https://google.com';
+            window.open(url, '_blank');
+            const { showToast } = await import('./ui.js');
+            showToast('info', '🌐', 'Opened in new tab');
         }
     }
 };

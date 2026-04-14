@@ -11,5 +11,21 @@
     "scale": 0.6,
     "skewX": 9,
     "skewY": -26
+  },
+  {
+    "id": "ambient_1776177377869",
+    "name": "Browser",
+    "url": "",
+    "x": 21.19,
+    "y": 49.59,
+    "width": 315,
+    "height": 248,
+    "rotation": 0,
+    "scale": 0.18,
+    "skewX": 0,
+    "skewY": -28,
+    "interactive": true,
+    "browserUrl": "https://google.com",
+    "_previewOpacity": 1
   }
 ]

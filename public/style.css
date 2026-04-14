@@ -4559,14 +4559,14 @@ body.dev-mode-theatre #dev-svg-layer {
   visibility: hidden !important;
 }
 
-#ambient-objects.music-paused .ambient-object-wrapper:not(.has-custom-url) {
+#ambient-objects.music-paused .ambient-object-wrapper:not(.has-custom-url):not(.interactive-browser) {
   opacity: 0;
   pointer-events: none;
 }
 
 /* Force visible in theatre mode even if paused */
 body.dev-mode-theatre #ambient-objects.music-paused .ambient-object-wrapper {
-  opacity: 0.5 !important;
+  opacity: 0.85 !important;
   pointer-events: auto !important;
 }
 
@@ -4624,6 +4624,57 @@ body.dev-mode-theatre .ambient-iframe-container {
   pointer-events: none !important;
 }
 
+/* Ensure interactive browser iframes are never directly interactable */
+.ambient-object-wrapper.interactive-browser .ambient-iframe-container iframe {
+  pointer-events: none !important;
+}
+
+/* Interactive Browser Styles */
+.ambient-object-wrapper.interactive-browser {
+  cursor: pointer;
+  pointer-events: auto !important; /* Wrapper should be clickable */
+}
+
+.ambient-object-wrapper.interactive-browser .ambient-iframe-container {
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 211, 238, 0.1);
+  transition: all 0.3s ease;
+  pointer-events: none !important; /* Interactive iframes should not be directly clickable */
+}
+
+.ambient-object-wrapper.interactive-browser:hover .ambient-iframe-container {
+  border-color: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 15px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(34, 211, 238, 0.2);
+  transform: translateY(-2px);
+}
+
+.ambient-object-wrapper.interactive-browser .ambient-label {
+  color: rgba(34, 211, 238, 0.8) !important;
+}
+
+/* Add subtle glow effect for interactive browsers */
+.ambient-object-wrapper.interactive-browser::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, 
+    rgba(34, 211, 238, 0.1), 
+    rgba(34, 211, 238, 0.05), 
+    rgba(34, 211, 238, 0.1)
+  );
+  border-radius: 6px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.ambient-object-wrapper.interactive-browser:hover::before {
+  opacity: 1;
+}
+
 /* Dev Mode Specific Styles for Ambient */
 #dev-ambient-config {
   position: fixed;
@@ -4640,6 +4691,41 @@ body.dev-mode-theatre .ambient-iframe-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Compact number inputs for ambient config */
+.amb-num {
+  width: 48px;
+  height: 24px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.amb-num-sm {
+  width: 40px;
+}
+
+.amb-num:focus {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(217, 119, 6, 0.4);
+  outline: none;
+}
+
+.amb-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#dev-ambient-config input[type="range"] {
+  height: 16px;
+  margin: 0;
 }
 
 .dev-ambient-preview {
