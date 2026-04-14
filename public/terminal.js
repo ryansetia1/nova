@@ -1052,7 +1052,7 @@ export function updateModeUI(pName) {
         if(termContainer) termContainer.classList.add('hidden');
         if(modeChatBtn) modeChatBtn.classList.add('active');
         if(modeTermBtn) modeTermBtn.classList.remove('active');
-        if(footer) footer.classList.add('hidden'); // Hide activity bar in chat mode
+        if(footer) footer.classList.remove('hidden');
         if(clearChatBtn) clearChatBtn.classList.remove('hidden');
     } else {
         if(chatContainer) chatContainer.classList.add('hidden');

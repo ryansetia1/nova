@@ -4068,7 +4068,7 @@ body.dev-mode-layout #dev-svg-layer g {
 /* Terminal Footer & Activity Bar */
 .terminal-footer {
     height: 44px;
-    background: rgba(13, 17, 28, 0.6);
+    background: rgba(13, 17, 28, 0.8);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
@@ -4076,6 +4076,8 @@ body.dev-mode-layout #dev-svg-layer g {
     justify-content: flex-start;
     padding: 0 12px;
     flex-shrink: 0;
+    z-index: 11;
+    position: relative;
 }
 
 .terminal-activity-bar {
