@@ -258,27 +258,49 @@ wss.on('connection', (ws, req) => {
   if (terminals.has(sessionKey)) { terminals.get(sessionKey).kill(); terminals.delete(sessionKey); }
 
   const commonEnv = { ...process.env, ANTHROPIC_API_KEY: apiKey, ANTHROPIC_BASE_URL: baseUrl, LANG: 'en_US.UTF-8' };
-  const initMarker = path.join(projectPath, '.nova_init');
-  const hasBeenInitialized = fs.existsSync(initMarker);
-  
+
+  // Detect prior conversation: .claude/ directory is created by the CLI when a real session runs
+  const claudeDir = path.join(actualCwd, '.claude');
+  const hasConversation = fs.existsSync(claudeDir) && fs.readdirSync(claudeDir).length > 0;
+
   let agentProc = null, isPty = false;
 
-  // For chat mode, we defer spawning until there's an actual input from the user.
-  // Claude CLI in -p (print) mode expects stdin immediately and exits when done.
   if (uiMode !== 'chat') {
     isPty = true;
     agentProc = pty.spawn('/bin/zsh', ['--login'], { name: 'xterm-256color', cols: 120, rows: 30, cwd: actualCwd, env: { ...commonEnv, SHELL: '/bin/zsh', TERM: 'xterm-256color' } });
     terminals.set(sessionKey, agentProc);
-    
+
+    let outputBuffer = '';
+    let retried = false;
+
+    function buildTermCmd(withContinue) {
+      const binName = service === 'claude' ? 'claude' : service;
+      if (service === 'ollama') {
+        return `ollama launch claude --model ${model}${withContinue ? ' -- --continue' : ''}`;
+      }
+      return `${binName}${withContinue ? ' --continue' : ` --model ${model}`}`;
+    }
+
     agentProc.onData((data) => {
         if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data }));
+
+        if (!retried && hasConversation) {
+          outputBuffer += data;
+          if (outputBuffer.length > 4000) outputBuffer = outputBuffer.slice(-2000);
+          if (/No conversation found to continue/i.test(outputBuffer) || /exit status 1/.test(outputBuffer)) {
+            retried = true;
+            outputBuffer = '';
+            console.log(`[NOVA] --continue failed for ${projectName}, retrying without it`);
+            setTimeout(() => { agentProc.write(buildTermCmd(false) + '\r'); }, 500);
+          }
+        }
     });
     agentProc.onExit(() => {
         terminals.delete(sessionKey);
     });
-    const binName = service === 'claude' ? 'claude' : service;
-    const cmd = (service === 'ollama') ? `ollama launch claude --model ${model} ${hasBeenInitialized ? '-- --continue' : ''}` : `${binName} ${hasBeenInitialized ? '--continue' : `--model ${model}`}`;
-    setTimeout(() => { agentProc.write(cmd + '\r'); if (!hasBeenInitialized) fs.writeFileSync(initMarker, ''); }, 1000);
+
+    const cmd = buildTermCmd(hasConversation);
+    setTimeout(() => { agentProc.write(cmd + '\r'); }, 1000);
   } else {
       // Just notify frontend that we're connected
       ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', message: `🚀 Agent '${projectName}' connected in chat mode...` }) }));
@@ -310,36 +332,73 @@ wss.on('connection', (ws, req) => {
             }
 
             let cmd, args;
-            const didInit = fs.existsSync(initMarker);
-            if (service === 'ollama') {
-                cmd = 'ollama';
-                args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
-                if (didInit) args.push("--continue");
-            } else {
-                const binName = service === 'claude' ? 'claude' : service;
-                const binPath = path.join(os.homedir(), '.local', 'bin', binName);
-                cmd = fs.existsSync(binPath) ? binPath : binName;
-                args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
-                if (didInit) args.push("--continue");
+            const chatHasConv = fs.existsSync(claudeDir) && fs.readdirSync(claudeDir).length > 0;
+
+            function spawnChat(withContinue) {
+                if (service === 'ollama') {
+                    cmd = 'ollama';
+                    args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
+                    if (withContinue) args.push("--continue");
+                } else {
+                    const binName = service === 'claude' ? 'claude' : service;
+                    const binPath = path.join(os.homedir(), '.local', 'bin', binName);
+                    cmd = fs.existsSync(binPath) ? binPath : binName;
+                    args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
+                    if (withContinue) args.push("--continue");
+                }
+
+                const chatEnv = { ...commonEnv, PATH: `${path.join(os.homedir(), '.local', 'bin')}:/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || ''}` };
+                console.log(`[ChatProxy] Spawning per-msg: ${cmd} ${args.join(' ')} (CWD: ${actualCwd})`);
+
+                agentProc = spawn(cmd, args, { cwd: actualCwd, env: chatEnv });
+                terminals.set(sessionKey, agentProc);
+
+                let stderrBuf = '';
+                agentProc.stdout.on('data', (d) => { if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: d.toString() })); });
+                agentProc.stderr.on('data', (d) => {
+                   const chunk = d.toString();
+                   stderrBuf += chunk;
+                   console.error(`[ChatProxy Err] ${chunk}`);
+                   // Forward rate-limit / overloaded / retry info so the client can show it
+                   if (/rate_limit|overloaded|429|503|Retrying in|attempt \d+/i.test(chunk)) {
+                     if (ws.readyState === WebSocket.OPEN) {
+                       ws.send(JSON.stringify({ type: 'output', data: chunk }));
+                     }
+                   }
+                });
+                agentProc.on('close', (code) => {
+                   console.log(`[ChatProxy] Closed with code ${code}`);
+                   if (withContinue && code !== 0 && /No conversation found/i.test(stderrBuf)) {
+                     console.log(`[ChatProxy] --continue failed for ${projectName}, retrying without it`);
+                     spawnChat(false);
+                     const rawText2 = dataToSend.replace(/\n$/, '').replace(/\r$/, '');
+                     const jsonMsg2 = JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text: rawText2 }] } });
+                     agentProc.stdin.write(jsonMsg2 + '\n');
+                     agentProc.stdin.end();
+                     return;
+                   }
+                   // If process exited with error and stderr has rate-limit, send error event
+                   if (code !== 0 && /rate_limit|overloaded|429|503/i.test(stderrBuf)) {
+                     const errMatch = stderrBuf.match(/"message"\s*:\s*"([^"]+)"/);
+                     const errMsg = errMatch ? errMatch[1] : 'Rate limit reached — retries exhausted';
+                     if (ws.readyState === WebSocket.OPEN) {
+                       ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: errMsg }) }));
+                     }
+                   } else if (code !== 0 && stderrBuf.trim()) {
+                     if (ws.readyState === WebSocket.OPEN) {
+                       const errMsg = stderrBuf.substring(0, 300).replace(/\n/g, ' ');
+                       ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: errMsg }) }));
+                     }
+                   }
+                   terminals.delete(sessionKey);
+                   agentProc = null;
+                });
+                agentProc.on('error', (err) => {
+                   if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: `Execution failed: ${err.message}` }) }));
+                });
             }
 
-            const chatEnv = { ...commonEnv, PATH: `${path.join(os.homedir(), '.local', 'bin')}:/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || ''}` };
-            console.log(`[ChatProxy] Spawning per-msg: ${cmd} ${args.join(' ')} (CWD: ${actualCwd})`);
-            
-            agentProc = spawn(cmd, args, { cwd: actualCwd, env: chatEnv });
-            terminals.set(sessionKey, agentProc);
-            
-            agentProc.stdout.on('data', (d) => { if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: d.toString() })); });
-            agentProc.stderr.on('data', (d) => { console.error(`[ChatProxy Err] ${d}`); });
-            agentProc.on('close', (code) => { 
-               console.log(`[ChatProxy] Closed with code ${code}`); 
-               if (!didInit && code === 0) fs.writeFileSync(initMarker, '');
-               terminals.delete(sessionKey); 
-               agentProc = null;
-            });
-            agentProc.on('error', (err) => {
-               if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', subtype: 'error', message: `Execution failed: ${err.message}` }) }));
-            });
+            spawnChat(chatHasConv);
 
             // Format input as stream-json envelope
             const rawText = dataToSend.replace(/\n$/, '').replace(/\r$/, '');
@@ -365,5 +424,48 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => { try { if(agentProc) agentProc.kill(); } catch(e) {} terminals.delete(projectName); terminals.delete(sessionKey); });
 });
 
-const PORT = 3000;
-server.listen(PORT, () => console.log(`🪐 NOVA server on http://localhost:${PORT}`));
+const net = require('net');
+
+const PREFERRED_PORT = parseInt(process.env.PORT || process.env.NOVA_PORT || '3000', 10);
+
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const tester = net.createServer()
+      .once('error', () => resolve(false))
+      .once('listening', () => tester.close(() => resolve(true)))
+      .listen(port, '0.0.0.0');
+  });
+}
+
+async function findFreePort(start, attempts = 50) {
+  for (let i = 0; i < attempts; i++) {
+    if (await isPortFree(start + i)) return start + i;
+  }
+  return null;
+}
+
+(async () => {
+  const port = await findFreePort(PREFERRED_PORT);
+  if (!port) {
+    console.error(`NOVA: no free port found (tried ${PREFERRED_PORT}–${PREFERRED_PORT + 49})`);
+    process.exit(1);
+  }
+  if (port !== PREFERRED_PORT) {
+    console.warn(`NOVA: port ${PREFERRED_PORT} in use — using ${port} instead`);
+  }
+
+  server.listen(port, () => {
+    if (process.env.NOVA_DATA_PATH) {
+      try {
+        fs.writeFileSync(
+          path.join(process.env.NOVA_DATA_PATH, '.nova-port'),
+          String(port),
+          'utf8'
+        );
+      } catch (e) {
+        console.warn('NOVA: could not write .nova-port:', e.message);
+      }
+    }
+    console.log(`🪐 NOVA server on http://localhost:${port}`);
+  });
+})();

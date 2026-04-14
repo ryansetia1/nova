@@ -238,6 +238,28 @@ export function setupTerminal(pName, showUI = false) {
                                 const parsed = JSON.parse(line);
                                 handleChatJsonEvent(t, pName, parsed);
                             } catch(err) {
+                                // Try to extract JSON from lines like "429 {json}" or "error: {json}"
+                                const jsonMatch = line.match(/\{[\s\S]*\}$/);
+                                if (jsonMatch) {
+                                    try {
+                                        const fallback = JSON.parse(jsonMatch[0]);
+                                        handleChatJsonEvent(t, pName, fallback);
+                                        return;
+                                    } catch(e2) {}
+                                }
+                                // Detect raw rate-limit / error text that never parsed
+                                if (/rate_limit_error|429|overloaded_error|503/i.test(line)) {
+                                    const robot = state.walkingRobots[pName];
+                                    if (robot) { robot.isThinking = false; robot.hasError = true; renderRobots(); }
+                                    const errText = line.replace(/^\d+\s*/, '').substring(0, 200);
+                                    t.chatMessages.push({ role: 'system', content: `Error: ${errText || 'Rate limit reached'}`, isError: true });
+                                    saveChatHistory(pName, t.chatMessages);
+                                    renderChatMessages(pName);
+                                    const project = state.projects.find(p => p.name === pName);
+                                    showToast('error', '⚠️', `${project?.nickname || pName}: Rate limit hit`);
+                                    fireAgentNotification(pName, project?.nickname, '⚠️ Rate limit error');
+                                    return;
+                                }
                                 console.warn(`[Chat:${pName}] Failed to parse/handle line:`, line.substring(0, 200), err.message);
                             }
                         });
@@ -246,8 +268,18 @@ export function setupTerminal(pName, showUI = false) {
                         const robot = state.walkingRobots[pName];
                         if (robot) {
                             const raw = msg.data;
-                            if (/Thinking|✽|✢|✥/i.test(raw)) { robot.isThinking = true; renderRobots(); } 
-                            else if (/✓|Done|fixed|success|@/i.test(raw)) {
+                            const cleanText = raw.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+                            const isRateLimit = /rate_limit_error|overloaded_error|429|503/i.test(cleanText);
+                            if (isRateLimit) {
+                                robot.hasError = true;
+                                robot.isThinking = false;
+                                renderRobots();
+                                const project = state.projects.find(p => p.name === pName);
+                                showToast('error', '⚠️', `${project?.nickname || pName}: Rate limit hit`);
+                                fireAgentNotification(pName, project?.nickname, '⚠️ Rate limit error');
+                            } else if (/Thinking|✽|✢|✥/i.test(raw)) {
+                                robot.isThinking = true; renderRobots();
+                            } else if (/✓|Done|fixed|success|@/i.test(raw)) {
                                 if (robot.isThinking) {
                                     robot.isThinking = false; robot.hasUpdate = true; renderRobots();
                                     fireAgentNotification(pName, null, '✓ Task Progressed');
@@ -275,9 +307,13 @@ export function setupTerminal(pName, showUI = false) {
     // Terminal Input
     term.onData(d => { 
         if (t.termWs && t.termWs.readyState === WebSocket.OPEN) {
-            t.termWs.send(JSON.stringify({ type: 'input', data: d })); 
-            const r = state.walkingRobots[pName];
-            if (r) { r.isThinking = false; r.hasError = false; renderRobots(); }
+            t.termWs.send(JSON.stringify({ type: 'input', data: d }));
+            // Only clear error state on Enter (new command), not every keystroke
+            const isEnter = d === '\r' || d === '\n';
+            if (isEnter) {
+                const r = state.walkingRobots[pName];
+                if (r && r.hasError) { r.hasError = false; renderRobots(); }
+            }
         }
     });
 
@@ -1377,6 +1413,11 @@ export function renderChatMessages(pName) {
                 `;
             }
             
+            // Error system messages
+            if (m.isError) {
+                return `<div class="chat-bubble system system-error">⚠️ ${m.content}</div>`;
+            }
+
             // Regular system messages (non-animated)
             return `<div class="chat-bubble system">${m.content}</div>`;
         }
@@ -2124,7 +2165,52 @@ export function handleChatJsonEvent(t, pName, parsed) {
     // Silently ignore events that should never render as chat bubbles
     const IGNORED_TYPES = ['permission'];
     if (IGNORED_TYPES.includes(parsed.type)) return;
-    
+
+    // Handle top-level error events (e.g. {"type":"error","error":{"type":"rate_limit_error","message":"..."}})
+    if (parsed.type === 'error') {
+        const errObj = parsed.error || {};
+        const errMsg = errObj.message || parsed.message || 'Unknown error';
+        const errType = errObj.type || '';
+        const isRetrying = /Retrying|attempt/i.test(errMsg);
+
+        // Clear thinking pills
+        t.chatMessages = t.chatMessages.filter(m =>
+            !(m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) &&
+            !m.isProcessingGap
+        );
+
+        // Avoid duplicate error bubbles for the same ongoing retry cycle
+        const lastErr = t.chatMessages[t.chatMessages.length - 1];
+        const isSameError = lastErr && lastErr.isError && lastErr._errType === errType;
+        if (isSameError) {
+            lastErr.content = `Error: ${errMsg}`;
+        } else {
+            t.chatMessages.push({ role: 'system', content: `Error: ${errMsg}`, isError: true, _errType: errType });
+        }
+
+        const robot = state.walkingRobots[pName];
+        if (robot) {
+            robot.isThinking = false;
+            robot.hasError = true;
+            renderRobots();
+        }
+
+        saveChatHistory(pName, t.chatMessages);
+        renderChatMessages(pName);
+
+        if (!isRetrying) {
+            const project = state.projects.find(p => p.name === pName);
+            showToast('error', '⚠️', `${project?.nickname || pName}: ${errMsg.substring(0, 80)}`);
+            fireAgentNotification(pName, project?.nickname, `⚠️ ${errMsg.substring(0, 60)}`);
+        }
+
+        // Update send button
+        if (t && typeof t.updateSendButton === 'function') {
+            try { t.updateSendButton(); } catch(e) {}
+        }
+        return;
+    }
+
     // Handle user events - they carry tool_result after tool_use
     if (parsed.type === 'user' && parsed.message?.content) {
         const toolResults = Array.isArray(parsed.message.content)
@@ -2432,14 +2518,19 @@ export function handleChatJsonEvent(t, pName, parsed) {
         else if (parsed.subtype === "error") {
             clearStatusPills();
             const errMsg = parsed.error?.message || parsed.message || "Unknown error";
-            text = `Error: ${errMsg}`;
-            
+            t.chatMessages.push({ role: 'system', content: `Error: ${errMsg}`, isError: true });
+            saveChatHistory(pName, t.chatMessages);
+            renderChatMessages(pName);
+
+            const project = state.projects.find(p => p.name === pName);
+            showToast('error', '⚠️', `${project?.nickname || pName}: ${errMsg.substring(0, 80)}`);
+
             const robot = state.walkingRobots[pName];
             if (robot) { 
                 robot.isThinking = false; 
                 robot.hasError = true; 
                 renderRobots(); 
-                fireAgentNotification(`❌ Error: ${errMsg}`, pName);
+                fireAgentNotification(pName, project?.nickname, `❌ ${errMsg.substring(0, 60)}`);
                 
                 // Update send button state
                 if (t && typeof t.updateSendButton === 'function') {

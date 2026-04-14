@@ -493,10 +493,14 @@ body.is-fullscreen #header.reveal-padding {
 
 .emoji-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  /* Open upward so it isn’t clipped by the bottom of the viewport */
+  top: auto;
+  bottom: calc(100% + 8px);
   left: 0;
-  width: 330px;
-  height: 380px;
+  right: 0;
+  width: auto;
+  max-width: min(100vw - 32px, 520px);
+  height: min(380px, calc(100vh - 120px));
   background: #111827; /* Matches secondary bg */
   border: 1px solid var(--border-accent);
   border-radius: 12px;
@@ -505,13 +509,19 @@ body.is-fullscreen #header.reveal-padding {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), var(--shadow-glow);
   backdrop-filter: blur(20px);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 #modal-emoji-picker {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 100%;
+  box-sizing: border-box;
   --border-radius: 12px;
   --background: transparent;
+  /* Fit grid to modal width so the shadow DOM is not clipped horizontally */
+  --num-columns: 7;
 }
 
 .emoji-popover input:focus {
@@ -563,6 +573,8 @@ body.is-fullscreen #header.reveal-padding {
   padding: 0 16px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  overflow: visible; /* absolute emoji popover must not be clipped */
+  min-width: 0;
 }
 
 .selected-emoji-container.compact:hover {
@@ -1845,6 +1857,24 @@ emoji-picker.dark {
 
 .avatar-selection-group {
   margin-bottom: 8px;
+  overflow: visible;
+}
+
+/* Spawn modal: popover extends past the compact emoji row — don’t clip it */
+#spawn-modal .modal {
+  overflow: visible;
+}
+
+#spawn-modal .modal-body {
+  overflow: visible;
+}
+
+#spawn-appearance-content {
+  overflow: visible;
+}
+
+#spawn-emoji-trigger-area {
+  min-width: 0;
 }
 
 .avatar-type-toggle {
@@ -4660,6 +4690,26 @@ body.dev-mode-theatre .ambient-iframe-container {
   font-family: var(--font-mono);
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+.chat-bubble.system.system-error {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: var(--accent-rose);
+  text-transform: none;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  align-self: stretch;
+  word-break: break-word;
+  letter-spacing: 0;
+  animation: errorFadeIn 0.3s ease-out;
+}
+
+@keyframes errorFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .chat-input-row {

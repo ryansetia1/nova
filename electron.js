@@ -26,15 +26,63 @@ if (app.isPackaged) {
   }
 }
 
+// Clean stale port file before server starts
+if (app.isPackaged) {
+  const stalePort = path.join(app.getPath('userData'), '.nova-port');
+  try { if (fs.existsSync(stalePort)) fs.unlinkSync(stalePort); } catch (e) {}
+}
+
+// Safety net: prevent Electron crash dialog for EADDRINUSE / server init errors
+process.on('uncaughtException', (err) => {
+  console.error('[NOVA uncaught]', err);
+  if (err.code === 'EADDRINUSE') return; // server.js retry handles it
+});
+
 // Import and start the existing Express+WebSocket server
-// server.js exports nothing — only start it internally in production
 if (app.isPackaged) {
   require('./server.js');
 }
 
 let mainWindow;
 
+function novaPortFilePath() {
+  return path.join(app.getPath('userData'), '.nova-port');
+}
+
+/** Packaged app: read port written by server.js; dev: assume 3000 (see npm run electron:dev). */
+function readNovaServerPort() {
+  if (!app.isPackaged) return 3000;
+  try {
+    const p = parseInt(fs.readFileSync(novaPortFilePath(), 'utf8').trim(), 10);
+    if (Number.isFinite(p) && p > 0 && p < 65536) return p;
+  } catch (e) { /* no file yet */ }
+  return 3000;
+}
+
+function waitForServerPortThenCreateWindow() {
+  if (!app.isPackaged) {
+    setTimeout(createWindow, 500);
+    return;
+  }
+  const portFile = novaPortFilePath();
+  const deadline = Date.now() + 15000;
+  const tick = () => {
+    if (fs.existsSync(portFile)) {
+      setTimeout(createWindow, 150);
+      return;
+    }
+    if (Date.now() > deadline) {
+      console.error('NOVA: timed out waiting for embedded server (.nova-port). Is server.js failing?');
+      createWindow();
+      return;
+    }
+    setTimeout(tick, 50);
+  };
+  tick();
+}
+
 function createWindow() {
+  const port = readNovaServerPort();
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 1000,
@@ -51,9 +99,7 @@ function createWindow() {
     icon: path.join(__dirname, 'public/assets/icon/nova-icon.png'),
   });
 
-  // Wait for server to be ready then load the app
-  // Server starts on port 3000, load it via localhost
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadURL(`http://127.0.0.1:${port}`);
 
   // Open external links in default browser, not in Electron
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -73,8 +119,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Small delay to ensure Express server is ready
-  setTimeout(createWindow, 1000);
+  waitForServerPortThenCreateWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
