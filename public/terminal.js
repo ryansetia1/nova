@@ -579,6 +579,80 @@ function bindWindowEvents(pName, panel, tState) {
         });
     }
 
+    // Folder path click → popover with "Open in Finder"
+    const folderEl = panel.querySelector('.terminal-folder');
+    if (folderEl) {
+        folderEl.style.cursor = 'pointer';
+        folderEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Remove any existing folder popover
+            const existing = panel.querySelector('.folder-popover');
+            if (existing) { existing.remove(); return; }
+
+            // Close all other folder popovers
+            document.querySelectorAll('.folder-popover').forEach(p => p.remove());
+
+            const folderPath = folderEl.textContent.trim();
+            const popover = document.createElement('div');
+            popover.className = 'folder-popover';
+            popover.innerHTML = `
+                <div class="folder-popover-path">${folderPath}</div>
+                <button class="folder-popover-btn open-finder-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Open in Finder
+                </button>
+                <button class="folder-popover-btn copy-path-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy Path
+                </button>
+            `;
+
+            folderEl.parentElement.style.position = 'relative';
+            popover.style.position = 'absolute';
+            popover.style.top = '100%';
+            popover.style.left = folderEl.offsetLeft + 'px';
+            folderEl.parentElement.appendChild(popover);
+
+            popover.querySelector('.open-finder-btn').addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                try {
+                    await fetch('/api/open-in-finder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folderPath })
+                    });
+                } catch (err) {
+                    console.error('Failed to open in finder', err);
+                }
+                popover.remove();
+            });
+
+            popover.querySelector('.copy-path-btn').addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                navigator.clipboard.writeText(folderPath).then(() => {
+                    const btn = popover.querySelector('.copy-path-btn');
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(() => popover.remove(), 800);
+                });
+            });
+
+            // Close on outside click
+            const closePopover = (ev) => {
+                if (!popover.contains(ev.target) && ev.target !== folderEl) {
+                    popover.remove();
+                    document.removeEventListener('click', closePopover, true);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closePopover, true), 0);
+        });
+    }
+
     // Helper function to toggle maximize
     function toggleMaximize() {
         if (panel.classList.contains('docked-right')) return; // Disabled when docked
@@ -608,29 +682,14 @@ function bindWindowEvents(pName, panel, tState) {
 
     // Double-click header to maximize/restore - broader area
     header.addEventListener('dblclick', (e) => {
-        // Only exclude interactive elements that should not trigger maximize
-        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container')) return;
+        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-folder')) return;
         
         e.stopPropagation();
         toggleMaximize();
     });
-    
-    // Also allow double-click on specific areas (for better UX)
-    const titleArea = panel.querySelector('.terminal-title');
-    const folderArea = panel.querySelector('.terminal-folder');
-    const modeToggle = panel.querySelector('.terminal-mode-toggle');
-    
-    [titleArea, folderArea, modeToggle].forEach(element => {
-        if (element) {
-            element.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                toggleMaximize();
-            });
-        }
-    });
 
     header.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-header-emoji')) return;
+        if (e.target.closest('.terminal-dot') || e.target.closest('.terminal-menu-container') || e.target.closest('.terminal-header-emoji') || e.target.closest('.terminal-folder')) return;
         if (tState.isMaximized || panel.classList.contains('docked-right')) return;
 
         bringToFront(panel);

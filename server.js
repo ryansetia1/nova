@@ -250,6 +250,33 @@ app.post('/api/projects/:name/claude-md', (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/open-in-finder', (req, res) => {
+  const { folderPath } = req.body;
+  if (!folderPath) return res.status(400).json({ error: 'folderPath required' });
+
+  let resolved;
+  if (path.isAbsolute(folderPath)) {
+    resolved = folderPath;
+  } else {
+    resolved = path.resolve(__dirname, folderPath);
+  }
+
+  if (!fs.existsSync(resolved)) {
+    return res.status(404).json({ error: 'Path does not exist' });
+  }
+
+  const platform = process.platform;
+  if (platform === 'darwin') {
+    exec(`open "${resolved}"`);
+  } else if (platform === 'win32') {
+    exec(`explorer "${resolved}"`);
+  } else {
+    exec(`xdg-open "${resolved}"`);
+  }
+
+  res.json({ success: true, path: resolved });
+});
+
 const terminals = new Map();
 
 wss.on('connection', (ws, req) => {

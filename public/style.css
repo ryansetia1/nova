@@ -2322,6 +2322,70 @@ body.is-fullscreen .terminal-panel.docked-right {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 300px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.terminal-folder:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Folder Popover */
+.folder-popover {
+  z-index: 1000;
+  margin-top: 6px;
+  background: rgba(13, 17, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  min-width: 200px;
+  overflow: hidden;
+  animation: folderPopoverIn 0.15s ease;
+}
+
+@keyframes folderPopoverIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.folder-popover-path {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  word-break: break-all;
+}
+
+.folder-popover-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.folder-popover-btn:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.folder-popover-btn:active {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.folder-popover-btn + .folder-popover-btn {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .terminal-header-right {
