@@ -367,7 +367,8 @@ export function renderForegroundObjects() {
                  style="left: ${obj.x}%; top: ${obj.y}%; transform: ${transform}; z-index: ${zIndex};"
                  onmousemove="if(document.body.classList.contains('dev-mode-layout')) window.nova.showTooltip('${name}', event)"
                  onmouseleave="window.nova.hideTooltip()"
-                 onclick="window.handleObjectClick('${obj.id}', event)">
+                 onclick="window.handleObjectClick('${obj.id}', event)"
+                 ondblclick="window.handleObjectDblClick('${obj.id}', event)">
                 <img src="assets/office/${isNight ? 'night' : 'day'}/objects/${obj.asset}${suffix}.png" alt="${obj.asset}" draggable="false">
             </div>
         `;
@@ -519,21 +520,158 @@ window.handleAmbientClick = async (objectId, event) => {
 
 
 
+// Check if agent is eligible for a given animation
+function isAgentEligibleForAnimation(agent, animationName) {
+    if (!animationName) return true;
+    const appearance = agent.emoji || 'SPRITE:Char1';
+    if (!appearance.startsWith('SPRITE:')) return true; // emoji agents always eligible
+    const charId = appearance.split(':')[1];
+    const charAnims = state.characterFrames[charId] || state.characterFrames['Char1'];
+    if (!charAnims) return true;
+    return !!charAnims[animationName.toLowerCase()] || !!charAnims[animationName];
+}
+
+// Get eligible agents for an action (exclude pets, filter by animation)
+function getEligibleAgentsForAction(action) {
+    return state.projects.filter(p =>
+        p.active && p.type !== 'pet' && isAgentEligibleForAnimation(p, action.animation)
+    );
+}
+
+// Close any open object action popover
+function closeObjectPopover() {
+    const existing = document.getElementById('object-action-popover');
+    if (existing) existing.remove();
+    document.removeEventListener('click', _objectPopoverOutsideHandler, true);
+}
+
+function _objectPopoverOutsideHandler(e) {
+    const popover = document.getElementById('object-action-popover');
+    if (popover && !popover.contains(e.target) && !e.target.closest('.workspace-object')) {
+        closeObjectPopover();
+    }
+}
+
+// Show Sims-style agent selection popover
+function showObjectActionPopover(action, event) {
+    closeObjectPopover();
+
+    const agents = getEligibleAgentsForAction(action);
+    if (agents.length === 0) return;
+
+    // If only one agent, just send them directly
+    if (agents.length === 1) {
+        window.nova.moveToPosition(agents[0].name, action.id);
+        return;
+    }
+
+    const popover = document.createElement('div');
+    popover.id = 'object-action-popover';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'obj-popover-header';
+    header.innerHTML = `<span>${action.emoji || '📍'}</span> ${action.name || 'Action'}`;
+    popover.appendChild(header);
+
+    // Agent list
+    const list = document.createElement('div');
+    list.className = 'obj-popover-list';
+
+    agents.forEach(agent => {
+        const row = document.createElement('div');
+        row.className = 'obj-popover-agent';
+
+        const appearance = agent.emoji || 'SPRITE:Char1';
+        let avatarHtml;
+        if (appearance.startsWith('SPRITE:')) {
+            const charName = appearance.split(':')[1];
+            avatarHtml = `<img src="assets/characters/${charName}/avatar/${charName}Avatar.png" class="obj-popover-avatar" alt="${charName}">`;
+        } else {
+            avatarHtml = `<div class="obj-popover-emoji">${appearance}</div>`;
+        }
+
+        row.innerHTML = `${avatarHtml}<span class="obj-popover-name">${agent.nickname || agent.name}</span>`;
+        row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.nova.moveToPosition(agent.name, action.id);
+            closeObjectPopover();
+        });
+        list.appendChild(row);
+    });
+
+    popover.appendChild(list);
+
+    // "Send All" footer
+    const footer = document.createElement('div');
+    footer.className = 'obj-popover-footer';
+    footer.innerHTML = `<span>🌍</span> Send All Agents`;
+    footer.addEventListener('click', (e) => {
+        e.stopPropagation();
+        agents.forEach(agent => window.nova.moveToPosition(agent.name, action.id));
+        closeObjectPopover();
+    });
+    popover.appendChild(footer);
+
+    // Position near the click
+    document.body.appendChild(popover);
+    const popRect = popover.getBoundingClientRect();
+    let x = event.clientX - popRect.width / 2;
+    let y = event.clientY - popRect.height - 12;
+
+    // Flip below if too close to top
+    if (y < 10) y = event.clientY + 12;
+    // Clamp horizontal
+    if (x < 10) x = 10;
+    if (x + popRect.width > window.innerWidth - 10) x = window.innerWidth - popRect.width - 10;
+
+    popover.style.left = x + 'px';
+    popover.style.top = y + 'px';
+
+    setTimeout(() => document.addEventListener('click', _objectPopoverOutsideHandler, true), 0);
+}
+
+// Object click handler — single click: popover, double click: all agents
+let _objectClickTimer = null;
+
 window.handleObjectClick = async (objectId, event) => {
-    // If in dev mode, don't trigger actions
     const devModule = await import('./devtool.js');
     if (devModule?.dev?.isActive) return;
 
     const action = state.actions.find(p => p.objectId === objectId);
     if (!action) return;
+    if (!window.nova || !window.nova.moveToPosition) return;
 
-    // Trigger action for all active agents
-    const activeAgents = state.projects.filter(p => p.active);
-    if (activeAgents.length > 0 && window.nova && window.nova.moveToPosition) {
-        activeAgents.forEach(agent => {
-            window.nova.moveToPosition(agent.name, action.id);
-        });
+    // Clear any pending single-click
+    if (_objectClickTimer) {
+        clearTimeout(_objectClickTimer);
+        _objectClickTimer = null;
     }
+
+    _objectClickTimer = setTimeout(() => {
+        _objectClickTimer = null;
+        showObjectActionPopover(action, event);
+    }, 250);
+};
+
+window.handleObjectDblClick = async (objectId, event) => {
+    const devModule = await import('./devtool.js');
+    if (devModule?.dev?.isActive) return;
+
+    const action = state.actions.find(p => p.objectId === objectId);
+    if (!action) return;
+    if (!window.nova || !window.nova.moveToPosition) return;
+
+    // Cancel single-click popover
+    if (_objectClickTimer) {
+        clearTimeout(_objectClickTimer);
+        _objectClickTimer = null;
+    }
+
+    closeObjectPopover();
+
+    const agents = getEligibleAgentsForAction(action);
+    agents.forEach(agent => window.nova.moveToPosition(agent.name, action.id));
 };
 
 export function initThemeControl() {
