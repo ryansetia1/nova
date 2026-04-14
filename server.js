@@ -13,18 +13,81 @@ const wss = new WebSocket.Server({ server });
 
 const DATA_PATH = process.env.NOVA_DATA_PATH || __dirname;
 const PROJECTS_DIR = path.join(DATA_PATH, 'projects');
-
-const WALKABLE_PATH_FILE = path.join(DATA_PATH, 'walkable_path.json');
-const ANCHOR_CONFIG_FILE = path.join(DATA_PATH, 'anchor_config.json');
-const ACTIONS_FILE = path.join(DATA_PATH, 'actions.json');
-const SCHEDULES_FILE = path.join(DATA_PATH, 'schedules.json');
-const FOREGROUND_OBJECTS_FILE = path.join(DATA_PATH, 'foreground_objects.json');
-const AMBIENT_OBJECTS_FILE = path.join(DATA_PATH, 'ambient_objects.json');
-const CHARACTER_CONFIG_FILE = path.join(DATA_PATH, 'character_config.json');
+const WORKSPACES_DIR = path.join(DATA_PATH, 'workspaces');
 
 if (!fs.existsSync(PROJECTS_DIR)) {
   fs.mkdirSync(PROJECTS_DIR, { recursive: true });
 }
+
+// --- Workspace helpers ---
+
+function getWorkspaceDir(workspaceId) {
+  if (!workspaceId) return null;
+  const dir = path.join(WORKSPACES_DIR, workspaceId);
+  return fs.existsSync(dir) ? dir : null;
+}
+
+function wsFile(workspaceId, filename) {
+  const dir = getWorkspaceDir(workspaceId);
+  return dir ? path.join(dir, filename) : path.join(DATA_PATH, filename);
+}
+
+function readJsonFile(filePath, fallback) {
+  try {
+    if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (e) {}
+  return fallback;
+}
+
+function writeJsonFile(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// --- Workspace migration: move root-level configs into workspaces/office/ on first run ---
+
+function migrateToWorkspaces() {
+  const officeDir = path.join(WORKSPACES_DIR, 'office');
+  if (!fs.existsSync(officeDir)) fs.mkdirSync(officeDir, { recursive: true });
+
+  const configFiles = [
+    'walkable_path.json', 'anchor_config.json', 'actions.json',
+    'schedules.json', 'foreground_objects.json', 'ambient_objects.json',
+    'character_config.json'
+  ];
+
+  configFiles.forEach(file => {
+    const src = path.join(DATA_PATH, file);
+    const dest = path.join(officeDir, file);
+    if (fs.existsSync(src) && !fs.existsSync(dest)) {
+      fs.copyFileSync(src, dest);
+      console.log(`[NOVA] Migrated ${file} → workspaces/office/`);
+    }
+  });
+
+  if (!fs.existsSync(path.join(officeDir, 'workspace.json'))) {
+    writeJsonFile(path.join(officeDir, 'workspace.json'), {
+      id: 'office', name: 'NOVA HQ', subtitle: 'Where agents clock in and get to work.',
+      icon: '🏙️',
+      background: { day: 'assets/office/day/office_bg_day.png', night: 'assets/office/night/office_bg_night.png' },
+      foreground: { day: 'assets/office/day/office_fg_day.png', night: 'assets/office/night/office_fg_night.png' },
+      fx: { night: 'assets/office/night/office_fx_night.png' },
+      objectAssetsPath: 'assets/office/day/objects',
+      order: 0
+    });
+  }
+
+  // Migrate existing projects into office agents list
+  const officeAgentsFile = path.join(officeDir, 'agents.json');
+  if (!fs.existsSync(officeAgentsFile) || readJsonFile(officeAgentsFile, []).length === 0) {
+    try {
+      const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
+      const agentNames = entries.filter(e => !e.name.startsWith('.')).map(e => e.name);
+      if (agentNames.length > 0) writeJsonFile(officeAgentsFile, agentNames);
+    } catch (e) {}
+  }
+}
+
+migrateToWorkspaces();
 
 app.use((req, res, next) => {
   const isStatic = req.url.match(/\.(png|jpg|jpeg|gif|css|js|ico|svg|woff2?|ttf|png\.map)$/i);
@@ -82,12 +145,81 @@ app.get('/api/character-animations', (req, res) => {
 });
 
 app.get('/api/object-assets', (req, res) => {
-  const objectsPath = path.join(__dirname, 'public', 'assets', 'office', 'day', 'objects');
+  const ws = req.query.workspace;
+  let objectsPath = path.join(__dirname, 'public', 'assets', 'office', 'day', 'objects');
+  if (ws) {
+    const wsDir = getWorkspaceDir(ws);
+    if (wsDir) {
+      const wsMeta = readJsonFile(path.join(wsDir, 'workspace.json'), {});
+      if (wsMeta.objectAssetsPath) {
+        objectsPath = path.join(__dirname, 'public', wsMeta.objectAssetsPath);
+      }
+    }
+  }
   if (!fs.existsSync(objectsPath)) return res.json([]);
   try {
     const files = fs.readdirSync(objectsPath).filter(f => f.endsWith('_day.png')).map(f => f.replace('_day.png', ''));
     res.json(files);
   } catch (err) { res.json([]); }
+});
+
+// --- Workspace API ---
+
+app.get('/api/workspaces', (req, res) => {
+  try {
+    if (!fs.existsSync(WORKSPACES_DIR)) return res.json([]);
+    const entries = fs.readdirSync(WORKSPACES_DIR, { withFileTypes: true })
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'));
+    const workspaces = entries.map(e => {
+      const meta = readJsonFile(path.join(WORKSPACES_DIR, e.name, 'workspace.json'), { id: e.name, name: e.name, order: 99 });
+      return meta;
+    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+    res.json(workspaces);
+  } catch (err) { res.json([]); }
+});
+
+app.get('/api/workspaces/:id', (req, res) => {
+  const wsDir = getWorkspaceDir(req.params.id);
+  if (!wsDir) return res.status(404).json({ error: 'Workspace not found' });
+  const meta = readJsonFile(path.join(wsDir, 'workspace.json'), {});
+  res.json(meta);
+});
+
+app.get('/api/workspaces/:id/agents', (req, res) => {
+  const wsDir = getWorkspaceDir(req.params.id);
+  if (!wsDir) return res.json([]);
+  const agentNames = readJsonFile(path.join(wsDir, 'agents.json'), []);
+  const agents = agentNames.map(name => {
+    const metaP = path.join(PROJECTS_DIR, name, '.nova-meta.json');
+    if (fs.existsSync(metaP)) {
+      try { return JSON.parse(fs.readFileSync(metaP, 'utf8')); } catch (e) {}
+    }
+    return { name, nickname: name, active: false };
+  }).filter(a => a.active !== false);
+  res.json(agents);
+});
+
+app.post('/api/workspaces/:id/agents', (req, res) => {
+  const wsDir = getWorkspaceDir(req.params.id);
+  if (!wsDir) return res.status(404).json({ error: 'Workspace not found' });
+  writeJsonFile(path.join(wsDir, 'agents.json'), req.body.agents || []);
+  res.json({ success: true });
+});
+
+app.get('/api/workspaces/:id/config', (req, res) => {
+  const wsDir = getWorkspaceDir(req.params.id);
+  if (!wsDir) return res.status(404).json({ error: 'Workspace not found' });
+  res.json({
+    workspace: readJsonFile(path.join(wsDir, 'workspace.json'), {}),
+    walkablePath: readJsonFile(path.join(wsDir, 'walkable_path.json'), []),
+    anchorConfig: readJsonFile(path.join(wsDir, 'anchor_config.json'), { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } }),
+    actions: readJsonFile(path.join(wsDir, 'actions.json'), []),
+    schedules: readJsonFile(path.join(wsDir, 'schedules.json'), []),
+    foregroundObjects: readJsonFile(path.join(wsDir, 'foreground_objects.json'), []),
+    ambientObjects: readJsonFile(path.join(wsDir, 'ambient_objects.json'), []),
+    characterConfig: readJsonFile(path.join(wsDir, 'character_config.json'), {}),
+    agents: readJsonFile(path.join(wsDir, 'agents.json'), [])
+  });
 });
 
 app.post('/api/projects', (req, res) => {
@@ -165,59 +297,72 @@ app.post('/api/update-emoji', (req, res) => {
 });
 
 app.get('/api/walkable-path', (req, res) => {
-  try { res.json(fs.existsSync(WALKABLE_PATH_FILE) ? JSON.parse(fs.readFileSync(WALKABLE_PATH_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+  const f = wsFile(req.query.workspace, 'walkable_path.json');
+  res.json(readJsonFile(f, []));
 });
 app.post('/api/walkable-path', (req, res) => {
-  fs.writeFileSync(WALKABLE_PATH_FILE, JSON.stringify(req.body.path, null, 2));
+  const f = wsFile(req.query.workspace, 'walkable_path.json');
+  writeJsonFile(f, req.body.path);
   res.json({ success: true });
 });
 
 app.get('/api/anchor', (req, res) => {
-  try { res.json(fs.existsSync(ANCHOR_CONFIG_FILE) ? JSON.parse(fs.readFileSync(ANCHOR_CONFIG_FILE, 'utf8')) : { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } }); } catch (e) { res.json({ Char1: { x: 50, y: 85 } }); }
+  const f = wsFile(req.query.workspace, 'anchor_config.json');
+  res.json(readJsonFile(f, { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } }));
 });
 app.post('/api/anchor', (req, res) => {
-  fs.writeFileSync(ANCHOR_CONFIG_FILE, JSON.stringify(req.body, null, 2));
+  const f = wsFile(req.query.workspace, 'anchor_config.json');
+  writeJsonFile(f, req.body);
   res.json({ success: true });
 });
 
 app.get('/api/actions', (req, res) => {
-  try { res.json(fs.existsSync(ACTIONS_FILE) ? JSON.parse(fs.readFileSync(ACTIONS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+  const f = wsFile(req.query.workspace, 'actions.json');
+  res.json(readJsonFile(f, []));
 });
 app.post('/api/actions', (req, res) => {
-  fs.writeFileSync(ACTIONS_FILE, JSON.stringify(req.body.actions, null, 2));
+  const f = wsFile(req.query.workspace, 'actions.json');
+  writeJsonFile(f, req.body.actions);
   res.json({ success: true });
 });
 
-// Schedule persistence
 app.get('/api/schedules', (req, res) => {
-  try { res.json(fs.existsSync(SCHEDULES_FILE) ? JSON.parse(fs.readFileSync(SCHEDULES_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+  const f = wsFile(req.query.workspace, 'schedules.json');
+  res.json(readJsonFile(f, []));
 });
 app.post('/api/schedules', (req, res) => {
-  fs.writeFileSync(SCHEDULES_FILE, JSON.stringify(req.body.schedules, null, 2));
+  const f = wsFile(req.query.workspace, 'schedules.json');
+  writeJsonFile(f, req.body.schedules);
   res.json({ success: true });
 });
 
 app.get('/api/foreground-objects', (req, res) => {
-  try { res.json(fs.existsSync(FOREGROUND_OBJECTS_FILE) ? JSON.parse(fs.readFileSync(FOREGROUND_OBJECTS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+  const f = wsFile(req.query.workspace, 'foreground_objects.json');
+  res.json(readJsonFile(f, []));
 });
 app.post('/api/foreground-objects', (req, res) => {
-  fs.writeFileSync(FOREGROUND_OBJECTS_FILE, JSON.stringify(req.body.objects, null, 2));
+  const f = wsFile(req.query.workspace, 'foreground_objects.json');
+  writeJsonFile(f, req.body.objects);
   res.json({ success: true });
 });
 
 app.get('/api/ambient-objects', (req, res) => {
-  try { res.json(fs.existsSync(AMBIENT_OBJECTS_FILE) ? JSON.parse(fs.readFileSync(AMBIENT_OBJECTS_FILE, 'utf8')) : []); } catch (e) { res.json([]); }
+  const f = wsFile(req.query.workspace, 'ambient_objects.json');
+  res.json(readJsonFile(f, []));
 });
 app.post('/api/ambient-objects', (req, res) => {
-  fs.writeFileSync(AMBIENT_OBJECTS_FILE, JSON.stringify(req.body.objects, null, 2));
+  const f = wsFile(req.query.workspace, 'ambient_objects.json');
+  writeJsonFile(f, req.body.objects);
   res.json({ success: true });
 });
 
 app.get('/api/character-config', (req, res) => {
-  try { res.json(fs.existsSync(CHARACTER_CONFIG_FILE) ? JSON.parse(fs.readFileSync(CHARACTER_CONFIG_FILE, 'utf8')) : {}); } catch (e) { res.json({}); }
+  const f = wsFile(req.query.workspace, 'character_config.json');
+  res.json(readJsonFile(f, {}));
 });
 app.post('/api/character-config', (req, res) => {
-  fs.writeFileSync(CHARACTER_CONFIG_FILE, JSON.stringify(req.body, null, 2));
+  const f = wsFile(req.query.workspace, 'character_config.json');
+  writeJsonFile(f, req.body);
   res.json({ success: true });
 });
 

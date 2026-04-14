@@ -6,6 +6,10 @@ import { state, dom, CHARACTERS } from './state.js';
 import { showToast, renderRobots, renderForegroundObjects, renderAmbientObjects } from './ui.js';
 import { renderActivePath } from './devtool.js';
 
+function wsParam() {
+    return state.activeWorkspace ? `?workspace=${encodeURIComponent(state.activeWorkspace)}` : '';
+}
+
 export let WALKABLE_PATH = [{"x":17.75,"y":73.69},{"x":53.13,"y":55.56},{"x":59.62,"y":58.94},{"x":67.63,"y":60.31},{"x":71.13,"y":58.31},{"x":88.13,"y":66.94},{"x":84,"y":67.94},{"x":85.88,"y":71.31},{"x":74,"y":77.69},{"x":70.63,"y":75.19},{"x":62.88,"y":80.06},{"x":59.62,"y":83.94},{"x":44,"y":74.94},{"x":33.13,"y":81.06},{"x":18.13,"y":73.81}];
 
 export function isPointInPolygon(point, vs) {
@@ -177,7 +181,7 @@ export function startWalkingLoop() {
 
 export async function loadWalkablePath() {
     try {
-        const res = await fetch('/api/walkable-path');
+        const res = await fetch(`/api/walkable-path${wsParam()}`);
         const data = await res.json();
         if (Array.isArray(data) && data.length >= 3) {
             WALKABLE_PATH.length = 0;
@@ -189,7 +193,7 @@ export async function loadWalkablePath() {
 
 export async function saveWalkablePath(newPath) {
     try {
-        const res = await fetch('/api/walkable-path', {
+        const res = await fetch(`/api/walkable-path${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: newPath })
@@ -205,7 +209,7 @@ export async function saveWalkablePath(newPath) {
 
 export async function loadCharacterConfig() {
     try {
-        const res = await fetch('/api/character-config');
+        const res = await fetch(`/api/character-config${wsParam()}`);
         const data = await res.json();
         Object.keys(data).forEach(charId => {
             state.characterConfig[charId] = data[charId];
@@ -217,7 +221,7 @@ export async function loadCharacterConfig() {
 
 export async function saveCharacterConfig(config) {
     try {
-        const res = await fetch('/api/character-config', {
+        const res = await fetch(`/api/character-config${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
@@ -240,9 +244,8 @@ export function getCharConfig(charId) {
 
 export async function loadAnchorConfig() {
     try {
-        const res = await fetch('/api/anchor');
+        const res = await fetch(`/api/anchor${wsParam()}`);
         const data = await res.json();
-        // Result is expected to be { Char1: { x, y }, Char2: { x, y } }
         Object.keys(data).forEach(charId => {
             state.characterAnchors[charId] = data[charId];
             state.originalCharacterAnchors[charId] = { ...data[charId] };
@@ -253,7 +256,7 @@ export async function loadAnchorConfig() {
 
 export async function saveAnchorConfig(anchors) {
     try {
-        const res = await fetch('/api/anchor', {
+        const res = await fetch(`/api/anchor${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(anchors)
@@ -284,7 +287,7 @@ export function updateNicknameOffset(charId, offset) {
 
 export async function loadActions() {
     try {
-        const res = await fetch('/api/actions');
+        const res = await fetch(`/api/actions${wsParam()}`);
         const data = await res.json();
         if (Array.isArray(data)) {
             state.actions = data;
@@ -294,7 +297,7 @@ export async function loadActions() {
 
 export async function saveActions(actions) {
     try {
-        const res = await fetch('/api/actions', {
+        const res = await fetch(`/api/actions${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ actions })
@@ -313,7 +316,7 @@ export async function saveActions(actions) {
 
 export async function loadForegroundObjects() {
     try {
-        const res = await fetch('/api/foreground-objects');
+        const res = await fetch(`/api/foreground-objects${wsParam()}`);
         const data = await res.json();
         if (Array.isArray(data)) {
             state.foregroundObjects = data;
@@ -324,7 +327,7 @@ export async function loadForegroundObjects() {
 
 export async function saveForegroundObjects(objects) {
     try {
-        const res = await fetch('/api/foreground-objects', {
+        const res = await fetch(`/api/foreground-objects${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ objects })
@@ -340,7 +343,7 @@ export async function saveForegroundObjects(objects) {
 
 export async function loadAmbientObjects() {
     try {
-        const res = await fetch('/api/ambient-objects');
+        const res = await fetch(`/api/ambient-objects${wsParam()}`);
         const data = await res.json();
         if (Array.isArray(data)) {
             state.ambientObjects = data;
@@ -351,7 +354,7 @@ export async function loadAmbientObjects() {
 
 export async function saveAmbientObjects(objects) {
     try {
-        const res = await fetch('/api/ambient-objects', {
+        const res = await fetch(`/api/ambient-objects${wsParam()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ objects })
@@ -367,7 +370,7 @@ export async function saveAmbientObjects(objects) {
 
 export async function loadObjectAssets() {
     try {
-        const res = await fetch('/api/object-assets');
+        const res = await fetch(`/api/object-assets${wsParam()}`);
         const data = await res.json();
         if (Array.isArray(data)) {
             state.objectAssets = data;

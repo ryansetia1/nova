@@ -5,6 +5,10 @@
 import { state } from './state.js';
 import { moveToPosition, clearForcedTarget } from './walking.js';
 
+function wsParam() {
+    return state.activeWorkspace ? `?workspace=${encodeURIComponent(state.activeWorkspace)}` : '';
+}
+
 // Active timers per schedule
 const activeTimers = new Map();     // scheduleId -> intervalId or timeoutId
 const durationTimers = new Map();   // agentName -> timeoutId (for clearing on cancel)
@@ -200,7 +204,7 @@ export async function initScheduler() {
   console.log('📅 Initializing NOVA Scheduler...');
   
   try {
-    const res = await fetch('/api/schedules');
+    const res = await fetch(`/api/schedules${wsParam()}`);
     const data = await res.json();
     if (Array.isArray(data)) {
       state.schedules = data;
@@ -222,7 +226,7 @@ export async function initScheduler() {
 // Persist schedules to server
 export async function saveSchedules() {
   try {
-    await fetch('/api/schedules', {
+    await fetch(`/api/schedules${wsParam()}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ schedules: state.schedules })

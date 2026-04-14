@@ -261,7 +261,16 @@ export function renderSidebar() {
 }
 
 export function renderRobots() {
-    if (state.projects.length === 0) { dom.emptyState.classList.remove('hidden'); dom.robotCards.innerHTML = ''; return; }
+    if (state.projects.length === 0) {
+        dom.emptyState.classList.remove('hidden');
+        dom.robotCards.innerHTML = '';
+        if (dom.activeAgentList) dom.activeAgentList.innerHTML = '';
+        if (dom.orphanedFolderList) dom.orphanedFolderList.innerHTML = '';
+        if (dom.activeCount) dom.activeCount.innerText = '0';
+        if (dom.orphanedCount) dom.orphanedCount.innerText = '0';
+        if (dom.orphanedSection) dom.orphanedSection.classList.add('hidden');
+        return;
+    }
     dom.emptyState.classList.add('hidden');
     
     // Get collapsed categories from localStorage

@@ -1,0 +1,19 @@
+{
+  "id": "spacestation",
+  "name": "SPACE STATION",
+  "subtitle": "Mission control beyond the stars.",
+  "icon": "🚀",
+  "background": {
+    "day": "assets/spacestation/day/spacestation_bg_day.png",
+    "night": "assets/spacestation/night/spacestation_bg_night.png"
+  },
+  "foreground": {
+    "day": "assets/spacestation/day/spacestation_fg_day.png",
+    "night": "assets/spacestation/night/spacestation_fg_night.png"
+  },
+  "fx": {
+    "night": "assets/spacestation/night/spacestation_fx_night.png"
+  },
+  "objectAssetsPath": "assets/spacestation/day/objects",
+  "order": 1
+}

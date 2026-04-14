@@ -438,8 +438,17 @@ export async function handleSpawn() {
         else state.projects.push(data);
         closeModal(); 
         renderRobots();
+
+        // Register agent in current workspace
+        if (state.activeWorkspace) {
+            const agentNames = state.projects.filter(p => p.active !== false).map(p => p.name);
+            fetch(`/api/workspaces/${encodeURIComponent(state.activeWorkspace)}/agents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agents: agentNames })
+            }).catch(() => {});
+        }
         
-        // Only setup terminal if not a pet
         if (type !== 'pet') {
             setupTerminal(data.name, true);
         } else {
@@ -481,6 +490,16 @@ export async function handleDeleteAgent(deleteFiles = false) {
         terminalModule.disposeTerminal(pName);
 
         await syncProjectsAfterDelete(project, pName, deleteFiles);
+
+        // Sync workspace agent list
+        if (state.activeWorkspace) {
+            const agentNames = state.projects.filter(p => p.active !== false).map(p => p.name);
+            fetch(`/api/workspaces/${encodeURIComponent(state.activeWorkspace)}/agents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agents: agentNames })
+            }).catch(() => {});
+        }
 
         closeDeleteAgentModal();
         renderRobots();

@@ -1,0 +1,19 @@
+{
+  "id": "office",
+  "name": "NOVA HQ",
+  "subtitle": "Where agents clock in and get to work.",
+  "icon": "🏙️",
+  "background": {
+    "day": "assets/office/day/office_bg_day.png",
+    "night": "assets/office/night/office_bg_night.png"
+  },
+  "foreground": {
+    "day": "assets/office/day/office_fg_day.png",
+    "night": "assets/office/night/office_fg_night.png"
+  },
+  "fx": {
+    "night": "assets/office/night/office_fx_night.png"
+  },
+  "objectAssetsPath": "assets/office/day/objects",
+  "order": 0
+}

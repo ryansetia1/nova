@@ -1,0 +1,13 @@
+{
+  "Char1": {
+    "walkSpeed": 1.5,
+    "animSpeed": 1,
+    "scale": 1
+  },
+  "Char2": {
+    "walkSpeed": 1.5,
+    "animSpeed": 1,
+    "scale": 0.6,
+    "nicknameY": 49
+  }
+}

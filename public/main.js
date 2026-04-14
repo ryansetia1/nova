@@ -11,6 +11,8 @@ import {
     initThemeControl, 
     preloadAllAssets, 
     renderRobots,
+    renderForegroundObjects,
+    renderAmbientObjects,
     showToast,
     bringToFront,
     getAppearanceHtml,
@@ -33,7 +35,8 @@ import {
     loadActions,
     loadForegroundObjects,
     loadAmbientObjects,
-    moveToPosition
+    moveToPosition,
+    WALKABLE_PATH
 } from './walking.js';
 import { 
     initDevTool 
@@ -71,34 +74,322 @@ import {
     initScheduleUI
 } from './schedule-ui.js';
 
+// ---- Workspace System ----
+
+async function loadWorkspaces() {
+    try {
+        const res = await fetch('/api/workspaces');
+        state.workspaces = await res.json();
+    } catch (err) { state.workspaces = []; }
+}
+
+function applyWorkspaceBackground(wsMeta) {
+    const wrapper = document.getElementById('floor-wrapper');
+    if (!wrapper || !wsMeta) return;
+    const bg = wsMeta.background || {};
+    const fg = wsMeta.foreground || {};
+    const fx = wsMeta.fx || {};
+    wrapper.style.setProperty('--ws-bg-day', bg.day ? `url('${bg.day}')` : '');
+    wrapper.style.setProperty('--ws-bg-night', bg.night ? `url('${bg.night}')` : '');
+    wrapper.style.setProperty('--ws-fg-day', fg.day ? `url('${fg.day}')` : '');
+    wrapper.style.setProperty('--ws-fg-night', fg.night ? `url('${fg.night}')` : '');
+    wrapper.style.setProperty('--ws-fx-night', fx.night ? `url('${fx.night}')` : '');
+}
+
+function updateWorkspaceUI(wsMeta) {
+    const title = document.getElementById('room-title');
+    const subtitle = document.getElementById('room-subtitle');
+    if (title) title.textContent = `${wsMeta.icon || ''} ${wsMeta.name || ''}`;
+    if (subtitle) subtitle.textContent = wsMeta.subtitle || '';
+
+    const idx = state.workspaces.findIndex(w => w.id === state.activeWorkspace);
+    const prevBtn = document.getElementById('workspace-prev');
+    const nextBtn = document.getElementById('workspace-next');
+    if (prevBtn) prevBtn.classList.toggle('disabled', idx <= 0);
+    if (nextBtn) nextBtn.classList.toggle('disabled', idx >= state.workspaces.length - 1);
+}
+
+function showWorkspaceTransition(wsMeta) {
+    const overlay = document.getElementById('workspace-transition');
+    if (!overlay) return;
+    overlay.querySelector('.workspace-transition-icon').textContent = wsMeta.icon || '🪐';
+    overlay.querySelector('.workspace-transition-name').textContent = wsMeta.name || '';
+    overlay.querySelector('.workspace-transition-subtitle').textContent = wsMeta.subtitle || '';
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(() => overlay.classList.add('active'));
+}
+
+function hideWorkspaceTransition() {
+    const overlay = document.getElementById('workspace-transition');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    setTimeout(() => overlay.classList.add('hidden'), 400);
+}
+
+function clearCurrentScene() {
+    Object.keys(state.walkingRobots).forEach(name => {
+        const el = document.querySelector(`.walking-robot[data-name="${name}"]`);
+        if (el) el.remove();
+    });
+    state.walkingRobots = {};
+
+    Object.keys(state.terminals).forEach(pName => {
+        const t = state.terminals[pName];
+        if (t && t.panel) {
+            t.panel.classList.add('hidden');
+            if (t.panel.classList.contains('docked-right')) {
+                t.panel.classList.remove('docked-right');
+            }
+        }
+        if (t.chatWs) try { t.chatWs.close(); } catch(e) {}
+        if (t.termWs) try { t.termWs.close(); } catch(e) {}
+    });
+    state.terminals = {};
+    import('./terminal.js').then(m => m.updateDockedLayout());
+
+    const fgContainer = document.getElementById('foreground-objects');
+    if (fgContainer) fgContainer.innerHTML = '';
+    const ambContainer = document.getElementById('ambient-objects');
+    if (ambContainer) ambContainer.innerHTML = '';
+
+    const robotCards = document.getElementById('robot-cards');
+    if (robotCards) robotCards.innerHTML = '';
+
+    state.projects = [];
+    state.actions = [];
+    state.foregroundObjects = [];
+    state.ambientObjects = [];
+    state.characterConfig = {};
+    state.characterAnchors = { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } };
+    state.originalCharacterAnchors = { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } };
+    WALKABLE_PATH.length = 0;
+
+    shutdownScheduler();
+    state.schedules = [];
+}
+
+async function loadWorkspaceData(workspaceId) {
+    const wsParam = `workspace=${encodeURIComponent(workspaceId)}`;
+
+    const [wpRes, anchorRes, ccRes, actRes, fgRes, ambRes, schedRes, agentsRes, wsMetaRes] = await Promise.all([
+        fetch(`/api/walkable-path?${wsParam}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/anchor?${wsParam}`).then(r => r.json()).catch(() => ({})),
+        fetch(`/api/character-config?${wsParam}`).then(r => r.json()).catch(() => ({})),
+        fetch(`/api/actions?${wsParam}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/foreground-objects?${wsParam}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/ambient-objects?${wsParam}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/schedules?${wsParam}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/agents`).then(r => r.json()).catch(() => []),
+        fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}`).then(r => r.json()).catch(() => ({}))
+    ]);
+
+    if (Array.isArray(wpRes) && wpRes.length >= 3) {
+        WALKABLE_PATH.length = 0;
+        WALKABLE_PATH.push(...wpRes);
+    }
+
+    Object.keys(anchorRes).forEach(charId => {
+        state.characterAnchors[charId] = anchorRes[charId];
+        state.originalCharacterAnchors[charId] = { ...anchorRes[charId] };
+    });
+
+    Object.keys(ccRes).forEach(charId => {
+        state.characterConfig[charId] = ccRes[charId];
+    });
+
+    state.actions = Array.isArray(actRes) ? actRes : [];
+    state.foregroundObjects = Array.isArray(fgRes) ? fgRes : [];
+    state.ambientObjects = Array.isArray(ambRes) ? ambRes : [];
+    state.schedules = Array.isArray(schedRes) ? schedRes : [];
+    state.projects = agentsRes;
+    state.workspaceMeta = wsMetaRes;
+
+    return wsMetaRes;
+}
+
+function applyWorkspaceScene() {
+    renderForegroundObjects();
+    renderAmbientObjects();
+    renderRobots();
+
+    state.projects.forEach(project => {
+        if (project.active !== false) setupTerminal(project.name, false);
+    });
+    import('./terminal.js').then(m => m.updateDockedLayout());
+
+    try { import('./devtool.js').then(m => { if (m.renderActivePath) m.renderActivePath(); }); } catch(e) {}
+
+    initScheduler();
+}
+
+async function switchWorkspace(direction) {
+    if (state.switchingWorkspace) return;
+    const idx = state.workspaces.findIndex(w => w.id === state.activeWorkspace);
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= state.workspaces.length) return;
+
+    state.switchingWorkspace = true;
+    const targetWs = state.workspaces[newIdx];
+
+    showWorkspaceTransition(targetWs);
+    await new Promise(r => setTimeout(r, 450));
+
+    clearCurrentScene();
+
+    state.activeWorkspace = targetWs.id;
+    localStorage.setItem('nova_active_workspace', targetWs.id);
+
+    const wsMeta = await loadWorkspaceData(targetWs.id);
+    applyWorkspaceBackground(wsMeta);
+    updateWorkspaceUI(wsMeta);
+    applyWorkspaceScene();
+
+    await new Promise(r => setTimeout(r, 300));
+    hideWorkspaceTransition();
+
+    state.switchingWorkspace = false;
+}
+
+window.switchWorkspace = switchWorkspace;
+
+function bindWorkspaceNav() {
+    const prevBtn = document.getElementById('workspace-prev');
+    const nextBtn = document.getElementById('workspace-next');
+    if (prevBtn) prevBtn.addEventListener('click', () => switchWorkspace(-1));
+    if (nextBtn) nextBtn.addEventListener('click', () => switchWorkspace(1));
+}
+
+// ---- Deploy Existing Agent ----
+
+let deploySelected = new Set();
+
+async function openDeployModal() {
+    const modal = document.getElementById('deploy-agent-modal');
+    const listEl = document.getElementById('deploy-agent-list');
+    if (!modal || !listEl) return;
+
+    deploySelected.clear();
+
+    let allProjects = [];
+    try {
+        const res = await fetch('/api/projects');
+        allProjects = await res.json();
+    } catch (e) { return; }
+
+    const currentNames = new Set(state.projects.map(p => p.name));
+    const available = allProjects.filter(p => p.active !== false && !currentNames.has(p.name));
+
+    if (available.length === 0) {
+        listEl.innerHTML = '<div style="text-align: center; padding: 32px 16px; color: var(--text-secondary);">All agents are already in this workspace.</div>';
+        document.getElementById('deploy-confirm-btn').disabled = true;
+    } else {
+        document.getElementById('deploy-confirm-btn').disabled = false;
+        listEl.innerHTML = available.map(p => {
+            const appearance = p.emoji || '🪐';
+            let avatarHtml;
+            if (appearance.startsWith('SPRITE:')) {
+                const charName = appearance.split(':')[1];
+                avatarHtml = `<img src="assets/characters/${charName}/avatar/${charName}Avatar.png" alt="${charName}">`;
+            } else {
+                avatarHtml = appearance;
+            }
+            const typeLabel = p.type === 'captain' ? 'Captain' : p.type === 'pet' ? 'Pet' : 'Agent';
+            return `<div class="deploy-agent-item" data-name="${p.name}">
+                <div class="deploy-agent-avatar">${avatarHtml}</div>
+                <div class="deploy-agent-info">
+                    <div class="deploy-agent-name">${p.nickname || p.name}</div>
+                    <div class="deploy-agent-sub">${typeLabel} · ${p.name}</div>
+                </div>
+                <div class="deploy-agent-check"></div>
+            </div>`;
+        }).join('');
+
+        listEl.querySelectorAll('.deploy-agent-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const name = item.dataset.name;
+                if (deploySelected.has(name)) {
+                    deploySelected.delete(name);
+                    item.classList.remove('selected');
+                } else {
+                    deploySelected.add(name);
+                    item.classList.add('selected');
+                }
+            });
+        });
+    }
+
+    modal.classList.remove('hidden');
+}
+
+async function confirmDeploy() {
+    if (deploySelected.size === 0) return;
+
+    const newNames = [...deploySelected];
+    const currentNames = state.projects.map(p => p.name);
+    const allNames = [...currentNames, ...newNames];
+
+    await fetch(`/api/workspaces/${encodeURIComponent(state.activeWorkspace)}/agents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents: allNames })
+    });
+
+    const res = await fetch(`/api/workspaces/${encodeURIComponent(state.activeWorkspace)}/agents`);
+    state.projects = await res.json();
+
+    renderRobots();
+    state.projects.forEach(p => {
+        if (newNames.includes(p.name) && p.active !== false) {
+            setupTerminal(p.name, false);
+        }
+    });
+    import('./terminal.js').then(m => m.updateDockedLayout());
+
+    document.getElementById('deploy-agent-modal').classList.add('hidden');
+    showToast('success', '📦', `Deployed ${newNames.length} agent(s) to this workspace`);
+    deploySelected.clear();
+}
+
+function closeDeployModal() {
+    document.getElementById('deploy-agent-modal')?.classList.add('hidden');
+    deploySelected.clear();
+}
+
+function bindDeployAgent() {
+    const deployBtn = document.getElementById('spawn-menu-deploy');
+    if (deployBtn) {
+        deployBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('spawn-menu')?.classList.add('hidden');
+            openDeployModal();
+        });
+    }
+    document.getElementById('deploy-cancel-btn')?.addEventListener('click', closeDeployModal);
+    document.getElementById('deploy-confirm-btn')?.addEventListener('click', confirmDeploy);
+}
+
+window.openDeployModal = openDeployModal;
+
 // ---- Initialization ----
 async function init() {
     startClock();
     
     await preloadAllAssets();
     
-    await loadWalkablePath(); 
-    await loadAnchorConfig(); 
-    await loadCharacterConfig();
-    await loadActions();
-    await loadForegroundObjects();
-    await loadAmbientObjects();
+    await loadWorkspaces();
+    const wsMeta = await loadWorkspaceData(state.activeWorkspace);
+    applyWorkspaceBackground(wsMeta);
+    updateWorkspaceUI(wsMeta);
+
     initSidebar();
-    // initYouTubePlayer calls were in init in original app.js
-    // I will check if initYouTubePlayer was there. Yes it was.
-    // Wait, the original code had initYouTubePlayer(). Let me check.
-    // Line 130: initYouTubePlayer();
     initYouTubePlayer(); 
-    loadProjects();
+    applyWorkspaceScene();
     bindEvents();
+    bindWorkspaceNav();
+    bindDeployAgent();
     
-    // Initialize the scheduler after projects are loaded
-    initScheduler();
-    
-    // Initialize schedule management UI
     initScheduleUI();
     
-    // Setup scheduler cleanup on page unload
     window.addEventListener('beforeunload', () => {
         shutdownScheduler();
     });
@@ -199,19 +490,19 @@ async function init() {
 
 async function loadProjects() {
     try {
-        const res = await fetch('/api/projects');
+        const res = await fetch(`/api/workspaces/${encodeURIComponent(state.activeWorkspace)}/agents`);
         state.projects = await res.json();
         renderRobots();
         
         state.projects.forEach(project => {
-            // Restore visibility (setupTerminal reads isDocked from meta natively)
             setupTerminal(project.name, !!project.isOpen);
         });
         
-        // Finalize layout
         import('./terminal.js').then(m => m.updateDockedLayout());
     } catch (err) {}
 }
+
+window.loadProjects = loadProjects;
 
 function bindEvents() {
     dom.spawnBtn.addEventListener('click', () => openModal('agent'));
@@ -234,6 +525,7 @@ function bindEvents() {
 
     if (dom.spawnMenuItems) {
         dom.spawnMenuItems.forEach(item => {
+            if (item.dataset.type === 'deploy') return;
             item.addEventListener('click', (e) => {
                 const type = item.dataset.type;
                 openModal(type);

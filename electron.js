@@ -19,6 +19,13 @@ if (app.isPackaged) {
     }
   });
 
+  // Copy workspace templates if they don't exist yet
+  const workspacesDir = path.join(userDataPath, 'workspaces');
+  const srcWorkspaces = path.join(__dirname, 'workspaces');
+  if (!fs.existsSync(workspacesDir) && fs.existsSync(srcWorkspaces)) {
+    fs.cpSync(srcWorkspaces, workspacesDir, { recursive: true });
+  }
+
   // Ensure projects dir exists in userData
   const projectsDir = path.join(userDataPath, 'projects');
   if (!fs.existsSync(projectsDir)) {

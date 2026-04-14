@@ -66,8 +66,14 @@ export const state = {
   },
 
   // Scheduling System
-  schedules: [], // User-created schedules loaded from schedules.json
-  schedulerInitialized: false
+  schedules: [],
+  schedulerInitialized: false,
+
+  // Workspace System
+  activeWorkspace: localStorage.getItem('nova_active_workspace') || 'office',
+  workspaces: [],
+  workspaceMeta: null,
+  switchingWorkspace: false
 };
 
 export const $ = (sel) => document.querySelector(sel);

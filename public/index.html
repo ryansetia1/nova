@@ -112,6 +112,14 @@
                 <div class="menu-item-desc">Decorative character (non-interactive)</div>
               </div>
             </div>
+            <div class="spawn-menu-divider"></div>
+            <div class="spawn-menu-item" id="spawn-menu-deploy" data-type="deploy">
+              <span class="menu-item-icon">📦</span>
+              <div class="menu-item-content">
+                <div class="menu-item-title">Deploy Existing Agent</div>
+                <div class="menu-item-desc">Add an agent from another workspace</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -201,11 +209,33 @@
 
     <!-- Main Content -->
     <main id="main-content">
+      <!-- Workspace Transition Overlay -->
+      <div id="workspace-transition" class="workspace-transition hidden">
+        <div class="workspace-transition-content">
+          <div class="workspace-transition-icon"></div>
+          <div class="workspace-transition-name"></div>
+          <div class="workspace-transition-subtitle"></div>
+          <div class="workspace-transition-loader">
+            <div class="workspace-loader-dot"></div>
+            <div class="workspace-loader-dot"></div>
+            <div class="workspace-loader-dot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Office Room -->
       <section id="office-room">
         <div class="room-header">
-          <h2>🏙️ NOVA HQ</h2>
-          <p class="room-subtitle">Where agents clock in and get to work.</p>
+          <button class="workspace-nav workspace-nav-prev" id="workspace-prev" title="Previous workspace">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="room-header-center">
+            <h2 id="room-title">🏙️ NOVA HQ</h2>
+            <p class="room-subtitle" id="room-subtitle">Where agents clock in and get to work.</p>
+          </div>
+          <button class="workspace-nav workspace-nav-next" id="workspace-next" title="Next workspace">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
         </div>
 
         <!-- Office Floor (Container) -->
@@ -841,6 +871,25 @@ This project is [describe project].
       <div class="modal-footer">
         <button id="sched-form-cancel" class="btn btn-ghost">Cancel</button>
         <button id="sched-form-save" class="btn btn-primary">Save Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deploy Existing Agent Modal -->
+  <div class="modal-overlay hidden" id="deploy-agent-modal">
+    <div class="modal" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>📦 Deploy Existing Agent</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Select agents to add to this workspace</p>
+      </div>
+      <div class="modal-body" id="deploy-agent-list" style="max-height: 360px; overflow-y: auto; padding: 8px 0;">
+        <div class="deploy-empty-state" style="text-align: center; padding: 32px 16px; color: var(--text-secondary);">
+          All agents are already in this workspace.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="deploy-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="deploy-confirm-btn">Deploy Selected</button>
       </div>
     </div>
   </div>
