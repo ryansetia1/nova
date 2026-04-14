@@ -21,8 +21,20 @@ if (app.isPackaged) {
 
   // Copy workspace templates if they don't exist yet
   const workspacesDir = path.join(userDataPath, 'workspaces');
-  const srcWorkspaces = path.join(__dirname, 'workspaces');
-  if (!fs.existsSync(workspacesDir) && fs.existsSync(srcWorkspaces)) {
+  
+  // Try extraResources first (packaged app), then fall back to __dirname (dev)
+  const srcWorkspacesFromResources = path.join(process.resourcesPath, 'workspaces');
+  const srcWorkspacesFromDev = path.join(__dirname, 'workspaces');
+  
+  let srcWorkspaces = null;
+  if (fs.existsSync(srcWorkspacesFromResources)) {
+    srcWorkspaces = srcWorkspacesFromResources;
+  } else if (fs.existsSync(srcWorkspacesFromDev)) {
+    srcWorkspaces = srcWorkspacesFromDev;
+  }
+  
+  if (!fs.existsSync(workspacesDir) && srcWorkspaces) {
+    console.log(`[NOVA] Copying workspaces from ${srcWorkspaces} to ${workspacesDir}`);
     fs.cpSync(srcWorkspaces, workspacesDir, { recursive: true });
   }
 

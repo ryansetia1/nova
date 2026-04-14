@@ -40,6 +40,7 @@
       "preload.js",
       "server.js",
       "public/**/*",
+      "workspaces/**/*",
       "package.json",
       "walkable_path.json",
       "anchor_config.json",
@@ -64,6 +65,10 @@
       {
         "from": "projects",
         "to": "projects"
+      },
+      {
+        "from": "workspaces",
+        "to": "workspaces"
       }
     ]
   },
