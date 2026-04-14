@@ -5,6 +5,16 @@
     "x": 76.07972717285156,
     "y": 67.8272476196289,
     "emoji": "☕",
+    "animation": "coffee",
+    "command": "",
+    "objectId": null
+  },
+  {
+    "id": "pos_1776195794724",
+    "name": "Ngelamun",
+    "x": 65.66902923583984,
+    "y": 57.626869201660156,
+    "emoji": "🚬",
     "animation": "Idle",
     "command": "",
     "objectId": null

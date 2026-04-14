@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "name": "Ngopi dulu",
+    "mode": "per_agent",
+    "timingType": "interval",
+    "actionId": "pos_1776195338497",
+    "duration": 60,
+    "enabled": true,
+    "targetAgent": "Ask-Me-Anything",
+    "interval": "15m",
+    "id": "sched_1776195897300",
+    "createdAt": "2026-04-14T19:44:57.300Z"
+  }
+]
