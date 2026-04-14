@@ -4488,8 +4488,21 @@ body.dev-mode-theatre .ambient-iframe-container {
   box-shadow: 0 4px 15px var(--accent-glow);
 }
 
-.bubble-copy-btn.success {
+.bubble-copy-btn .icon-success {
+  display: none;
+}
+
+.bubble-copy-btn.is-copied .icon-copy {
+  display: none;
+}
+
+.bubble-copy-btn.is-copied .icon-success {
+  display: block;
+}
+
+.bubble-copy-btn.is-copied {
   border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.2) !important;
 }
 
 .bubble-copy-btn svg {
