@@ -96,8 +96,9 @@ export function startWalkingLoop() {
                   // If we were doing an activity but started walking (shouldn't happen with logic above but safety first)
                   r.activity = null; 
                   
-                  const nextX = r.x + (dx / dist) * r.speed;
-                  const nextY = r.y + (dy / dist) * r.speed;
+                  const moveSpeed = r.forcedTarget ? r.speed * 2.0 : r.speed;
+                  const nextX = r.x + (dx / dist) * moveSpeed;
+                  const nextY = r.y + (dy / dist) * moveSpeed;
                   
                   if (r.isIllegal) {
                       r.x = nextX; r.y = nextY;
