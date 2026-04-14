@@ -85,6 +85,35 @@ function migrateToWorkspaces() {
       if (agentNames.length > 0) writeJsonFile(officeAgentsFile, agentNames);
     } catch (e) {}
   }
+
+  // Ensure spacestation workspace exists (for upgrades from older versions)
+  const stationDir = path.join(WORKSPACES_DIR, 'spacestation');
+  if (!fs.existsSync(stationDir)) {
+    fs.mkdirSync(stationDir, { recursive: true });
+    console.log('[NOVA] Created spacestation workspace');
+  }
+  if (!fs.existsSync(path.join(stationDir, 'workspace.json'))) {
+    writeJsonFile(path.join(stationDir, 'workspace.json'), {
+      id: 'spacestation', name: 'SPACE STATION', subtitle: 'Mission control beyond the stars.',
+      icon: '🚀',
+      background: { day: 'assets/spacestation/day/spacestation_bg_day.png', night: 'assets/spacestation/night/spacestation_bg_night.png' },
+      foreground: { day: 'assets/spacestation/day/spacestation_fg_day.png', night: 'assets/spacestation/night/spacestation_fg_night.png' },
+      fx: { night: 'assets/spacestation/night/spacestation_fx_night.png' },
+      objectAssetsPath: 'assets/spacestation/day/objects',
+      order: 1
+    });
+  }
+  const emptyConfigs = ['walkable_path.json', 'foreground_objects.json', 'ambient_objects.json', 'actions.json', 'schedules.json', 'agents.json'];
+  emptyConfigs.forEach(f => {
+    const p = path.join(stationDir, f);
+    if (!fs.existsSync(p)) writeJsonFile(p, []);
+  });
+  if (!fs.existsSync(path.join(stationDir, 'anchor_config.json'))) {
+    writeJsonFile(path.join(stationDir, 'anchor_config.json'), { Char1: { x: 50, y: 85 }, Char2: { x: 50, y: 85 } });
+  }
+  if (!fs.existsSync(path.join(stationDir, 'character_config.json'))) {
+    writeJsonFile(path.join(stationDir, 'character_config.json'), {});
+  }
 }
 
 migrateToWorkspaces();

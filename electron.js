@@ -19,10 +19,11 @@ if (app.isPackaged) {
     }
   });
 
-  // Copy workspace templates if they don't exist yet
+  // Copy workspace templates — check each workspace individually so new ones
+  // get added even if the workspaces/ folder already exists from a prior version
   const workspacesDir = path.join(userDataPath, 'workspaces');
+  if (!fs.existsSync(workspacesDir)) fs.mkdirSync(workspacesDir, { recursive: true });
   
-  // Try extraResources first (packaged app), then fall back to __dirname (dev)
   const srcWorkspacesFromResources = path.join(process.resourcesPath, 'workspaces');
   const srcWorkspacesFromDev = path.join(__dirname, 'workspaces');
   
@@ -33,9 +34,19 @@ if (app.isPackaged) {
     srcWorkspaces = srcWorkspacesFromDev;
   }
   
-  if (!fs.existsSync(workspacesDir) && srcWorkspaces) {
-    console.log(`[NOVA] Copying workspaces from ${srcWorkspaces} to ${workspacesDir}`);
-    fs.cpSync(srcWorkspaces, workspacesDir, { recursive: true });
+  if (srcWorkspaces) {
+    try {
+      const wsEntries = fs.readdirSync(srcWorkspaces, { withFileTypes: true });
+      wsEntries.filter(e => e.isDirectory() && !e.name.startsWith('.')).forEach(e => {
+        const destWs = path.join(workspacesDir, e.name);
+        if (!fs.existsSync(destWs)) {
+          console.log(`[NOVA] Copying workspace "${e.name}" to ${destWs}`);
+          fs.cpSync(path.join(srcWorkspaces, e.name), destWs, { recursive: true });
+        }
+      });
+    } catch (err) {
+      console.warn('[NOVA] Failed to copy workspace templates:', err.message);
+    }
   }
 
   // Ensure projects dir exists in userData
