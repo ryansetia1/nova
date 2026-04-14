@@ -4737,9 +4737,8 @@ body.dev-mode-theatre .ambient-iframe-container {
 }
 
 .ambient-object-wrapper.interactive-browser:hover .ambient-iframe-container {
-  border-color: rgba(34, 211, 238, 0.6);
-  box-shadow: 0 15px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(34, 211, 238, 0.2);
-  transform: translateY(-2px);
+  filter: brightness(1.1) drop-shadow(0 0 6px var(--accent-primary));
+  transform: scale(1.05);
 }
 
 .ambient-object-wrapper.interactive-browser .ambient-label {
