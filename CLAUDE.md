@@ -28,6 +28,11 @@ npm run build
 npm run dist
 ```
 
+### 🆘 Troubleshooting
+If you experience chat hangs, missing sprites, or server crashes, refer to:
+- **[Troubleshooting Overview](troubleshooting/GUIDE.md)**
+- **Repair Utility**: Run `./troubleshooting/repair.sh` to clear locks and hanging processes.
+
 ## Architecture
 
 ```

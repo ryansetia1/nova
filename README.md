@@ -64,6 +64,12 @@ A high-fidelity, interactive office environment for autonomous coding agents. NO
     - **Interaction Isolation**: Modes strictly isolate entity interactions to prevent accidental movement.
 - **Visualize Mode**: Toggle via the settings gear (top right) to see/adjust **character-specific foot anchors** (individual settings for Char1 vs Char2).
 
+## 🆘 Troubleshooting
+
+If you encounter issues like chat hangs, missing sprites, or server crashes, please refer to our dedicated guide:
+- **[Troubleshooting Guide](troubleshooting/GUIDE.md)**: Detailed solutions for known critical issues.
+- **Quick Repair**: Run `./troubleshooting/repair.sh` to clear hanging processes and lock files.
+
 ## 📂 Project Structure
 
 - `/public`: Frontend assets, styles, and logic.
