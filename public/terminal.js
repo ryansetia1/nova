@@ -1659,6 +1659,18 @@ export function renderChatMessages(pName) {
         text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
         text = text.replace(/`(.*?)`/g, '<code>$1</code>');
         
+        // Convert URLs to clickable links
+        text = text
+            // Full URLs (http/https)
+            .replace(/(https?:\/\/[^\s<>"]+[^\s<>".,;:\)])/g, 
+                '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+            // www.example.com style URLs
+            .replace(/(^|\s)(www\.[^\s<>"]+[^\s<>".,;:\)])/g, 
+                '$1<a href="https://$2" target="_blank" rel="noopener noreferrer">$2</a>')
+            // Basic email detection
+            .replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, 
+                '<a href="mailto:$1">$1</a>');
+        
         // Render Options (Buttons) if present
         let optionsHtml = '';
         if (m.options && m.options.length > 0) {

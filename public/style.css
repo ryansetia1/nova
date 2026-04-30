@@ -5421,6 +5421,28 @@ body.dev-mode-theatre .ambient-iframe-container {
     color: var(--accent-cyan);
 }
 
+/* Clickable links in chat bubbles */
+.chat-bubble a {
+    color: #60a5fa;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.2s ease;
+}
+
+.chat-bubble a:hover {
+    color: #93c5fd;
+    text-decoration: underline;
+}
+
+.chat-bubble.user a {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: underline;
+}
+
+.chat-bubble.user a:hover {
+    color: rgba(255, 255, 255, 1);
+}
+
 .bubble-check-mark {
   position: absolute;
   bottom: 4px;
