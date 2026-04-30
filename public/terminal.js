@@ -237,7 +237,8 @@ export function setupTerminal(pName, showUI = false) {
         term, fitAddon: fit, chatWs: null, termWs: null,
         panel, container, ready: false, 
         uploads: [], activeMode: targetMode, chatMessages: [], jsonBuffer: '',
-        lastCost: null, _termLoading: false, _termClean: false
+        lastCost: null, _termLoading: false, _termClean: false,
+        streamedChatBlocks: { text: false, thinking: false }
     };
     state.terminals[pName] = t;
 
@@ -1388,6 +1389,7 @@ export function bindChatEvents(pName, panel, t) {
             // Normal message — send to Claude Code
             if (t.chatWs && t.chatWs.readyState === WebSocket.OPEN) {
                 if (t.activeMode === 'chat') {
+                    t.streamedChatBlocks = { text: false, thinking: false };
                     t.chatMessages.push({ role: 'user', content: val });
                     t.chatMessages.push({ role: 'system', content: 'Thinking...' });
                     saveChatHistory(pName, t.chatMessages);
@@ -2497,6 +2499,8 @@ export function handleChatJsonEvent(t, pName, parsed) {
         if (subtype === 'content_block_delta' && event.delta?.type === 'text_delta') {
             const textFragment = event.delta.text || '';
             if (!textFragment) return;
+            t.streamedChatBlocks = t.streamedChatBlocks || { text: false, thinking: false };
+            t.streamedChatBlocks.text = true;
             
             // Clear thinking/processing pills when text starts arriving
             const hadPills = t.chatMessages.some(m => 
@@ -2538,6 +2542,8 @@ export function handleChatJsonEvent(t, pName, parsed) {
         if (subtype === 'content_block_delta' && event.delta?.type === 'thinking_delta') {
             const thinkingFragment = event.delta.thinking || '';
             if (!thinkingFragment) return;
+            t.streamedChatBlocks = t.streamedChatBlocks || { text: false, thinking: false };
+            t.streamedChatBlocks.thinking = true;
             
             let lastMsg = t.chatMessages[t.chatMessages.length - 1];
             if (lastMsg && lastMsg.role === 'thinking') {
@@ -2569,6 +2575,7 @@ export function handleChatJsonEvent(t, pName, parsed) {
         
         // message_start → new message beginning
         if (subtype === 'message_start') {
+            t.streamedChatBlocks = { text: false, thinking: false };
             return;
         }
         
@@ -2635,6 +2642,7 @@ export function handleChatJsonEvent(t, pName, parsed) {
         const content = parsed.message.content;
         const textBlock = content.find(c => c.type === "text");
         const thinkingBlock = content.find(c => c.type === "thinking");
+        const streamedBlocks = t.streamedChatBlocks || { text: false, thinking: false };
 
         // Sync Robot Thinking Animation
         const robot = state.walkingRobots[pName];
@@ -2659,7 +2667,7 @@ export function handleChatJsonEvent(t, pName, parsed) {
         }
 
         // Store thinking content as a collapsible pill
-        if (thinkingBlock && thinkingBlock.thinking) {
+        if (thinkingBlock && thinkingBlock.thinking && !streamedBlocks.thinking) {
             // Hide processing indicators since we got thinking content
             window.hideProcessingIndicator(pName);
             
@@ -2677,7 +2685,7 @@ export function handleChatJsonEvent(t, pName, parsed) {
             renderChatMessages(pName);
         }
 
-        if (textBlock && textBlock.text) {
+        if (textBlock && textBlock.text && !streamedBlocks.text) {
             lastMsg = t.chatMessages[t.chatMessages.length - 1]; // Re-evaluate pointer
             
             const textFragment = textBlock.text;
