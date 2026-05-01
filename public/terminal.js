@@ -114,6 +114,17 @@ export function updateDockedLayout() {
     }
 }
 
+function updateTerminalProjectBadge(pName, panelOverride = null) {
+    const t = state.terminals[pName];
+    const badge = (panelOverride || t?.panel)?.querySelector('.terminal-project-badge');
+    const project = state.projects.find(x => x.name === pName);
+    if (!badge || !project) return;
+
+    badge.textContent = project.model || '';
+    badge.dataset.service = `Service: ${project.service ? project.service.toUpperCase() : 'OLLAMA'}`;
+    badge.removeAttribute('title');
+}
+
 function refit(t) {
     if (!t || !t.fitAddon || !t.term || t.activeMode !== 'terminal') return;
     
@@ -215,13 +226,10 @@ export function setupTerminal(pName, showUI = false) {
         if (meta.isDocked) panel.classList.add('docked-right');
         panel.querySelector('.terminal-title').textContent = meta.nickname || pName;
         panel.querySelector('.terminal-folder').textContent = meta.customPath || `projects/${pName}`;
-        const badge = panel.querySelector('.terminal-project-badge');
-        badge.textContent = meta.model || '';
-        badge.dataset.service = `Service: ${meta.service ? meta.service.toUpperCase() : 'OLLAMA'}`;
-        badge.removeAttribute('title');
         const emojiEl = panel.querySelector('.terminal-header-emoji');
         if (emojiEl) emojiEl.innerHTML = getAppearanceHtml(meta.emoji);
     }
+    updateTerminalProjectBadge(pName, panel);
 
     renderActivityBar(pName, panel);
     dom.mainContent.appendChild(panel);
@@ -1070,15 +1078,12 @@ export function updateModeUI(pName) {
 const SLASH_COMMANDS = [
     { cmd: '/effort', desc: 'Set effort (low, medium, high, max)' },
     { cmd: '/model', desc: 'Switch AI model' },
-    { cmd: '/agents', desc: 'List configured agents' },
     { cmd: '/clear', desc: 'Clear chat screen' },
-    { cmd: '/help', desc: 'Show aid' },
     { cmd: '/exit', desc: 'Exit session' },
     { cmd: '/continue', desc: 'Continue last session' },
     { cmd: '/resume', desc: 'Resume session by ID' },
     { cmd: '/cost', desc: 'Show session cost' },
-    { cmd: '/compact', desc: 'Compress context' },
-    { cmd: '/doctor', desc: 'Run diagnostics' }
+    { cmd: '/compact', desc: 'Compress context' }
 ];
 
 function renderSlashMenu(pName, filter = '') {
@@ -1292,14 +1297,6 @@ export function bindChatEvents(pName, panel, t) {
                 return;
             }
 
-            if (val === '/help') {
-                const helpText = SLASH_COMMANDS.map(c => `${c.cmd} — ${c.desc}`).join('\n');
-                t.chatMessages.push({ role: 'system', content: helpText });
-                renderChatMessages(pName);
-                chatInput.value = '';
-                return;
-            }
-
             if (val === '/exit') {
                 if (t.chatWs) t.chatWs.close();
                 t.chatMessages.push({ role: 'system', content: 'Session ended.' });
@@ -1341,42 +1338,51 @@ export function bindChatEvents(pName, panel, t) {
                 return;
             }
 
-            if (val === '/model') {
+            if (val.startsWith('/model')) {
                 const project = state.projects.find(x => x.name === pName);
-                const model = project ? project.model : 'Unknown';
-                const service = project ? (project.service || 'ollama') : 'Unknown';
-                t.chatMessages.push({ role: 'system', content: `Current model: ${model} (${service})` });
-                renderChatMessages(pName);
-                chatInput.value = '';
-                return;
-            }
+                const nextModel = val.slice('/model'.length).trim();
+                const service = project ? (project.service || 'ollama') : 'ollama';
 
-            if (val === '/agents') {
-                const agentList = state.projects
-                    .filter(p => p.active)
-                    .map(p => `${p.emoji || '🪐'} ${p.nickname || p.name}`)
-                    .join('\n');
-                t.chatMessages.push({ role: 'system', content: `Active agents:\n${agentList}` });
-                renderChatMessages(pName);
-                chatInput.value = '';
-                return;
-            }
+                if (!nextModel) {
+                    const model = project ? project.model : 'Unknown';
+                    t.chatMessages.push({ role: 'system', content: `Current model: ${model} (${service})` });
+                    renderChatMessages(pName);
+                    chatInput.value = '';
+                    return;
+                }
 
-            if (val === '/doctor') {
-                const wsStatus = t.chatWs ? 
-                    ['CONNECTING','OPEN','CLOSING','CLOSED'][t.chatWs.readyState] : 'NO_WS';
-                const project = state.projects.find(x => x.name === pName);
-                const info = [
-                    `Agent: ${pName}`,
-                    `Model: ${project?.model || 'unknown'}`,
-                    `Service: ${project?.service || 'ollama'}`,
-                    `WebSocket: ${wsStatus}`,
-                    `Messages: ${t.chatMessages.length}`,
-                    `Mode: ${t.activeMode}`
-                ].join('\n');
-                t.chatMessages.push({ role: 'system', content: info });
+                if (project) {
+                    project.model = nextModel;
+                    if (!project.service) project.service = service;
+                }
+                updateTerminalProjectBadge(pName);
+                t.chatMessages.push({ role: 'system', content: `Model set to: ${nextModel} (${service})` });
                 renderChatMessages(pName);
                 chatInput.value = '';
+
+                fetch('/api/update-emoji', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: pName, model: nextModel, service })
+                }).then(res => {
+                    if (!res.ok) throw new Error(`Model update failed: ${res.status}`);
+                    return res.json();
+                }).then(meta => {
+                    if (project) Object.assign(project, meta);
+                    updateTerminalProjectBadge(pName);
+
+                    if (t.activeMode === 'chat' && t.chatWs) {
+                        try { t.chatWs.close(); } catch(e) {}
+                        setTimeout(() => {
+                            if (state.terminals[pName] && typeof t.setupModeWs === 'function') {
+                                t.setupModeWs('chat');
+                            }
+                        }, 300);
+                    }
+                }).catch(err => {
+                    t.chatMessages.push({ role: 'system', content: `Failed to update model: ${err.message}` });
+                    renderChatMessages(pName);
+                });
                 return;
             }
 
@@ -1761,6 +1767,124 @@ function textFromUnknown(value) {
 
 function firstPresent(...values) {
     return values.find(value => value !== undefined && value !== null && value !== '');
+}
+
+function unescapeContentBlockString(value) {
+    return String(value)
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\'/g, "'")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+}
+
+function parseStringifiedContentBlocks(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('[') || !trimmed.endsWith(']') || !trimmed.includes('type')) return null;
+
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.some(block => block && typeof block === 'object' && block.type)) {
+            return parsed;
+        }
+    } catch(e) {}
+
+    const blocks = [];
+    const blockRegex = /\{\s*['"]type['"]\s*:\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*:\s*'((?:\\.|[^'\\])*)'\s*\}/g;
+    let match;
+    while ((match = blockRegex.exec(trimmed)) !== null) {
+        const [, type, field, rawText] = match;
+        const text = unescapeContentBlockString(rawText);
+        blocks.push({ type, [field]: text });
+    }
+
+    return blocks.length ? blocks : null;
+}
+
+function normalizeAssistantContentBlocks(content) {
+    const blocks = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+    return blocks.flatMap(block => {
+        if (block?.type === 'text' && typeof block.text === 'string') {
+            const parsedBlocks = parseStringifiedContentBlocks(block.text);
+            if (parsedBlocks) return parsedBlocks;
+        }
+        return block;
+    });
+}
+
+function removeStreamedRawContentBlockMessage(t) {
+    const lastAssistantIndex = [...t.chatMessages]
+        .map((message, index) => ({ message, index }))
+        .reverse()
+        .find(entry => entry.message.role === 'assistant' && typeof entry.message.content === 'string')?.index;
+
+    if (lastAssistantIndex == null) return false;
+    const lastAssistant = t.chatMessages[lastAssistantIndex];
+    if (!parseStringifiedContentBlocks(lastAssistant.content)) return false;
+
+    t.chatMessages.splice(lastAssistantIndex, 1);
+    if (t.streamedChatBlocks) t.streamedChatBlocks.text = false;
+    return true;
+}
+
+function renderNormalizedContentBlocks(t, pName, blocks, { markStreamed = false } = {}) {
+    const thinkingBlock = blocks.find(block => block?.type === 'thinking' && block.thinking);
+    const textBlock = blocks.find(block => block?.type === 'text' && block.text);
+
+    if (thinkingBlock) {
+        if (markStreamed) {
+            t.streamedChatBlocks = t.streamedChatBlocks || { text: false, thinking: false };
+            t.streamedChatBlocks.thinking = true;
+        }
+
+        let lastMsg = t.chatMessages[t.chatMessages.length - 1];
+        if (lastMsg && lastMsg.role === 'thinking') {
+            lastMsg.content = thinkingBlock.thinking;
+        } else {
+            t.chatMessages = t.chatMessages.filter(m =>
+                !(m.role === 'system' && m.content === 'Thinking...')
+            );
+            t.chatMessages.push({
+                role: 'thinking',
+                content: thinkingBlock.thinking,
+                collapsed: true
+            });
+        }
+    }
+
+    if (textBlock) {
+        if (markStreamed) {
+            t.streamedChatBlocks = t.streamedChatBlocks || { text: false, thinking: false };
+            t.streamedChatBlocks.text = true;
+        }
+
+        t.chatMessages = t.chatMessages.filter(m => {
+            if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
+            if (m.isProcessingGap) return false;
+            return true;
+        });
+
+        let lastMsg = t.chatMessages[t.chatMessages.length - 1];
+        if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.isDone) {
+            t.chatMessages.push({ role: 'assistant', content: textBlock.text });
+        } else {
+            lastMsg.content = textBlock.text;
+        }
+
+        const robot = state.walkingRobots[pName];
+        if (robot && robot.isThinking) {
+            robot.isThinking = false;
+            renderRobots();
+        }
+
+        window.hideProcessingIndicator(pName);
+        window.monitorResponseGaps(pName);
+    }
+
+    saveChatHistory(pName, t.chatMessages);
+    renderChatMessages(pName);
 }
 
 function promptOptionFromEntry(option, index) {
@@ -2748,6 +2872,18 @@ export function handleChatJsonEvent(t, pName, parsed) {
         if (subtype === 'content_block_delta' && event.delta?.type === 'text_delta') {
             const textFragment = event.delta.text || '';
             if (!textFragment) return;
+            t.rawContentBlockStream = (t.rawContentBlockStream || '') + textFragment;
+            const parsedStreamBlocks = parseStringifiedContentBlocks(t.rawContentBlockStream);
+            if (parsedStreamBlocks) {
+                removeStreamedRawContentBlockMessage(t);
+                t.rawContentBlockStream = '';
+                renderNormalizedContentBlocks(t, pName, parsedStreamBlocks, { markStreamed: true });
+                return;
+            }
+
+            if (t.rawContentBlockStream.trim().startsWith('[')) return;
+
+            t.rawContentBlockStream = '';
             t.streamedChatBlocks = t.streamedChatBlocks || { text: false, thinking: false };
             t.streamedChatBlocks.text = true;
             
@@ -2819,12 +2955,25 @@ export function handleChatJsonEvent(t, pName, parsed) {
         
         // content_block_stop → block finished
         if (subtype === 'content_block_stop') {
+            if (t.rawContentBlockStream) {
+                const textFragment = t.rawContentBlockStream;
+                t.rawContentBlockStream = '';
+                let lastMsg = t.chatMessages[t.chatMessages.length - 1];
+                if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.isDone) {
+                    t.chatMessages.push({ role: 'assistant', content: textFragment });
+                } else {
+                    lastMsg.content += textFragment;
+                }
+                saveChatHistory(pName, t.chatMessages);
+                renderChatMessages(pName);
+            }
             return;
         }
         
         // message_start → new message beginning
         if (subtype === 'message_start') {
             t.streamedChatBlocks = { text: false, thinking: false };
+            t.rawContentBlockStream = '';
             return;
         }
         
@@ -2840,12 +2989,13 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
     // Extract tool usage info from assistant messages before filtering
     if (parsed.type === 'assistant' && parsed.message?.content) {
-        const hasOnlyToolUse = parsed.message.content.every(
+        const assistantBlocks = normalizeAssistantContentBlocks(parsed.message.content);
+        const hasOnlyToolUse = assistantBlocks.every(
             c => c.type === 'tool_use' || c.type === 'tool_result'
         );
         
         // Stream tool_use blocks as activity BEFORE filtering
-        parsed.message.content.forEach(block => {
+        assistantBlocks.forEach(block => {
             if (block.type === 'tool_use') {
                 window.handleToolActivityStream(pName, {
                     type: 'tool_use',
@@ -2874,7 +3024,11 @@ export function handleChatJsonEvent(t, pName, parsed) {
         // to ensure message indices stay consistent for interactive elements.
         clearStatusPills();
         
-        const content = parsed.message.content;
+        const content = normalizeAssistantContentBlocks(parsed.message.content);
+        const hadStringifiedBlocks = Array.isArray(parsed.message.content) &&
+            parsed.message.content.some(block => block?.type === 'text' && parseStringifiedContentBlocks(block.text));
+        if (hadStringifiedBlocks) removeStreamedRawContentBlockMessage(t);
+
         const textBlock = content.find(c => c.type === "text");
         const thinkingBlock = content.find(c => c.type === "thinking");
         const streamedBlocks = t.streamedChatBlocks || { text: false, thinking: false };
@@ -2901,42 +3055,9 @@ export function handleChatJsonEvent(t, pName, parsed) {
             }
         }
 
-        // Store thinking content as a collapsible pill
-        if (thinkingBlock && thinkingBlock.thinking && !streamedBlocks.thinking) {
-            // Hide processing indicators since we got thinking content
-            window.hideProcessingIndicator(pName);
-            
-            // Accumulate thinking into the last thinking pill or create a new one
-            const lastThinking = t.chatMessages[t.chatMessages.length - 1];
-            if (lastThinking && lastThinking.role === 'thinking') {
-                lastThinking.content += thinkingBlock.thinking;
-            } else {
-                t.chatMessages.push({ 
-                    role: 'thinking', 
-                    content: thinkingBlock.thinking,
-                    collapsed: true  // collapsed by default
-                });
-            }
-            renderChatMessages(pName);
-        }
-
-        if (textBlock && textBlock.text && !streamedBlocks.text) {
-            lastMsg = t.chatMessages[t.chatMessages.length - 1]; // Re-evaluate pointer
-            
-            const textFragment = textBlock.text;
-            if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.isDone) {
-                t.chatMessages.push({ role: 'assistant', content: textFragment });
-            } else {
-                lastMsg.content += textFragment;
-            }
-            saveChatHistory(pName, t.chatMessages);
-            renderChatMessages(pName);
-            
-            // Hide any existing processing indicators since we got new content
-            window.hideProcessingIndicator(pName);
-            
-            // Start monitoring for potential gaps after this response
-            window.monitorResponseGaps(pName);
+        if ((thinkingBlock && thinkingBlock.thinking && !streamedBlocks.thinking) ||
+            (textBlock && textBlock.text && !streamedBlocks.text)) {
+            renderNormalizedContentBlocks(t, pName, content);
         }
         return;
     }
