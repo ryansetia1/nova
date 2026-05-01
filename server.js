@@ -5,6 +5,7 @@ const pty = require('node-pty');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { exec, spawn } = require('child_process');
 
 const app = express();
@@ -452,6 +453,153 @@ app.post('/api/open-in-finder', (req, res) => {
 });
 
 const terminals = new Map();
+const CHAT_READONLY_ALLOWED_TOOLS = ['WebSearch', 'WebFetch'];
+const PERMISSION_PROMPT_TIMEOUT_MS = 5 * 60 * 1000;
+const activeChatSockets = new Map();
+const pendingPermissionPrompts = new Map();
+
+function sendChatJson(ws, event) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ type: 'output', data: JSON.stringify(event) + '\n' }));
+  return true;
+}
+
+function permissionPromptContent(toolName, input) {
+  if (toolName === 'Bash' && input && input.command) {
+    return `Claude wants to run a shell command:\n\n${input.command}`;
+  }
+  if (toolName === 'AskUserQuestion') {
+    return 'Claude needs your input to continue.';
+  }
+  return `Claude wants to use ${toolName || 'a tool'}.`;
+}
+
+function permissionPromptOptions(toolName, input) {
+  if (toolName === 'AskUserQuestion' && input && Array.isArray(input.questions)) {
+    return input.questions.flatMap((question, questionIndex) => {
+      const options = Array.isArray(question.options) ? question.options : [];
+      if (options.length === 0) return [];
+      return options.map((option, optionIndex) => {
+        const label = typeof option === 'string'
+          ? option
+          : (option.label || option.value || option.text || `Option ${optionIndex + 1}`);
+        return {
+          label,
+          value: label,
+          payload: {
+            behavior: 'allow',
+            updatedInput: {
+              ...input,
+              answers: {
+                ...(input.answers || {}),
+                [question.question || `Question ${questionIndex + 1}`]: label
+              }
+            }
+          }
+        };
+      });
+    });
+  }
+
+  return [
+    {
+      label: 'Allow',
+      value: 'allow',
+      payload: { behavior: 'allow', updatedInput: input || {} }
+    },
+    {
+      label: 'Deny',
+      value: 'deny',
+      payload: { behavior: 'deny', message: 'User denied this action in NOVA.' }
+    }
+  ];
+}
+
+function normalizePermissionDecision(response, pending) {
+  if (response && typeof response === 'object') {
+    if (response.behavior === 'allow') {
+      return {
+        behavior: 'allow',
+        updatedInput: response.updatedInput ?? response.updated_input ?? pending.input ?? {}
+      };
+    }
+    if (response.behavior === 'deny') {
+      return {
+        behavior: 'deny',
+        message: response.message || 'User denied this action in NOVA.'
+      };
+    }
+  }
+
+  const text = String(response || '').toLowerCase();
+  if (text === 'allow' || text === 'approve' || text === 'yes') {
+    return { behavior: 'allow', updatedInput: pending.input || {} };
+  }
+  return { behavior: 'deny', message: 'User denied this action in NOVA.' };
+}
+
+function resolvePermissionPrompt(promptId, response) {
+  const pending = pendingPermissionPrompts.get(promptId);
+  if (!pending) return false;
+  clearTimeout(pending.timeout);
+  pendingPermissionPrompts.delete(promptId);
+  pending.resolve(normalizePermissionDecision(response, pending));
+  return true;
+}
+
+function denyPendingPermissionPrompts(sessionKey, message) {
+  for (const [promptId, pending] of pendingPermissionPrompts.entries()) {
+    if (pending.sessionKey !== sessionKey) continue;
+    clearTimeout(pending.timeout);
+    pendingPermissionPrompts.delete(promptId);
+    pending.resolve({ behavior: 'deny', message });
+  }
+}
+
+app.post('/api/permission-bridge/request', async (req, res) => {
+  const { sessionKey, toolName, input, raw } = req.body || {};
+  const ws = activeChatSockets.get(sessionKey);
+  const promptId = crypto.randomUUID();
+
+  if (!sessionKey || !ws || ws.readyState !== WebSocket.OPEN) {
+    return res.json({ behavior: 'deny', message: 'NOVA chat is not connected for permission approval.' });
+  }
+
+  const response = await new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      pendingPermissionPrompts.delete(promptId);
+      resolve({ behavior: 'deny', message: 'NOVA permission prompt timed out.' });
+    }, PERMISSION_PROMPT_TIMEOUT_MS);
+
+    pendingPermissionPrompts.set(promptId, {
+      promptId,
+      sessionKey,
+      toolName,
+      input,
+      raw,
+      timeout,
+      resolve
+    });
+
+    const sent = sendChatJson(ws, {
+      type: 'permission',
+      promptId,
+      toolName,
+      question: permissionPromptContent(toolName, input),
+      options: permissionPromptOptions(toolName, input),
+      input,
+      raw
+    });
+
+    if (!sent) {
+      clearTimeout(timeout);
+      pendingPermissionPrompts.delete(promptId);
+      resolve({ behavior: 'deny', message: 'NOVA chat disconnected before approval prompt could be shown.' });
+    }
+  });
+
+  res.json(response);
+});
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -503,6 +651,40 @@ wss.on('connection', (ws, req) => {
     return names.length ? `export ${names.join(' ')}\r` : '';
   }
 
+  function allowedToolsArgs() {
+    return ['--allowedTools', ...CHAT_READONLY_ALLOWED_TOOLS];
+  }
+
+  function allowedToolsShellArgs() {
+    return `--allowedTools ${CHAT_READONLY_ALLOWED_TOOLS.map(shellQuote).join(' ')}`;
+  }
+
+  function permissionBridgeUrl() {
+    const address = server.address();
+    const port = address && typeof address === 'object' ? address.port : (process.env.PORT || process.env.NOVA_PORT || '3000');
+    return `http://127.0.0.1:${port}/api/permission-bridge/request`;
+  }
+
+  function permissionMcpConfig() {
+    return JSON.stringify({
+      mcpServers: {
+        nova_permission: {
+          type: 'stdio',
+          command: process.execPath,
+          args: [path.join(__dirname, 'nova-permission-mcp.js')],
+          env: {
+            NOVA_PERMISSION_BRIDGE_URL: permissionBridgeUrl(),
+            NOVA_PERMISSION_SESSION: sessionKey
+          }
+        }
+      }
+    });
+  }
+
+  function permissionPromptArgs() {
+    return ['--mcp-config', permissionMcpConfig(), '--permission-prompt-tool', 'mcp__nova_permission__approval'];
+  }
+
   // Detect prior conversation: .claude/ directory is created by the CLI when a real session runs
   const claudeDir = path.join(actualCwd, '.claude');
   const hasConversation = fs.existsSync(claudeDir) && fs.readdirSync(claudeDir).length > 0;
@@ -519,10 +701,10 @@ wss.on('connection', (ws, req) => {
 
     function buildTermCmd(withContinue) {
       if (normalizedService === 'ollama') {
-        return `ollama launch claude --model ${shellQuote(model)}${withContinue ? ' -- --continue' : ''}`;
+        return `ollama launch claude --model ${shellQuote(model)} -- ${allowedToolsShellArgs()}${withContinue ? ' --continue' : ''}`;
       }
       const continueArg = withContinue ? ' --continue' : '';
-      return `${buildTerminalExportCmd()}${shellQuote(resolveClaudeBin())} --model ${shellQuote(model)}${continueArg}`;
+      return `${buildTerminalExportCmd()}${shellQuote(resolveClaudeBin())} --model ${shellQuote(model)} ${allowedToolsShellArgs()}${continueArg}`;
     }
 
     agentProc.onData((data) => {
@@ -546,6 +728,7 @@ wss.on('connection', (ws, req) => {
     const cmd = buildTermCmd(hasConversation);
     setTimeout(() => { agentProc.write(cmd + '\r'); }, 1000);
   } else {
+      activeChatSockets.set(sessionKey, ws);
       // Just notify frontend that we're connected
       ws.send(JSON.stringify({ type: 'output', data: JSON.stringify({ type: 'system', message: `🚀 Agent '${projectName}' connected in chat mode...` }) }));
   }
@@ -553,7 +736,14 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (m) => {
     try {
       const p = JSON.parse(m);
+      if (p.type === 'permission_response') {
+        const pending = pendingPermissionPrompts.get(p.promptId);
+        if (!pending || pending.sessionKey !== sessionKey) return;
+        resolvePermissionPrompt(p.promptId, p.response);
+        return;
+      }
       if (p.type === 'input') {
+        denyPendingPermissionPrompts(sessionKey, 'A new user message was sent before the permission request was answered.');
         let dataToSend = p.data;
         
         if (isPty) {
@@ -581,11 +771,11 @@ wss.on('connection', (ws, req) => {
             function spawnChat(withContinue) {
                 if (normalizedService === 'ollama') {
                     cmd = 'ollama';
-                    args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
+                    args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages", ...allowedToolsArgs(), ...permissionPromptArgs()];
                     if (withContinue) args.push("--continue");
                 } else {
                     cmd = resolveClaudeBin();
-                    args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
+                    args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages", ...allowedToolsArgs(), ...permissionPromptArgs()];
                     if (withContinue) args.push("--continue");
                 }
 
@@ -663,7 +853,13 @@ wss.on('connection', (ws, req) => {
       console.error('[ChatProxy Exception]', e);
     }
   });
-  ws.on('close', () => { try { if(agentProc) agentProc.kill(); } catch(e) {} terminals.delete(projectName); terminals.delete(sessionKey); });
+  ws.on('close', () => {
+    try { if(agentProc) agentProc.kill(); } catch(e) {}
+    if (activeChatSockets.get(sessionKey) === ws) activeChatSockets.delete(sessionKey);
+    denyPendingPermissionPrompts(sessionKey, 'NOVA chat disconnected before the permission request was answered.');
+    terminals.delete(projectName);
+    terminals.delete(sessionKey);
+  });
 });
 
 const net = require('net');

@@ -39,6 +39,7 @@
       "electron.js",
       "preload.js",
       "server.js",
+      "nova-permission-mcp.js",
       "public/**/*",
       "workspaces/**/*",
       "package.json",

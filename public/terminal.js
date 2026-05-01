@@ -1676,12 +1676,15 @@ export function renderChatMessages(pName) {
         // Render Options (Buttons) if present
         let optionsHtml = '';
         if (m.options && m.options.length > 0) {
-            optionsHtml = `<div class="chat-options">
-                ${m.options.map(opt => `
-                    <button class="chat-option-btn" onclick="sendChatOption('${pName}', '${opt.value || opt}', ${msgIdx})">
-                        ${opt.label || opt}
-                    </button>
-                `).join('')}
+            const encodedPName = encodeURIComponent(pName);
+            optionsHtml = `<div class="chat-options ${m.promptType ? `prompt-options prompt-${escapeHtml(m.promptType)}` : ''}">
+                ${m.options.map((opt, optionIdx) => {
+                    const optionLabel = textFromUnknown(opt?.label ?? opt?.title ?? opt?.name ?? opt?.text ?? opt?.value ?? opt);
+                    return `
+                    <button class="chat-option-btn" onclick="window.sendChatOption(decodeURIComponent('${encodedPName}'), ${msgIdx}, ${optionIdx})">
+                        ${escapeHtml(optionLabel || `Option ${optionIdx + 1}`)}
+                    </button>`;
+                }).join('')}
             </div>`;
         }
 
@@ -1704,6 +1707,230 @@ function saveChatHistory(pName, messages) {
         (m.role !== 'system' || (m.content !== 'Thinking...' && m.content !== 'Processing...'))
     );
     localStorage.setItem('nova-chat-' + pName, JSON.stringify(filtered));
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function clearTransientChatState(t) {
+    const countBefore = t.chatMessages.length;
+    t.chatMessages = t.chatMessages.filter(m => {
+        if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
+        if (m.isProcessingGap) return false;
+        return true;
+    });
+
+    if (t.gapTimer) {
+        clearTimeout(t.gapTimer);
+        delete t.gapTimer;
+    }
+
+    return t.chatMessages.length !== countBefore;
+}
+
+function textFromUnknown(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) {
+        return value
+            .map(item => textFromUnknown(item))
+            .filter(Boolean)
+            .join('\n');
+    }
+    if (typeof value === 'object') {
+        return textFromUnknown(
+            value.text ??
+            value.content ??
+            value.message ??
+            value.label ??
+            value.title ??
+            value.name ??
+            value.description ??
+            ''
+        );
+    }
+    return String(value);
+}
+
+function firstPresent(...values) {
+    return values.find(value => value !== undefined && value !== null && value !== '');
+}
+
+function promptOptionFromEntry(option, index) {
+    if (option == null) return null;
+
+    if (typeof option !== 'object') {
+        const value = String(option);
+        return { label: value, value };
+    }
+
+    const label = textFromUnknown(firstPresent(
+        option.label,
+        option.title,
+        option.name,
+        option.text,
+        option.content,
+        option.description,
+        option.display,
+        option.value,
+        option.id,
+        `Option ${index + 1}`
+    ));
+
+    const value = firstPresent(
+        option.value,
+        option.response,
+        option.id,
+        option.name,
+        option.text,
+        option.label,
+        label
+    );
+
+    const promptOption = {
+        label: label || `Option ${index + 1}`,
+        value
+    };
+
+    const payload = firstPresent(
+        option.payload,
+        option.input,
+        option.data,
+        option.message,
+        option.result
+    );
+    if (payload !== undefined) promptOption.payload = payload;
+    promptOption.raw = option;
+
+    return promptOption;
+}
+
+function normalizePromptOptions(source) {
+    if (!source) return [];
+
+    if (Array.isArray(source)) {
+        return source
+            .map((option, index) => promptOptionFromEntry(option, index))
+            .filter(Boolean);
+    }
+
+    if (typeof source === 'object') {
+        return Object.entries(source)
+            .map(([key, value], index) => {
+                if (value && typeof value === 'object') {
+                    return promptOptionFromEntry({ id: key, ...value }, index);
+                }
+                return promptOptionFromEntry({ label: textFromUnknown(value) || key, value: key }, index);
+            })
+            .filter(Boolean);
+    }
+
+    return [promptOptionFromEntry(source, 0)].filter(Boolean);
+}
+
+function normalizeDynamicPrompt(parsed) {
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const promptType = parsed.type || parsed.subtype || '';
+    const isPromptEvent =
+        promptType === 'permission' ||
+        promptType === 'userInput' ||
+        promptType === 'input' ||
+        Boolean(parsed.choices || parsed.options || parsed.actions || parsed.buttons);
+
+    if (!isPromptEvent) return null;
+
+    const optionSource =
+        parsed.choices ??
+        parsed.options ??
+        parsed.actions ??
+        parsed.buttons ??
+        parsed.permission?.choices ??
+        parsed.permission?.options ??
+        parsed.request?.choices ??
+        parsed.request?.options;
+
+    let options = normalizePromptOptions(optionSource);
+
+    // Last-resort fallback only for malformed permission events.
+    if (options.length === 0 && promptType === 'permission') {
+        options = [
+            { label: 'Allow', value: 'allow' },
+            { label: 'Deny', value: 'deny' }
+        ];
+    }
+
+    if (options.length === 0) return null;
+
+    const toolName = textFromUnknown(firstPresent(
+        parsed.tool_name,
+        parsed.toolName,
+        parsed.name,
+        parsed.tool?.name,
+        parsed.permission?.tool_name,
+        parsed.request?.tool_name
+    ));
+
+    const promptText = textFromUnknown(firstPresent(
+        parsed.question,
+        parsed.prompt,
+        parsed.message,
+        parsed.description,
+        parsed.reason,
+        parsed.content,
+        parsed.permission?.message,
+        parsed.request?.message
+    ));
+
+    const content = promptText ||
+        (toolName ? `Permission required for ${toolName}. Please choose an option:` : 'Please choose an option:');
+
+    return {
+        role: 'assistant',
+        content,
+        options,
+        promptType: promptType || 'choice',
+        promptId: parsed.promptId || parsed.prompt_id || parsed.id || parsed.permission?.promptId || parsed.request?.promptId,
+        toolName: toolName || undefined,
+        rawPrompt: parsed
+    };
+}
+
+function getPromptOptionPayload(option) {
+    if (!option) return '';
+    if (Object.prototype.hasOwnProperty.call(option, 'payload')) return option.payload;
+    return firstPresent(option.value, option.label);
+}
+
+function getPromptOptionSendValue(option) {
+    if (!option) return '';
+    const value = getPromptOptionPayload(option);
+
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return JSON.stringify(value);
+}
+
+function addDynamicPromptMessage(t, pName, promptMessage) {
+    clearTransientChatState(t);
+    t.chatMessages.push(promptMessage);
+
+    const robot = state.walkingRobots[pName];
+    if (robot) {
+        robot.isThinking = false;
+        renderRobots();
+    }
+
+    saveChatHistory(pName, t.chatMessages);
+    renderChatMessages(pName);
 }
 
 window.toggleThinkingPill = function(pName, msgIdx) {
@@ -2405,10 +2632,12 @@ window.monitorResponseGaps = function(pName) {
 
 export function handleChatJsonEvent(t, pName, parsed) {
     if (!parsed) return;
-    
-    // Silently ignore events that should never render as chat bubbles
-    const IGNORED_TYPES = ['permission'];
-    if (IGNORED_TYPES.includes(parsed.type)) return;
+
+    const dynamicPrompt = normalizeDynamicPrompt(parsed);
+    if (dynamicPrompt) {
+        addDynamicPromptMessage(t, pName, dynamicPrompt);
+        return;
+    }
 
     // Handle top-level error events (e.g. {"type":"error","error":{"type":"rate_limit_error","message":"..."}})
     if (parsed.type === 'error') {
@@ -2486,6 +2715,12 @@ export function handleChatJsonEvent(t, pName, parsed) {
     if (parsed.type === 'stream_event') {
         const event = parsed.event || parsed;
         const subtype = event.subtype || event.type || '';
+
+        const streamPrompt = normalizeDynamicPrompt(event);
+        if (streamPrompt) {
+            addDynamicPromptMessage(t, pName, streamPrompt);
+            return;
+        }
         
         // content_block_start with tool_use → agent is starting a tool
         if (subtype === 'content_block_start' && event.content_block?.type === 'tool_use') {
@@ -2628,21 +2863,7 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
     // helper to remove temporary status pills and processing indicators
     const clearStatusPills = () => {
-        const countBefore = t.chatMessages.length;
-        t.chatMessages = t.chatMessages.filter(m => {
-            // Remove system pills and processing gap indicators
-            if (m.role === 'system' && (m.content === 'Thinking...' || m.content === 'Processing...')) return false;
-            if (m.isProcessingGap) return false;
-            return true;
-        });
-        
-        // Clear gap timer when clearing pills
-        if (t.gapTimer) {
-            clearTimeout(t.gapTimer);
-            delete t.gapTimer;
-        }
-        
-        return t.chatMessages.length !== countBefore;
+        return clearTransientChatState(t);
     };
 
     let lastMsg = t.chatMessages[t.chatMessages.length - 1];
@@ -2860,18 +3081,8 @@ export function handleChatJsonEvent(t, pName, parsed) {
     }
     // 4. Handle Programmatic Input Requests (Interactive Choices)
     if (parsed.type === "userInput" || (parsed.type === "input" && parsed.choices)) {
-        clearStatusPills();
-        const question = parsed.question || "Please select an option:";
-        const choices = parsed.choices || parsed.options || [];
-        
-        t.chatMessages.push({
-            role: 'assistant',
-            content: question,
-            options: choices
-        });
-        
-        saveChatHistory(pName, t.chatMessages);
-        renderChatMessages(pName);
+        const promptMessage = normalizeDynamicPrompt(parsed);
+        if (promptMessage) addDynamicPromptMessage(t, pName, promptMessage);
         return;
     }
 
@@ -2890,22 +3101,45 @@ export function handleChatJsonEvent(t, pName, parsed) {
 
 
 
-window.sendChatOption = function(pName, value, msgIdx) {
+window.sendChatOption = function(pName, msgIdx, optionIdx) {
     const t = state.terminals[pName];
     if (!t || !t.chatWs || t.chatWs.readyState !== WebSocket.OPEN) return;
 
+    const msg = t.chatMessages[msgIdx];
+    const rawOption = msg && Array.isArray(msg.options) ? msg.options[optionIdx] : null;
+    const option = rawOption && typeof rawOption === 'object'
+        ? rawOption
+        : (rawOption != null ? { label: String(rawOption), value: String(rawOption) } : null);
+    if (!option) return;
+
+    const displayValue = option.label || textFromUnknown(option.value) || `Option ${optionIdx + 1}`;
+    const responsePayload = getPromptOptionPayload(option);
+    const sendValue = getPromptOptionSendValue(option);
+    if (!sendValue && !responsePayload) return;
+
     // 1. Remove options from UI to prevent re-click
-    if (t.chatMessages[msgIdx]) {
-        delete t.chatMessages[msgIdx].options;
+    if (msg) {
+        msg.selectedOption = displayValue;
+        delete msg.options;
     }
 
     // 2. Add user response bubble
-    t.chatMessages.push({ role: 'user', content: value });
+    t.chatMessages.push({ role: 'user', content: displayValue });
     t.chatMessages.push({ role: 'system', content: 'Thinking...' });
     
     renderChatMessages(pName);
     saveChatHistory(pName, t.chatMessages);
 
+    if (msg.promptId) {
+        t.chatWs.send(JSON.stringify({
+            type: 'permission_response',
+            promptId: msg.promptId,
+            response: responsePayload,
+            label: displayValue
+        }));
+        return;
+    }
+
     // 3. Send to Agent as raw string
-    t.chatWs.send(JSON.stringify({ type: 'input', data: value.toString() + '\n' }));
+    t.chatWs.send(JSON.stringify({ type: 'input', data: sendValue + '\n' }));
 };
