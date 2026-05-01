@@ -453,7 +453,7 @@ app.post('/api/open-in-finder', (req, res) => {
 });
 
 const terminals = new Map();
-const CHAT_READONLY_ALLOWED_TOOLS = ['WebSearch', 'WebFetch'];
+const CHAT_READONLY_ALLOWED_TOOLS = ['WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep', 'LS'];
 const PERMISSION_PROMPT_TIMEOUT_MS = 5 * 60 * 1000;
 const activeChatSockets = new Map();
 const pendingPermissionPrompts = new Map();

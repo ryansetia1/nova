@@ -101,8 +101,7 @@ rl.on('line', async line => {
 
       const decision = await requestPermission(args);
       result(message.id, {
-        content: [{ type: 'text', text: JSON.stringify(decision) }],
-        structuredContent: decision
+        content: [{ type: 'text', text: JSON.stringify(decision) }]
       });
       return;
     }
@@ -112,8 +111,7 @@ rl.on('line', async line => {
     const decision = { behavior: 'deny', message: `NOVA permission bridge error: ${err.message}` };
     if (message.method === 'tools/call') {
       result(message.id, {
-        content: [{ type: 'text', text: JSON.stringify(decision) }],
-        structuredContent: decision
+        content: [{ type: 'text', text: JSON.stringify(decision) }]
       });
     } else {
       error(message.id, -32603, err.message);
