@@ -692,14 +692,64 @@ export function initClaudeMdModal() {
 // Switch Service & Model Modal
 // ============================================
 let activeSwitchService = 'ollama';
+let switchModelLoadRequestId = 0;
+const SUMO_BASE_URL = 'https://ai.sumopod.com';
+
+function isOpenOrConnecting(ws) {
+    return ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING);
+}
+
+function closeWs(ws) {
+    if (!isOpenOrConnecting(ws)) return;
+    try { ws.close(); } catch(e) {}
+}
+
+function reconnectTerminalAfterServiceSwitch(pName, tState) {
+    const activeMode = tState.activeMode || 'chat';
+    const wsKey = activeMode === 'chat' ? 'chatWs' : 'termWs';
+
+    showToast('info', '🔄', `Restarting ${activeMode === 'chat' ? 'chat' : 'terminal'} with new service settings...`);
+
+    // Close both sockets so inactive modes cannot keep stale service/model settings.
+    closeWs(tState.chatWs);
+    closeWs(tState.termWs);
+    tState.chatWs = null;
+    tState.termWs = null;
+    tState.ready = false;
+    tState.jsonBuffer = '';
+
+    if (activeMode === 'terminal' && tState.term) {
+        try { tState.term.reset(); } catch(e) {}
+        tState._termClean = false;
+    }
+
+    setTimeout(() => {
+        if (!state.terminals[pName] || typeof tState.setupModeWs !== 'function') return;
+        tState.setupModeWs(activeMode);
+
+        const startedAt = Date.now();
+        const readyTimer = setInterval(() => {
+            const ws = tState[wsKey];
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                clearInterval(readyTimer);
+                showToast('success', '✓', `${activeMode === 'chat' ? 'Chat' : 'Terminal'} is ready with the new model`);
+            } else if (Date.now() - startedAt > 5000) {
+                clearInterval(readyTimer);
+                showToast('error', '⚠️', 'Reconnect is taking longer than expected');
+            }
+        }, 200);
+    }, 400);
+}
 
 async function loadModelsForSwitchService(service, defaultModel) {
     const select = dom.switchModelSelect;
     if (!select) return;
+    const requestId = ++switchModelLoadRequestId;
     select.innerHTML = '<option value="">Loading...</option>';
     
     try {
         const models = await getModelsForService(service);
+        if (requestId !== switchModelLoadRequestId || service !== activeSwitchService) return;
         select.innerHTML = '';
         
         models.forEach(m => {
@@ -730,6 +780,7 @@ async function loadModelsForSwitchService(service, defaultModel) {
             dom.switchCustomModelInput.classList.add('hidden');
         }
     } catch(err) {
+        if (requestId !== switchModelLoadRequestId) return;
         select.innerHTML = '<option value="">Failed to load models</option>';
     }
 }
@@ -753,6 +804,7 @@ export function openSwitchServiceModal(pName) {
         dom.switchApiKeyGroup.classList.remove('hidden');
         dom.switchBaseUrlGroup.classList.add('hidden');
         dom.switchApiKeyInput.value = project.apiKey || localStorage.getItem('nova_sumo_api_key') || '';
+        dom.switchBaseUrlInput.value = '';
     } else if (activeSwitchService === 'custom') {
         dom.switchServiceConfigFields.classList.remove('hidden');
         dom.switchApiKeyGroup.classList.remove('hidden');
@@ -786,6 +838,7 @@ export function initSwitchServiceModal() {
                 dom.switchServiceConfigFields.classList.remove('hidden');
                 dom.switchApiKeyGroup.classList.remove('hidden');
                 dom.switchBaseUrlGroup.classList.add('hidden');
+                dom.switchBaseUrlInput.value = '';
                 const savedKey = localStorage.getItem('nova_sumo_api_key');
                 if (savedKey) dom.switchApiKeyInput.value = savedKey;
                 else dom.switchApiKeyInput.value = '';
@@ -801,6 +854,8 @@ export function initSwitchServiceModal() {
                 else dom.switchBaseUrlInput.value = '';
             } else {
                 dom.switchServiceConfigFields.classList.add('hidden');
+                dom.switchApiKeyInput.value = '';
+                dom.switchBaseUrlInput.value = '';
             }
             loadModelsForSwitchService(activeSwitchService);
         });
@@ -832,15 +887,24 @@ export function initSwitchServiceModal() {
         const newModel = rawModel === '__custom__' ? dom.switchCustomModelInput.value.trim() : rawModel;
         const newApiKey = dom.switchApiKeyInput.value.trim();
         const newBaseUrl = dom.switchBaseUrlInput.value.trim();
+        const needsApiKey = activeSwitchService === 'sumo' || activeSwitchService === 'custom';
+        const payloadApiKey = needsApiKey ? newApiKey : '';
+        const payloadBaseUrl = activeSwitchService === 'sumo'
+            ? SUMO_BASE_URL
+            : (activeSwitchService === 'custom' ? newBaseUrl : '');
 
         if (!newModel) return showToast('error', '❌', 'Please enter a model name');
+        if (needsApiKey && !newApiKey) return showToast('error', '❌', 'API key required for this service');
+        if (activeSwitchService === 'custom' && !/^https?:\/\/.+/i.test(newBaseUrl)) {
+            return showToast('error', '❌', 'Custom Base URL must start with http:// or https://');
+        }
 
         // Save secrets locally
-        if (activeSwitchService === 'sumo' && newApiKey) {
-            localStorage.setItem('nova_sumo_api_key', newApiKey);
+        if (activeSwitchService === 'sumo') {
+            localStorage.setItem('nova_sumo_api_key', payloadApiKey);
         } else if (activeSwitchService === 'custom') {
-            if (newApiKey) localStorage.setItem('nova_custom_api_key', newApiKey);
-            if (newBaseUrl) localStorage.setItem('nova_custom_base_url', newBaseUrl);
+            localStorage.setItem('nova_custom_api_key', payloadApiKey);
+            localStorage.setItem('nova_custom_base_url', payloadBaseUrl);
         }
 
         dom.switchServiceSaveBtn.disabled = true;
@@ -852,8 +916,8 @@ export function initSwitchServiceModal() {
                     name: pName, 
                     service: activeSwitchService,
                     model: newModel,
-                    apiKey: newApiKey || undefined,
-                    baseUrl: newBaseUrl || undefined
+                    apiKey: payloadApiKey,
+                    baseUrl: payloadBaseUrl
                 })
             });
             
@@ -862,8 +926,8 @@ export function initSwitchServiceModal() {
             // Meta updated. Let's restart the terminal!
             project.service = activeSwitchService;
             project.model = newModel;
-            if (newApiKey) project.apiKey = newApiKey;
-            if (newBaseUrl) project.baseUrl = newBaseUrl;
+            project.apiKey = payloadApiKey;
+            project.baseUrl = payloadBaseUrl;
 
             // Update badge text & custom tooltip
             const badge = tState.panel.querySelector('.terminal-project-badge');
@@ -874,49 +938,7 @@ export function initSwitchServiceModal() {
             }
 
             closeSwitchServiceModal();
-            
-            // Execute restart
-            if (tState.ws && tState.ws.readyState === WebSocket.OPEN) {
-                showToast('info', '🔄', 'Restarting Agent Process...');
-                
-                // 1. Send exit to currently running process
-                tState.ws.send(JSON.stringify({ type: 'input', data: '/exit\r' }));
-                
-                setTimeout(() => {
-                    if (tState.ws.readyState !== WebSocket.OPEN) return;
-
-                    // 1.5 Send Ctrl+C interrupt to ensure shell is ready/clear any stuck prompt
-                    tState.ws.send(JSON.stringify({ type: 'input', data: '\x03' }));
-
-                    setTimeout(() => {
-                        let cmd = '';
-                        // 2. Export environment variables if needed
-                        // Use single quotes to prevent shell expansion of special characters in keys
-                        if (activeSwitchService === 'sumo') {
-                            cmd += `export ANTHROPIC_API_KEY='${newApiKey}' ANTHROPIC_BASE_URL='https://ai.sumopod.com'\r`;
-                        } else if (activeSwitchService === 'custom') {
-                            cmd += `export ANTHROPIC_API_KEY='${newApiKey}' ANTHROPIC_BASE_URL='${newBaseUrl}'\r`;
-                        }
-                        
-                        // 3. Launch Command
-                        if (activeSwitchService === 'claude' || activeSwitchService === 'sumo' || activeSwitchService === 'custom') {
-                            cmd += `claude --continue\r`;
-                        } else {
-                            cmd += `ollama launch claude --model ${newModel} -- --continue\r`;
-                        }
-                        
-                        tState.ws.send(JSON.stringify({ type: 'input', data: cmd }));
-                        
-                        // 4. Force inject model command after it boots
-                        setTimeout(() => {
-                            if (tState.ws.readyState === WebSocket.OPEN) {
-                                tState.ws.send(JSON.stringify({ type: 'input', data: `/model ${newModel}\r` }));
-                            }
-                        }, 3500);
-                    }, 500); // 500ms after Ctrl+C
-
-                }, 2000); // give exit 2s to close
-            }
+            reconnectTerminalAfterServiceSwitch(pName, tState);
 
         } catch (err) {
             showToast('error', '❌', 'Failed to update service settings');

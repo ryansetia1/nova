@@ -313,10 +313,10 @@ app.post('/api/update-emoji', (req, res) => {
     let meta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, 'utf8')) : { name };
     if (emoji) meta.emoji = emoji;
     if (nickname) meta.nickname = nickname;
-    if (model) meta.model = model;
-    if (service) meta.service = service;
-    if (apiKey !== undefined) meta.apiKey = apiKey;
-    if (baseUrl !== undefined) meta.baseUrl = baseUrl;
+    if (model !== undefined) meta.model = model;
+    if (service !== undefined) meta.service = service;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'apiKey')) meta.apiKey = apiKey || '';
+    if (Object.prototype.hasOwnProperty.call(req.body, 'baseUrl')) meta.baseUrl = baseUrl || '';
     if (uiMode !== undefined) meta.uiMode = uiMode;
     if (isDocked !== undefined) meta.isDocked = isDocked;
     if (isOpen !== undefined) meta.isOpen = isOpen;
@@ -477,7 +477,31 @@ wss.on('connection', (ws, req) => {
   const sessionKey = `${projectName}-${uiMode}`;
   if (terminals.has(sessionKey)) { terminals.get(sessionKey).kill(); terminals.delete(sessionKey); }
 
-  const commonEnv = { ...process.env, ANTHROPIC_API_KEY: apiKey, ANTHROPIC_BASE_URL: baseUrl, LANG: 'en_US.UTF-8' };
+  const normalizedService = ['ollama', 'claude', 'sumo', 'custom'].includes(service) ? service : 'ollama';
+  const isClaudeCompatibleService = ['claude', 'sumo', 'custom'].includes(normalizedService);
+  const resolvedBaseUrl = normalizedService === 'sumo'
+    ? 'https://ai.sumopod.com'
+    : (isClaudeCompatibleService ? baseUrl : '');
+  const commonEnv = { ...process.env, LANG: 'en_US.UTF-8' };
+  if (apiKey) commonEnv.ANTHROPIC_API_KEY = apiKey;
+  if (resolvedBaseUrl) commonEnv.ANTHROPIC_BASE_URL = resolvedBaseUrl;
+
+  function shellQuote(value) {
+    return `'${String(value || '').replace(/'/g, `'\\''`)}'`;
+  }
+
+  function resolveClaudeBin() {
+    const binPath = path.join(os.homedir(), '.local', 'bin', 'claude');
+    return fs.existsSync(binPath) ? binPath : 'claude';
+  }
+
+  function buildTerminalExportCmd() {
+    if (!isClaudeCompatibleService) return '';
+    const names = [];
+    if (apiKey) names.push('ANTHROPIC_API_KEY');
+    if (resolvedBaseUrl) names.push('ANTHROPIC_BASE_URL');
+    return names.length ? `export ${names.join(' ')}\r` : '';
+  }
 
   // Detect prior conversation: .claude/ directory is created by the CLI when a real session runs
   const claudeDir = path.join(actualCwd, '.claude');
@@ -494,11 +518,11 @@ wss.on('connection', (ws, req) => {
     let retried = false;
 
     function buildTermCmd(withContinue) {
-      const binName = service === 'claude' ? 'claude' : service;
-      if (service === 'ollama') {
-        return `ollama launch claude --model ${model}${withContinue ? ' -- --continue' : ''}`;
+      if (normalizedService === 'ollama') {
+        return `ollama launch claude --model ${shellQuote(model)}${withContinue ? ' -- --continue' : ''}`;
       }
-      return `${binName}${withContinue ? ' --continue' : ` --model ${model}`}`;
+      const continueArg = withContinue ? ' --continue' : '';
+      return `${buildTerminalExportCmd()}${shellQuote(resolveClaudeBin())} --model ${shellQuote(model)}${continueArg}`;
     }
 
     agentProc.onData((data) => {
@@ -555,14 +579,12 @@ wss.on('connection', (ws, req) => {
             const chatHasConv = fs.existsSync(claudeDir) && fs.readdirSync(claudeDir).length > 0;
 
             function spawnChat(withContinue) {
-                if (service === 'ollama') {
+                if (normalizedService === 'ollama') {
                     cmd = 'ollama';
                     args = ["launch", "claude", "--model", model, "--", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
                     if (withContinue) args.push("--continue");
                 } else {
-                    const binName = service === 'claude' ? 'claude' : service;
-                    const binPath = path.join(os.homedir(), '.local', 'bin', binName);
-                    cmd = fs.existsSync(binPath) ? binPath : binName;
+                    cmd = resolveClaudeBin();
                     args = ["-p", "--model", model, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
                     if (withContinue) args.push("--continue");
                 }

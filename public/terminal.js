@@ -63,7 +63,8 @@ export function hideTerminal(pName) {
 export function disposeTerminal(pName) {
     const t = state.terminals[pName];
     if (!t) return;
-    try { t.ws.close(); } catch(e) {}
+    try { if (t.chatWs) t.chatWs.close(); } catch(e) {}
+    try { if (t.termWs) t.termWs.close(); } catch(e) {}
     try { t.term.dispose(); } catch(e) {}
 
     // Clear uploads panel if exists
@@ -986,8 +987,9 @@ export function renderActivityBar(pName, panel = null) {
                 showToast('success', pos.emoji || '☕', `Heading to ${pos.animation} spot...`);
                 
                 // Send command if any
-                if (pos.command && t && t.ws && t.ws.readyState === WebSocket.OPEN) {
-                    t.ws.send(JSON.stringify({ type: 'input', data: pos.command + '\r' }));
+                const activeWs = t?.activeMode === 'chat' ? t.chatWs : t?.termWs;
+                if (pos.command && activeWs && activeWs.readyState === WebSocket.OPEN) {
+                    activeWs.send(JSON.stringify({ type: 'input', data: pos.command + '\r' }));
                 }
             }
             renderActivityBar(pName);
